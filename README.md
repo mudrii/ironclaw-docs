@@ -11,8 +11,9 @@
 
 | Document | Lines | Description |
 |----------|------:|-------------|
+| [INSTALLATION.md](INSTALLATION.md) | 600+ | Installation, configuration, service setup, troubleshooting |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 862 | Master architecture: modules, data flows, diagrams |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | 909 | Build, install, configure, run as macOS/Linux service |
+| [DEVELOPER-REFERENCE.md](DEVELOPER-REFERENCE.md) | 1065 | Developer reference: errors, config, code review patterns |
 | [analysis/agent.md](analysis/agent.md) | 890 | Agent loop, sessions, jobs, routines, heartbeat, cost guard |
 | [analysis/channels.md](analysis/channels.md) | 815 | REPL, web gateway, HTTP, WASM, webhook channels + full API routes |
 | [analysis/cli.md](analysis/cli.md) | 492 | CLI subcommands, doctor, service manager, MCP, registry |
@@ -73,7 +74,7 @@ DATABASE_BACKEND=libsql
 LLM_BACKEND=openai
 OPENAI_API_KEY=sk-proj-...
 GATEWAY_ENABLED=true
-GATEWAY_PORT=3002
+GATEWAY_PORT=3000
 GATEWAY_AUTH_TOKEN=<run: openssl rand -hex 32>
 CLI_ENABLED=false
 RUST_LOG=ironclaw=info
@@ -83,10 +84,10 @@ EOF
 ironclaw --no-onboard
 
 # Test
-curl http://127.0.0.1:3002/api/health
+curl http://127.0.0.1:3000/api/health
 ```
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for macOS LaunchAgent, Linux systemd, all LLM backends, and troubleshooting.
+See [INSTALLATION.md](INSTALLATION.md) for complete setup, all LLM backends, service configuration, and troubleshooting.
 
 ---
 
