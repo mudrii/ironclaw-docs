@@ -1,6 +1,6 @@
 # IronClaw — Master Architecture Document
 
-> Updated: 2026-02-21 (v0.7.0) | Comprehensive reference for contributors
+> Updated: 2026-02-21 (v0.9.0) | Comprehensive reference for contributors
 
 ---
 
@@ -807,7 +807,7 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | Module | Directory | `.rs` Files |
 |--------|-----------|------------|
 | `agent` | `src/agent/` | 21 |
-| `channels` | `src/channels/` | 33 |
+| `channels` | `src/channels/` | 35+ |
 | `cli` | `src/cli/` | 11 |
 | `config` | `src/config/` | 17 |
 | `context` | `src/context/` | 4 |
@@ -827,11 +827,13 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | `secrets` | `src/secrets/` | 5 |
 | `setup` | `src/setup/` | 4 |
 | `skills` | `src/skills/` | 7 |
-| `tools` | `src/tools/` | 39 |
+| `tools` | `src/tools/` | 45+ |
 | `tunnel` | `src/tunnel/` | 6 |
 | `worker` | `src/worker/` | 5 |
 | `workspace` | `src/workspace/` | 7 |
-| **Top-level files** | `src/*.rs` | 8 (`main.rs`, `lib.rs`, `app.rs`, `bootstrap.rs`, `service.rs`, `error.rs`, `settings.rs`, `util.rs`, `boot_screen.rs`, `testing.rs`, `tracing_fmt.rs`) |
+| **Top-level files** | `src/*.rs` | 11 (`main.rs`, `lib.rs`, `app.rs`, `bootstrap.rs`, `service.rs`, `error.rs`, `settings.rs`, `util.rs`, `boot_screen.rs`, `testing.rs`, `tracing_fmt.rs`) |
+
+> **Note**: File counts updated for v0.9.0. The tools module now includes 12 files in `builtin/`, 13 files in `wasm/`, and additional builder/mcp files.
 
 The `tools` module is the largest at 39 files, reflecting the breadth of the tool system: 4 built-in tool categories, a full WASM runtime (8 files), an MCP client (2+ files), a software builder (4 files), and the registry and trait definitions. The `channels` module at 33 files is next, encompassing the full TUI implementation (5 files under `cli/`), the web gateway (7 files under `web/`), the WASM channel runtime (3 files under `wasm/`), and the channel trait infrastructure. The `agent` module at 21 files reflects the complexity of the orchestration layer: 20+ distinct concerns from session management through self-repair to routine scheduling.
 

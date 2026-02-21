@@ -1,6 +1,6 @@
 # IronClaw — Deployment & Operations Guide
 
-> Version: v0.7.0 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel)
+> Version: v0.9.0 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel)
 
 This guide covers building IronClaw from source, installing it, configuring it, and
 running it as a persistent background service on macOS and Linux.
@@ -166,12 +166,14 @@ LLM_BACKEND=openai
 # --- OpenAI ---
 OPENAI_API_KEY=sk-proj-...
 OPENAI_MODEL=gpt-4o
-# Other models: gpt-4-turbo, gpt-4o-mini, o1, o1-mini, o3-mini
+# Other models: gpt-4-turbo, gpt-4o-mini, o1, o1-mini, o3-mini, o4-mini
+# GPT-5 family: gpt-5.3-codex, gpt-5.3, gpt-5.2, gpt-5.1, gpt-5.0
 
 # --- Anthropic ---
 # LLM_BACKEND=anthropic
 # ANTHROPIC_API_KEY=sk-ant-api03-...
-# ANTHROPIC_MODEL=claude-opus-4-5
+# ANTHROPIC_MODEL=claude-opus-4-5-20250514
+# Claude 4.x series: claude-opus-4-5, claude-sonnet-4-6, claude-haiku-4-5
 # Note: sk-ant-oat01-* OAuth tokens do NOT work here (see Known Issues)
 
 # --- NEAR AI (default) ---
@@ -223,6 +225,15 @@ AGENT_MAX_PARALLEL_JOBS=3
 
 # Per-job timeout in seconds (3600 = 1 hour)
 AGENT_JOB_TIMEOUT_SECS=3600
+
+# Maximum tool-call iterations per agentic loop invocation (default: 50)
+AGENT_MAX_TOOL_ITERATIONS=50
+
+# Skip tool approval checks entirely. For benchmarks/CI (default: false)
+# AGENT_AUTO_APPROVE_TOOLS=false
+
+# Enable planning phase before tool execution (default: false)
+# AGENT_USE_PLANNING=false
 
 ##############################################
 # WEB GATEWAY
@@ -913,4 +924,19 @@ curl http://127.0.0.1:3002/api/health
 
 ---
 
-*Generated from deployment experience on macOS 15 (Apple Silicon) with IronClaw v0.7.0, libSQL backend, OpenAI gpt-4o, launchd service.*
+## What's New in v0.9.0
+
+### v0.9.0 (2026-02-21)
+- **TEE Attestation Shield**: Hardware-attested TEEs for enhanced security in web gateway UI
+- **Configurable Tool Iterations**: `AGENT_MAX_TOOL_ITERATIONS` setting (default: 50)
+- **Auto-Approve Tools**: `AGENT_AUTO_APPROVE_TOOLS` for CI/benchmarking
+- **Planning Phase**: `AGENT_USE_PLANNING` for pre-execution planning
+- **X-Accel-Buffering**: SSE endpoint performance improvements
+
+### v0.8.0 (2026-02-20)
+- **Extension Registry**: Metadata catalog with onboarding integration
+- **New LLM Models**: GPT-5.3 Codex, GPT-5.x family, Claude 4.x series, o4-mini
+- **Memory Hygiene**: Automatic memory cleanup in heartbeat loop
+- **Parallel Tool Execution**: JoinSet-based concurrent tool calls
+
+*Generated from deployment experience on macOS 15 (Apple Silicon) with IronClaw v0.9.0, libSQL backend, OpenAI gpt-4o, launchd service.*

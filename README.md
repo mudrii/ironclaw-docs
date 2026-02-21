@@ -1,6 +1,6 @@
 # IronClaw Documentation
 
-> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.7.0
+> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.9.0
 > — a secure, self-hosted personal AI assistant written in Rust.
 
 **15 documents · 10,133 lines · 242 source files analyzed · ~107K lines of Rust**
@@ -39,19 +39,19 @@ IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.a
 - **Multiple LLM backends**: NEAR AI, Anthropic, OpenAI, Ollama, OpenAI-compatible, Tinfoil
 - **Dual database**: libSQL (embedded, no server required) or PostgreSQL (with pgvector)
 
-### Source Module Statistics (v0.7.0)
+### Source Module Statistics (v0.9.0)
 
 | Module | Files | Description |
 |--------|------:|-------------|
-| `tools/` | 39 | Tool system: built-in, MCP, WASM, dynamic builder |
-| `channels/` | 33 | Channels: REPL, web gateway, HTTP, WASM plugins |
+| `tools/` | 45+ | Tool system: built-in, MCP, WASM, dynamic builder |
+| `channels/` | 35+ | Channels: REPL, web gateway, HTTP, WASM plugins, TUI |
 | `agent/` | 21 | Agent runtime: loop, sessions, jobs, routines, heartbeat |
-| `config/` | 13 | Configuration: all env vars and structs |
+| `config/` | 17 | Configuration: all env vars and structs |
 | `workspace/` | 7 | Memory, embeddings, hybrid FTS+vector search |
 | `tunnel/` | 6 | Tunnels: cloudflare, ngrok, tailscale, custom |
 | `secrets/` | 5 | Keychain, AES-256-GCM crypto, credential injection |
 | `worker/` | 5 | Docker worker: runtime, LLM bridge, proxy |
-| **Total** | **242** | ~107,000 lines of Rust |
+| **Total** | **260+** | ~115,000 lines of Rust |
 
 ---
 
@@ -90,9 +90,26 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for macOS LaunchAgent, Linux systemd, all LLM
 
 ---
 
+## What's New in v0.9.0
+
+### v0.9.0 (2026-02-21)
+- **TEE Attestation Shield**: Added hardware-attested TEEs for enhanced security in web gateway UI
+- **Configurable Tool Iterations**: New `AGENT_MAX_TOOL_ITERATIONS` setting for agentic loop control
+- **Auto-Approve Tools**: New `AGENT_AUTO_APPROVE_TOOLS` for CI/benchmarking
+- **X-Accel-Buffering**: SSE endpoint performance improvements
+
+### v0.8.0 (2026-02-20)
+- **Extension Registry**: New metadata catalog with onboarding integration
+- **New LLM Models**: GPT-5.3 Codex, GPT-5.x family, Claude 4.x series, o4-mini
+- **Memory Hygiene**: Wired memory cleanup into heartbeat loop
+- **Parallel Tool Execution**: JoinSet-based concurrent tool calls
+- **Approval Improvements**: Multi-tool approval resume flow
+
+---
+
 ## Version
 
-Documented: IronClaw v0.7.0
+Documented: IronClaw v0.9.0
 Source: [github.com/nearai/ironclaw](https://github.com/nearai/ironclaw)
 Docs repo: [github.com/mudrii/ironclaw-docs](https://github.com/mudrii/ironclaw-docs)
 Generated: 2026-02-21

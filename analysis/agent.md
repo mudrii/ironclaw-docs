@@ -1,6 +1,6 @@
 # IronClaw Agent Runtime System — Deep Dive
 
-**Version:** v0.7.0
+**Version:** v0.9.0
 **Source tree:** `src/agent/` (21 files)
 **Last updated:** 2026-02-21
 
