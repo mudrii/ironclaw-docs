@@ -81,6 +81,7 @@ default is possible.
 | `LLM_BASE_URL` | string | — | If `LLM_BACKEND=openai_compatible` | Base URL for OpenAI-compatible endpoint |
 | `LLM_API_KEY` | secret | — | No | API key for OpenAI-compatible endpoint |
 | `LLM_MODEL` | string | `default` | No | Model name for OpenAI-compatible endpoint |
+| `LLM_EXTRA_HEADERS` | string | — | No | Extra HTTP headers for OpenAI-compatible provider. Format: `Key:Value,Key2:Value2` |
 | `TINFOIL_API_KEY` | secret | — | If `LLM_BACKEND=tinfoil` | Tinfoil private inference API key |
 | `TINFOIL_MODEL` | string | `kimi-k2-5` | No | Tinfoil model name |
 | **LLM Resilience** | | | | |
