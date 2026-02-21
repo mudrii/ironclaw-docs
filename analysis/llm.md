@@ -13,15 +13,14 @@
 3. [Supported Backends](#3-supported-backends)
 4. [Reliability Wrapper Chain](#4-reliability-wrapper-chain)
 5. [Smart Routing Provider](#5-smart-routing-provider)
-6. [NEAR AI — Responses API](#6-near-ai--responses-api)
-7. [NEAR AI — Chat Completions](#7-near-ai--chat-completions)
-8. [rig-core Adapter and Schema Normalization](#8-rig-core-adapter-and-schema-normalization)
-9. [Session Management](#9-session-management)
-10. [Configuration Resolution](#10-configuration-resolution)
-11. [Cost Accounting and Guardrails](#11-cost-accounting-and-guardrails)
-12. [Context Window Management](#12-context-window-management)
-13. [Estimation, Evaluation, and Observability](#13-estimation-evaluation-and-observability)
-14. [Extension Points](#14-extension-points)
+6. [NEAR AI Provider — Consolidated Chat Completions](#6-near-ai-provider--consolidated-chat-completions)
+7. [rig-core Adapter and Schema Normalization](#7-rig-core-adapter-and-schema-normalization)
+8. [Session Management](#8-session-management)
+9. [Configuration Resolution](#9-configuration-resolution)
+10. [Cost Accounting and Guardrails](#10-cost-accounting-and-guardrails)
+11. [Context Window Management](#11-context-window-management)
+12. [Estimation, Evaluation, and Observability](#12-estimation-evaluation-and-observability)
+13. [Extension Points](#13-extension-points)
 
 ---
 
@@ -35,11 +34,12 @@ IronClaw's LLM subsystem is structured as a layered stack with three tiers:
 │  Orchestrates plan → select_tools → respond_with_tools  │
 ├─────────────────────────────────────────────────────────┤
 │  Reliability wrappers (decorator chain)                 │
-│  RetryProvider → CircuitBreakerProvider →               │
-│  CachedProvider → FailoverProvider                      │
+│  SmartRoutingProvider → RetryProvider →                 │
+│  CircuitBreakerProvider → ResponseCacheProvider →       │
+│  FailoverProvider → actual backend                      │
 ├─────────────────────────────────────────────────────────┤
 │  Backend providers                                      │
-│  NearAiProvider │ NearAiChatProvider │ RigAdapter<M>    │
+│  NearAiChatProvider │ RigAdapter<M>                     │
 │  (OpenAI, Anthropic, Ollama, OpenAI-compatible,         │
 │   Tinfoil)                                              │
 └─────────────────────────────────────────────────────────┘
@@ -126,7 +126,7 @@ for provider selection:
 ```rust
 pub enum LlmBackend {
     #[default]
-    NearAi,           // NEAR AI Responses API (session token OAuth)
+    NearAi,           // NEAR AI Chat Completions (dual auth: API key or session token)
     OpenAi,           // Direct OpenAI API
     Anthropic,        // Direct Anthropic API
     Ollama,           // Local Ollama instance
@@ -158,8 +158,8 @@ Notable factory quirks:
 
 | Backend | Auth | API Style | Tool Support | Cost Tracking |
 |---------|------|-----------|--------------|---------------|
-| NearAi | Session token (OAuth) | Responses API | Native | Via cost table |
-| NearAiChat | API key | Chat Completions | Flattened to text | Via cost table |
+| NearAiChat (API key mode) | API key (`NEARAI_API_KEY`) | Chat Completions | Flattened to text | Via cost table |
+| NearAiChat (session mode) | Session token (`SessionManager`) | Chat Completions | Flattened to text | Via cost table |
 | OpenAI | API key | Chat Completions | Native (strict schema) | Via cost table |
 | Anthropic | API key | Anthropic API | Native | Via cost table |
 | Ollama | None | Chat Completions | Native | Zero cost (local) |
@@ -341,11 +341,11 @@ pub struct SmartRoutingProvider {
 The provider wraps two `LlmProvider` instances and implements the trait itself, fitting into the standard provider chain:
 
 ```
-RetryProvider → SmartRoutingProvider → CircuitBreakerProvider → CachedProvider → FailoverProvider
-                     ↓
-              ┌──────┴──────┐
-              ↓             ↓
-         Cheap Model   Primary Model
+SmartRoutingProvider → RetryProvider → CircuitBreakerProvider → ResponseCacheProvider → FailoverProvider → actual backend
+          ↓
+   ┌──────┴──────┐
+   ↓             ↓
+Cheap Model  Primary Model
 ```
 
 ### 5.6 Statistics and Observability
@@ -372,93 +372,53 @@ Stats are logged at `DEBUG` level per request:
 
 ---
 
-## 6. NEAR AI — Responses API
+## 6. NEAR AI Provider — Consolidated Chat Completions (`src/llm/nearai_chat.rs`)
 
-`src/llm/nearai.rs` implements `NearAiProvider`, targeting
-`https://private.near.ai/v1/responses`.
+In v0.9.0, the separate `nearai.rs` (Responses API) was removed. Both auth modes are now unified in `nearai_chat.rs` using the Chat Completions API.
 
-### 5.1 Authentication
+### 6.1 Auth Modes
 
-Uses Bearer session tokens (`sess_xxx`) obtained via browser OAuth (GitHub
-or Google). Tokens are persisted to disk at `~/.ironclaw/session.json` (mode
-`0o600`) and to the database settings table under key `nearai.session_token`.
+| Mode | Trigger | Base URL | Token source |
+|------|---------|----------|--------------|
+| API key | `NEARAI_API_KEY` is set | `https://cloud-api.near.ai` (default) | API key as Bearer token |
+| Session token | No `NEARAI_API_KEY` | `https://private.near.ai` (default) | `SessionManager` (auto-renew on 401) |
 
-The `NEARAI_SESSION_TOKEN` environment variable takes precedence over
-persisted tokens, which supports hosting environments that inject credentials
-via the process environment.
+Both modes hit the same endpoint: `{NEARAI_BASE_URL}/v1/chat/completions`
 
-### 5.2 Response Chaining
-
-The Responses API supports **delta-only** message delivery: once an initial
-response produces a `response_id`, subsequent calls can include
-`previous_response_id` and send only the new user message instead of the full
-conversation history. This reduces token consumption significantly in long
-conversations.
-
-`seed_response_chain(response_id)` sets the chain anchor. On subsequent
-`complete()` calls:
-
-- System messages are extracted as `instructions`
-- Tool results are converted to `FunctionCallOutput` format
-- Only the new user turn is sent as delta messages
-
-**Chain error recovery:** If the API returns an error referencing a bad
-`previous_response_id` (e.g., after a provider restart), `NearAiProvider`
-clears the chain ID and retries with the full conversation history.
-
-### 5.3 Response Format Handling
-
-`NearAiProvider` handles two distinct response formats:
-
-- **Primary** `NearAiResponse`: NEAR AI native format with `output` array
-- **Alternative** `NearAiAltResponse`: OpenAI-compatible `choices` array
-
-Both are attempted on deserialization; the alternative format is tried if
-the primary fails. This future-proofs against API format migrations.
-
----
-
-## 7. NEAR AI — Chat Completions
-
-`src/llm/nearai_chat.rs` implements `NearAiChatProvider`, targeting
-`https://cloud-api.near.ai/v1/chat/completions`.
-
-### 6.1 Auto-Selection Logic
-
-Chat Completions mode is automatically selected when `NEARAI_API_KEY`
-is set. Otherwise, IronClaw uses Responses API mode with session credentials.
-The factory in `config/llm.rs` resolves this at startup:
-
-```rust
-if nearai_api_key.is_some() {
-    // Chat Completions mode
-} else {
-    // Responses API mode
-}
-```
+The `NearAiChatProvider` struct holds: `client`, `config`, `session: Arc<SessionManager>`, `active_model: RwLock<String>`, `flatten_tool_messages: bool`. Auth is resolved via `resolve_bearer_token()`, which picks the API key or session token depending on which mode is active.
 
 ### 6.2 Tool Message Flattening
 
-Some OpenAI-compatible endpoints reject the standard tool message protocol
-(`role: "tool"` + `tool_calls` in assistant messages). `NearAiChatProvider`
-applies `flatten_tool_messages()` before sending:
+NEAR AI does not support `role: "tool"` messages. The provider rewrites them via `flatten_tool_messages()` before sending:
 
-- `role: "tool"` messages → user text: `"Tool result: {content}"`
-- Assistant messages with `tool_calls` → assistant text: `"Called tool: {name}({args})"`
+- Assistant messages with `tool_calls` → plain assistant text: `[Called tool \`name\` with arguments: {...}]`
+- Tool result messages (`role: "tool"`) → user messages: `[Tool \`name\` returned: result]`
 
-This sacrifices structured tool tracking for compatibility with endpoints
-that implement only basic chat completions.
+### 6.3 Session Token Renewal
 
-### 6.3 Usage Parsing Resilience
+On 401 response (session token mode only):
 
-Some providers omit `completion_tokens` from the usage block. The
-`parse_usage()` function handles this by computing:
-`completion_tokens = total_tokens - prompt_tokens` when `completion_tokens`
-is missing.
+1. Check if body contains "session" + ("expired" | "invalid")
+2. If yes → `LlmError::SessionExpired` → `session.handle_auth_failure()` → retry once
+3. If no → `LlmError::AuthFailed`
+
+Note: retries on other errors are handled by the outer `RetryProvider` wrapper, not here.
+
+### 6.4 Model Listing
+
+`GET /v1/models` — handles flexible response formats:
+
+- `{models: [...]}` or `{data: [...]}` (OpenAI-style)
+- Direct array `[...]`
+- Each entry: tries `name`, `id`, `model`, `model_name`, `model_id`, nested `metadata.name`
+
+### 6.5 Usage Parsing Resilience
+
+Some providers omit `completion_tokens` from the usage block. The `parse_usage()` function handles this by computing `completion_tokens = total_tokens - prompt_tokens` when `completion_tokens` is missing.
 
 ---
 
-## 8. rig-core Adapter and Schema Normalization
+## 7. rig-core Adapter and Schema Normalization
 
 `src/llm/rig_adapter.rs` bridges `rig-core`'s `CompletionModel` trait to
 IronClaw's `LlmProvider` trait. This adapter is used by OpenAI, Anthropic,
@@ -497,7 +457,7 @@ some providers omit.
 
 ---
 
-## 9. Session Management
+## 8. Session Management
 
 `src/llm/session.rs` implements `SessionManager` for NEAR AI OAuth session
 tokens.
@@ -529,7 +489,7 @@ For `cloud-api.near.ai`, API keys are used directly (saved to
 
 ---
 
-## 10. Configuration Resolution
+## 9. Configuration Resolution
 
 `src/config/llm.rs` implements a three-tier priority system for all LLM
 settings.
@@ -586,7 +546,7 @@ job evaluation. When not set, it falls back to the primary model.
 
 ---
 
-## 11. Cost Accounting and Guardrails
+## 10. Cost Accounting and Guardrails
 
 ### 10.1 Cost Table — `src/llm/costs.rs`
 
@@ -641,7 +601,7 @@ before commitment, but the cost is only counted after actual token consumption.
 
 ---
 
-## 12. Context Window Management
+## 11. Context Window Management
 
 ### 11.1 ContextMonitor — `src/agent/context_monitor.rs`
 
@@ -702,7 +662,7 @@ logging and observability.
 
 ---
 
-## 13. Estimation, Evaluation, and Observability
+## 12. Estimation, Evaluation, and Observability
 
 ### 12.1 Cost and Time Estimation — `src/estimation/`
 
@@ -796,7 +756,7 @@ Future backends (OpenTelemetry, Prometheus) can be added by implementing the
 
 ---
 
-## 14. Extension Points
+## 13. Extension Points
 
 ### 13.1 Adding a New LLM Backend
 
