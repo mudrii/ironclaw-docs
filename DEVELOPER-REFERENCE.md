@@ -976,7 +976,7 @@ grep -rn '#\[cfg(feature' src/ --include="*.rs"
 grep -rnE '"https?://[^"]+\.(com|ai|io|dev)' src/ --include="*.rs" | grep -v test | grep -v doc
 
 # Find all credential/secret handling
-grep -rn 'api_key\|auth_token\|password\|secret' src/ --include="*.rs" -i | grep -v test | grep -v comment
+grep -rn 'api_key\|auth_token\|password\|secret' src/ --include="*.rs" -i | grep -v test | grep -vE '^\s*//'
 
 # Find all WASM tool registrations
 grep -rn 'wasm.*register\|register.*wasm' src/tools/ --include="*.rs"

@@ -199,7 +199,7 @@ Create `~/.ironclaw/.env` with your settings. The full reference with all option
 ```bash
 DATABASE_BACKEND=libsql
 GATEWAY_ENABLED=true
-GATEWAY_PORT=3001
+GATEWAY_PORT=3000
 GATEWAY_AUTH_TOKEN=<generate with: openssl rand -hex 32>
 CLI_ENABLED=false   # required for service/daemon mode
 ```
@@ -214,7 +214,7 @@ EMBEDDING_ENABLED=true
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
 GATEWAY_ENABLED=true
-GATEWAY_PORT=3001
+GATEWAY_PORT=3000
 GATEWAY_AUTH_TOKEN=<generate with: openssl rand -hex 32>
 CLI_ENABLED=false
 ```
@@ -420,15 +420,15 @@ Save as `~/Library/LaunchAgents/ai.ironclaw.plist`:
         <!-- Web gateway -->
         <key>GATEWAY_ENABLED</key><string>true</string>
         <key>GATEWAY_HOST</key><string>127.0.0.1</string>
-        <key>GATEWAY_PORT</key><string>3001</string>
+        <key>GATEWAY_PORT</key><string>3000</string>
         <key>GATEWAY_AUTH_TOKEN</key><string>YOUR_TOKEN_HERE</string>
 
         <!-- CRITICAL: must be false for service mode -->
         <!-- Without this, REPL reads EOF from /dev/null and exits immediately -->
         <key>CLI_ENABLED</key><string>false</string>
 
-        <!-- Sandbox disabled for simple deployments -->
-        <key>SANDBOX_ENABLED</key><string>false</string>
+        <!-- Sandbox enabled for security -->
+        <key>SANDBOX_ENABLED</key><string>true</string>
 
         <!-- Logging -->
         <key>RUST_LOG</key><string>ironclaw=info,tower_http=info</string>
@@ -529,7 +529,7 @@ Environment=OPENAI_MODEL=gpt-4o
 # Gateway
 Environment=GATEWAY_ENABLED=true
 Environment=GATEWAY_HOST=127.0.0.1
-Environment=GATEWAY_PORT=3001
+Environment=GATEWAY_PORT=3000
 Environment=GATEWAY_AUTH_TOKEN=YOUR_TOKEN_HERE
 
 # Logging
