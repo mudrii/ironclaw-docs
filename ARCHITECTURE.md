@@ -41,7 +41,7 @@ The channel abstraction is the core extensibility point for message ingestion. A
 │                                                                                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐   │
 │  │ REPL Channel │  │ HTTP Webhook │  │ Web Gateway  │  │  WASM Channels   │   │
-│  │ (rustyline)  │  │  (axum)      │  │ SSE/WebSocket│  │ (Telegram, Slack)│   │
+│  │ (rustyline)  │  │  (axum)      │  │ SSE/WebSocket│  │(Tg,Slack,WA,Dc)  │   │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────────┘   │
 │         │                 │                  │                  │               │
 │         └─────────────────┴──────────────────┴──────────────────┘               │
@@ -166,17 +166,17 @@ The following table lists every source module directory and the key top-level fi
 | `extensions` | `src/extensions/` | `ExtensionManager`: coordinates MCP server auth and activation, WASM tool install/remove, registers in-chat discovery tools |
 | `history` | `src/history/` | Persistence for conversation threads and analytics: PostgreSQL repositories, aggregation queries (JobStats, ToolStats) |
 | `hooks` | `src/hooks/` | `HookRegistry` for Inbound/Outbound message interception: hooks can modify, reject, or pass through messages at the agent loop boundary |
-| `llm` | `src/llm/` | LLM provider chain: `LlmProvider` trait, `NearAiProvider` (Responses API), `NearAiChatProvider` (Chat Completions), `RigAdapter` (rig-core bridge for OpenAI/Anthropic/Ollama/Tinfoil), `FailoverProvider`, `CircuitBreakerProvider`, `CachedProvider`, `RetryProvider`, session token management |
+| `llm` | `src/llm/` | LLM provider chain: `LlmProvider` trait, `NearAiChatProvider` (Chat Completions, dual auth: session token + API key), `SmartRoutingProvider` (routes Simple/Moderate/Complex requests to cheap vs primary model), `RigAdapter` (rig-core bridge for OpenAI/Anthropic/Ollama/Tinfoil), `FailoverProvider`, `CircuitBreakerProvider`, `CachedProvider`, `RetryProvider`, session token management |
 | `observability` | `src/observability/` | Tracing and metrics backend configuration |
 | `orchestrator` | `src/orchestrator/` | Internal HTTP API served to Docker sandbox containers: LLM proxy endpoint, job event streaming, per-job bearer token auth, `ContainerJobManager` (bollard lifecycle) |
 | `pairing` | `src/pairing/` | Device pairing and authentication helpers for remote channel setup |
 | `registry` | `src/registry/` | Extension/tool registry client for discovering installable tools and channels |
-| `safety` | `src/safety/` | Prompt injection defense: `Sanitizer` (pattern detection, XML escaping), `Validator` (length, encoding checks), `Policy` (rule-based actions: Block/Warn/Review/Sanitize), `LeakDetector` (15+ secret patterns with Block/Redact/Warn actions) |
+| `safety` | `src/safety/` | Prompt injection defense: `Sanitizer` (pattern detection, XML escaping), `Validator` (length, encoding checks), `Policy` (rule-based actions: Block/Warn/Review/Sanitize), `LeakDetector` (15+ secret patterns with Block/Redact/Warn actions), `CredentialDetector` (HTTP param credential detection: requires approval when auth data is present in headers/URL) |
 | `sandbox` | `src/sandbox/` | Docker-based job isolation: `SandboxManager`, `ContainerRunner`, `NetworkProxy` (hyper HTTP/CONNECT proxy with domain allowlist and credential injection), `SandboxPolicy` (ReadOnly/WorkspaceWrite/FullAccess) |
 | `secrets` | `src/secrets/` | Encrypted credential storage: AES-256-GCM encryption, HKDF-SHA256 per-secret key derivation, PostgreSQL and libSQL backends, OS keychain integration (macOS: security-framework, Linux: secret-service/KWallet) |
 | `setup` | `src/setup/` | 7-step interactive onboarding wizard: database backend selection, NEAR AI authentication, secrets master key setup, channel configuration |
 | `skills` | `src/skills/` | SKILL.md prompt extension system: `SkillRegistry` (discover, install, remove), deterministic scorer (keywords/tags/regex), `SkillTrust` model (Trusted vs Installed), tool attenuation (trust-based ceiling), gating requirements (bins/env/config), `SkillCatalog` (ClawHub HTTP client) |
-| `tools` | `src/tools/` | Extensible tool system: `Tool` trait, `ToolRegistry` (shadowing protection for built-in names), built-in tools (echo, time, json, http, shell, file ops, memory, job mgmt, routines, extensions, skills), WASM sandbox (wasmtime component model, fuel metering, memory limits), MCP client (JSON-RPC over HTTP), dynamic software builder |
+| `tools` | `src/tools/` | Extensible tool system: `Tool` trait, `ToolRegistry` (shadowing protection for built-in names), built-in tools (echo, time, json, http, shell, file ops, memory, job mgmt, routines, extensions, skills, `HtmlConverter` (HTML-to-Markdown, two-stage: readability extraction + markdown conversion; feature-gated `html-to-markdown`)), WASM sandbox (wasmtime component model, fuel metering, memory limits), MCP client (JSON-RPC over HTTP), dynamic software builder |
 | `tunnel` | `src/tunnel/` | Tunnel/ngrok-style public URL provisioning for webhook channels |
 | `worker` | `src/worker/` | Runs inside Docker containers: `Worker` execution loop, tool calls via LLM reasoning, Claude Code bridge (spawns `claude` CLI), orchestrator HTTP client, proxy LLM provider that forwards requests through orchestrator |
 | `workspace` | `src/workspace/` | Persistent memory (OpenClaw-inspired): path-based document store, content chunking (800 tokens, 15% overlap), `EmbeddingProvider` trait (OpenAI, NEAR AI, Ollama), hybrid FTS+vector search via Reciprocal Rank Fusion, identity file injection into system prompt, heartbeat checklist |
@@ -211,8 +211,8 @@ src/main.rs
     │        │       └──▶ db (storage backend)
     │        │
     │        ├──▶ llm (create_llm_provider)
-    │        │       ├──▶ llm::nearai        (NearAiProvider, Responses API)
-    │        │       ├──▶ llm::nearai_chat   (NearAiChatProvider, Chat Completions)
+    │        │       ├──▶ llm::nearai_chat   (NearAiChatProvider, dual auth: session token + API key)
+    │        │       ├──▶ llm::smart_routing (SmartRoutingProvider, cheap vs primary cascade)
     │        │       ├──▶ llm::rig_adapter   (rig-core: OpenAI/Anthropic/Ollama/Tinfoil)
     │        │       ├──▶ llm::failover      (FailoverProvider)
     │        │       ├──▶ llm::circuit_breaker
@@ -223,10 +223,11 @@ src/main.rs
     │        │       ├──▶ safety::sanitizer
     │        │       ├──▶ safety::validator
     │        │       ├──▶ safety::policy
-    │        │       └──▶ safety::leak_detector
+    │        │       ├──▶ safety::leak_detector
+    │        │       └──▶ safety::credential_detect (HTTP param credential detection)
     │        │
     │        ├──▶ tools (ToolRegistry)
-    │        │       ├──▶ tools::builtin     (echo, time, json, http, shell, file, memory, job)
+    │        │       ├──▶ tools::builtin     (echo, time, json, http, shell, file, memory, job, html_converter)
     │        │       ├──▶ tools::wasm        (wasmtime, WasmToolRuntime, WasmToolWrapper)
     │        │       │       ├──▶ secrets    (credential injection at host boundary)
     │        │       │       └──▶ safety     (leak detection on WASM output)
@@ -258,7 +259,7 @@ src/main.rs
     │        │       └──▶ channels::web::auth  (Bearer token, constant-time compare)
     │        ├──▶ channels::http     (HttpChannel, axum webhook)
     │        ├──▶ channels::repl     (ReplChannel, rustyline)
-    │        ├──▶ channels::wasm     (WASM channel runtime)
+    │        ├──▶ channels::wasm     (WASM channel runtime; loads channels-src/: Telegram, Slack, Discord, WhatsApp)
     │        └──▶ cli                 (clap command routing)
     │
     └──▶ agent (Agent)
