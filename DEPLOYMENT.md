@@ -305,6 +305,7 @@ ironclaw doctor
 ```
 
 The doctor checks:
+
 - LLM connectivity (can reach API, API key is valid)
 - Database connection and migration status
 - Required env vars present
@@ -328,6 +329,7 @@ CLI_ENABLED=true ironclaw
 ## 6. macOS LaunchAgent (Recommended)
 
 LaunchAgent runs IronClaw as a persistent background service that:
+
 - Starts automatically at login
 - Restarts automatically on crash (KeepAlive)
 - Logs to files instead of terminal
@@ -713,6 +715,7 @@ CLI_ENABLED=false
 ### Issue 2: OpenAI 400 Bad Request on tool calls (JSON Schema array type)
 
 **Symptom:** All chat requests fail with:
+
 ```
 400 Bad Request: "array schema missing items"
 In context=('properties', 'data', 'type', '2')
@@ -726,10 +729,12 @@ parameters that accept multiple types. Omitting `"type"` means "any JSON value",
 which is OpenAI-compatible and semantically correct.
 
 Files fixed:
+
 - `src/tools/builtin/json.rs:31` — removed `"type"` from `data` parameter
 - `src/tools/builtin/http.rs:192` — removed `"type"` from `body` parameter
 
 If you encounter this issue in a fresh build, apply the fix and rebuild:
+
 ```bash
 # In src/tools/builtin/json.rs, change:
 #   "data": { "type": ["string", "object", ...], "description": "..." }
@@ -766,6 +771,7 @@ Also, some routing aliases (like OpenClaw's internal `gpt-5.3-codex`) do not
 exist as real model names in the underlying API.
 
 **Fix:** Check the provider's documentation for exact model names. For example:
+
 ```bash
 # Groq: llama-3.3-70b-versatile (not llama3.3-70b)
 # Together: meta-llama/Llama-3-70b-chat-hf (namespace/model format)
@@ -780,6 +786,7 @@ exist as real model names in the underlying API.
 `overwrite '/Users/you/.local/bin/ironclaw'? (y/n [n])`
 
 **Fix:** Use `install` instead (no prompt, atomic replace):
+
 ```bash
 install -m 755 target/release/ironclaw ~/.local/bin/ironclaw
 ```

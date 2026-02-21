@@ -169,6 +169,7 @@ The `is_accessible` method on both production stores implements a simple allowli
 **`SecretRef`** — a name-only view of a secret (name + optional provider string). This is what the `list` operation returns and what WASM tool schemas can safely surface; it contains no encrypted or plaintext data.
 
 **`DecryptedSecret`** — a transient wrapper around `SecretString` that holds the decrypted plaintext only for the duration of credential injection. The type exposes one method to access the value (`expose() -> &str`) and otherwise redacts itself:
+
 - `Debug` prints `DecryptedSecret([REDACTED, N bytes])` — length only, no content
 - Memory is zeroed on drop (via `SecretString`'s `zeroize` implementation)
 - The `Clone` implementation re-wraps via `SecretString` so no plaintext copy escapes the wrapper
@@ -178,6 +179,7 @@ The `is_accessible` method on both production stores implements a simple allowli
 **`CreateSecretParams`** — builder-pattern input for creating a secret. The `value` field is `SecretString` even at the input boundary so that the plaintext is protected as soon as it enters the system. Builder methods: `with_provider(str)`, `with_expiry(DateTime<Utc>)`.
 
 **`CredentialLocation`** — an enum that describes where in an HTTP request a credential should be injected. Five variants:
+
 - `AuthorizationBearer` — `Authorization: Bearer {secret}` header
 - `AuthorizationBasic { username }` — `Authorization: Basic base64(username:secret)` header
 - `Header { name, prefix }` — arbitrary header, optional value prefix (e.g., `"Api-Key "`)
@@ -199,6 +201,7 @@ IronClaw uses the `secrecy` crate throughout the secrets subsystem to prevent ac
 3. **Zeroed on drop**: The underlying string bytes are overwritten with zeros when the `SecretString` is dropped, preventing the value from lingering in freed heap memory.
 
 To access the value, code must explicitly call `.expose_secret()`, which returns `&str`. Every call site where this appears in IronClaw is a deliberate, auditable use:
+
 - `crypto.rs`: `self.master_key.expose_secret().as_bytes()` — inside HKDF derivation
 - `store.rs`: `params.value.expose_secret().as_bytes()` — immediately before encryption
 - `types.rs` (`DecryptedSecret::expose`): the single exit point for decrypted values in the injection path

@@ -288,6 +288,7 @@ Date and time operations.
 ```
 
 Operations:
+
 - `now` — returns `{iso, unix, unix_millis}` for current time
 - `parse` — parses a timestamp string and returns the same three fields
 - `format` — formats a timestamp using a format string
@@ -318,6 +319,7 @@ Note: `data` has no `"type"` field — this means "accept any JSON value". An Op
 bug rejects `"type": ["string", "null"]` union arrays; omitting `"type"` is the fix.
 
 Operations:
+
 - `parse` — parses a JSON string into a structured value
 - `query` — runs a JSONPath expression against `data`
 - `stringify` — serializes a value to a JSON string
@@ -464,6 +466,7 @@ Execute shell commands. Domain: Container.
 ```
 
 Constants:
+
 - `MAX_OUTPUT_SIZE` = 64 KB
 - `DEFAULT_TIMEOUT` = 120 seconds
 
@@ -779,6 +782,7 @@ Config file: `~/.ironclaw/mcp-servers.json`
 HTTPS host. Localhost servers are exempt from auth requirements.
 
 Token storage in SecretsStore (AES-256-GCM):
+
 - `mcp_{name}_access_token`
 - `mcp_{name}_refresh_token`
 - `mcp_{name}_client_id`
@@ -815,6 +819,7 @@ pub struct McpRequest {
 ```
 
 Helper constructors:
+
 - `McpRequest::initialize(client_info)` — sent on first connection
 - `McpRequest::list_tools()` — discovers available tools
 - `McpRequest::call_tool(name, args)` — invokes a tool
@@ -851,6 +856,7 @@ Full OAuth 2.1 with PKCE implementation:
 server name.
 
 Session lifecycle:
+
 - Created on first `get_or_create()` call for a server
 - `update_session_id()` stores the `Mcp-Session-Id` returned in server responses
 - `mark_initialized()` is called after the initialize/initialized handshake completes
@@ -953,6 +959,7 @@ let caps = Capabilities::none()
 ```
 
 `HttpCapability` fields:
+
 - `allowlist: Vec<EndpointPattern>` — patterns the tool may call
 - `credentials: HashMap<String, CredentialMapping>` — secret injection rules
 - `rate_limit: RateLimitConfig` — default: 60/min, 1000/hr
@@ -961,6 +968,7 @@ let caps = Capabilities::none()
 - `timeout` — 30 seconds default
 
 `EndpointPattern` fields:
+
 - `host` — exact hostname or `*.example.com` wildcard
 - `path_prefix` — optional path constraint (e.g., `/v1/`)
 - `methods` — optional method list; empty = all methods
@@ -988,10 +996,12 @@ pub struct HostState {
 ```
 
 Per-execution hard limits applied by `HostState`:
+
 - `MAX_REQUESTS_PER_EXECUTION` = 50 HTTP requests
 - `MAX_INVOKES_PER_EXECUTION` = 20 tool invocations
 
 `workspace_read()` validates paths before reading:
+
 - Blocks absolute paths (leading `/`)
 - Blocks `..` path traversal
 - Blocks null bytes
@@ -1024,12 +1034,14 @@ even if the mapping matches the host.
 `AllowlistValidator` validates every HTTP request from WASM before it is executed.
 
 URL parsing is strict:
+
 - Rejects non-HTTP/HTTPS schemes
 - Rejects URLs with userinfo (`user:pass@host`) to prevent allowlist bypass
 - Normalizes path: resolves `..`, `.`, `%2e%2e`, rejects `%2F` encoded separators
 - Validates percent-encoding character by character
 
 Denial reasons:
+
 - `EmptyAllowlist` — no patterns configured
 - `InvalidUrl` — parse failure, userinfo present, or unsafe encoding
 - `InsecureScheme` — non-HTTPS when `require_https = true` (default)
@@ -1262,11 +1274,13 @@ JSON values, which achieves the intended "any value" semantics.
 **`json` tool — `data` parameter** (`builtin/json.rs`):
 
 Before (broken):
+
 ```json
 "data": { "type": ["string", "null"], "description": "JSON data to process" }
 ```
 
 After (fixed):
+
 ```json
 "data": { "description": "JSON data to process (any value)" }
 ```
@@ -1278,11 +1292,13 @@ no type constraint is present.
 **`http` tool — `body` parameter** (`builtin/http.rs`):
 
 Before (broken):
+
 ```json
 "body": { "type": ["string", "null"], "description": "Optional request body" }
 ```
 
 After (fixed):
+
 ```json
 "body": { "description": "Optional request body (any value)" }
 ```
@@ -1355,6 +1371,7 @@ All external tool output passes through `SafetyLayer` before reaching the LLM:
 ```
 
 The four-layer safety pipeline:
+
 1. **Sanitizer** — Pattern detection, content escaping for injection vectors
 2. **Validator** — Length limits, encoding validation, forbidden pattern rejection
 3. **Policy** — Rules with severity (`Critical`, `High`, `Medium`, `Low`) and actions

@@ -466,6 +466,7 @@ pub async fn auth_middleware(
 ```
 
 Key points:
+
 - Both `Authorization: Bearer <token>` header and `?token=<token>` query parameter
   are accepted. The query-param fallback exists because the browser `EventSource`
   API cannot set custom headers.
@@ -689,6 +690,7 @@ state-pollution bugs.
 ### Runtime (`runtime.rs`)
 
 `WasmChannelRuntime` wraps a Wasmtime `Engine` configured for:
+
 - Cranelift compilation at `OptLevel::Speed`
 - Fuel metering: 10 million fuel units per callback (prevents infinite loops)
 - Memory limit: 50 MB per instance (channels may buffer messages)
@@ -799,6 +801,7 @@ To add a new channel:
    - Optionally implement `send_status()` for live progress feedback.
 3. Add a config section in `src/config.rs`.
 4. Wire up in `main.rs` in the channel setup block:
+
    ```rust
    if config.my_channel.enabled {
        manager.add(Box::new(MyChannel::new(config.my_channel)));

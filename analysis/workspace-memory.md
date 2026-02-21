@@ -443,6 +443,7 @@ ChunkConfig {
 ```
 
 Derived values:
+
 - `overlap_size = chunk_size * overlap_percent` = 120 words
 - `step_size = chunk_size - overlap_size` = 680 words
 
@@ -455,6 +456,7 @@ An alternative `chunk_by_paragraphs(content, config)` function (currently marked
 Search runs two retrieval strategies in parallel and merges them with Reciprocal Rank Fusion.
 
 **Full-text search (PostgreSQL)**:
+
 ```sql
 SELECT c.id, c.document_id, c.content,
        ts_rank_cd(c.content_tsv, plainto_tsquery('english', $3)) as rank
@@ -467,6 +469,7 @@ LIMIT $4
 ```
 
 **Full-text search (libSQL)**:
+
 ```sql
 SELECT c.id, c.document_id, c.content
 FROM memory_chunks_fts fts
@@ -479,6 +482,7 @@ LIMIT ?4
 ```
 
 **Vector similarity search (PostgreSQL)**:
+
 ```sql
 SELECT c.id, c.document_id, c.content,
        1 - (c.embedding <=> $3) as similarity
@@ -491,6 +495,7 @@ LIMIT $4
 ```
 
 **Vector similarity search (libSQL)**:
+
 ```sql
 SELECT c.id, c.document_id, c.content
 FROM vector_top_k('idx_memory_chunks_embedding', vector(?1), ?2) AS top_k
@@ -511,6 +516,7 @@ score(chunk) = Σ  1 / (k + rank_i)
 where `k = 60` (default) and `rank_i` is the 1-based rank of the chunk in retrieval method `i`. Each chunk appearing in both lists accumulates scores from both methods, which naturally boosts hybrid matches. Scores are normalized to `[0.0, 1.0]` by dividing by the maximum score.
 
 Example with `k=60`:
+
 - Rank 1 in FTS only: score = 1/61 ≈ 0.0164
 - Rank 1 in vector only: score = 1/61 ≈ 0.0164
 - Rank 1 in both FTS and vector: score = 1/61 + 1/61 ≈ 0.0328
@@ -591,6 +597,7 @@ Conversation turns and all job-related records are managed by `Store` (`src/hist
 **History retrieval for context assembly**: The agent loop fetches recent messages from the database and reconstructs them into `ChatMessage` objects for the LLM call. Context compaction (`src/agent/compaction.rs`) summarizes old turns and replaces them with a summary message when the context window fills.
 
 **Analytics** (`src/history/analytics.rs`): Aggregation queries on `agent_jobs` and `job_actions` for learning:
+
 - `get_job_stats()` — total/completed/failed counts, success rate, average duration and cost.
 - `get_tool_stats()` — per-tool call counts, success rate, average duration, total cost.
 - `get_estimation_accuracy(category)` — average error rate between estimated and actual cost/time.
@@ -628,6 +635,7 @@ Terminal states: `Accepted`, `Failed`, `Cancelled`.
 ### In-Memory Conversation Memory
 
 `Memory` (`src/context/memory.rs`) combines:
+
 - `ConversationMemory` — a bounded ring buffer of `ChatMessage` objects (default max: 100). The system message (role `System`) is protected from eviction; older non-system messages are removed when the limit is reached.
 - `Vec<ActionRecord>` — ordered log of every tool invocation in the job.
 
@@ -672,6 +680,7 @@ The hygiene system performs automatic cleanup of stale workspace documents. It i
 | `state_dir` | `~/.ironclaw/` | Directory for state file |
 
 **`HygieneReport`** is returned from `run_if_due()`:
+
 - `daily_logs_deleted: u32` — count of deleted documents.
 - `skipped: bool` — true if the cadence has not elapsed or hygiene is disabled.
 

@@ -422,14 +422,17 @@ Config struct: `src/config.rs` · 18 sub-configs · `INJECTED_VARS: OnceLock<Has
 | Tinfoil (TEE) | `tinfoil` | `TINFOIL_API_KEY` | Chat Completions (adapted) | Chat-format |
 
 **NEAR AI mode selection logic** (`src/llm/mod.rs`):
+
 - If `NEARAI_API_KEY` set → Chat Completions API (`nearai_chat.rs`)
 - If `NEARAI_API_MODE=chat_completions` → Chat Completions API
 - Otherwise → Responses API (`nearai.rs`) using `NEARAI_SESSION_TOKEN`
 
 **Three-tier wrapper chain** (all backends):
+
 ```
 Request → RetryProvider → CircuitBreakerProvider → ResponseCacheProvider → FailoverProvider → actual backend
 ```
+
 Source: `src/llm/retry.rs`, `src/llm/circuit_breaker.rs`, `src/llm/response_cache.rs`, `src/llm/failover.rs`
 
 ---
@@ -550,6 +553,7 @@ impl Tool for MyTool {
 ```
 
 **Schema rules**:
+
 - Top-level must be `"type": "object"`
 - Property types: `"string"`, `"integer"`, `"boolean"`, `"array"`, `"object"` (never `["string", "null"]` array form — OpenAI 400)
 - For optional string fields: omit from `"required"`, do not use array type syntax
@@ -580,6 +584,7 @@ The protected list is defined in `src/tools/registry.rs`. Includes all 34 built-
 ### 8.4 Tool Registration
 
 Tools are registered in `src/tools/registry.rs` via `ToolRegistry::register()`. Discovery order:
+
 1. Built-in tools (hardcoded, always present)
 2. WASM tools (loaded from `~/.ironclaw/tools/*.wasm` and workspace `tools/`)
 3. MCP tools (from configured MCP server URLs)
@@ -661,12 +666,14 @@ Source: `src/skills/`
 | `Installed` | `~/.ironclaw/installed_skills/` (from ClawHub) | Read-only tools only |
 
 **Selection pipeline** (per-request):
+
 1. **Gating** (`src/skills/gating.rs`): Check `bins`, `env`, `config` requirements; skip if missing
 2. **Scoring** (`src/skills/selector.rs`): Deterministic score against message keywords/patterns
 3. **Budget**: Select top skills within `SKILLS_MAX_TOKENS`
 4. **Attenuation** (`src/skills/attenuation.rs`): Strip dangerous tool access for `Installed` skills
 
 **SKILL.md format** (frontmatter + markdown body):
+
 ```yaml
 ---
 name: my-skill
@@ -697,6 +704,7 @@ Source: `src/sandbox/config.rs`
 | `FullAccess` | `full_access` | Full filesystem | Unrestricted |
 
 **Network proxy credential model** (`src/sandbox/proxy/`):
+
 - All container HTTP/HTTPS routes through host proxy on `SANDBOX_PROXY_PORT`
 - CONNECT method validates target domain against `DomainAllowlist`
 - `CredentialResolver` trait injects auth headers at transit — containers never see raw keys

@@ -289,6 +289,7 @@ prompt injection via malicious tool return values.
 per iteration:
 
 **Phase 1 — Preflight (sequential):**
+
 ```
 for each tool_call:
     check requires_approval() → NeedApproval if yes
@@ -296,6 +297,7 @@ for each tool_call:
 ```
 
 **Phase 2 — Parallel execution:**
+
 ```rust
 let mut set = JoinSet::new();
 for (index, call) in tool_calls.iter().enumerate() {
@@ -305,6 +307,7 @@ for (index, call) in tool_calls.iter().enumerate() {
 ```
 
 **Phase 3 — Post-flight (sequential):**
+
 ```
 for each result:
     check_auth_trigger()

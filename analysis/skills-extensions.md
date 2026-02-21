@@ -119,6 +119,7 @@ Source: `/Users/mudrii/src/ironclaw/src/skills/registry.rs`
 On name collision, the workspace skill wins; the user skill is silently skipped. Discovery is capped at 100 skills per directory (`MAX_DISCOVERED_SKILLS`).
 
 **Supported layouts**:
+
 - Flat: `skills/SKILL.md` directly in the skills directory
 - Subdirectory: `skills/<name>/SKILL.md`
 
@@ -316,18 +317,22 @@ All operations flow through `ExtensionManager` (`src/extensions/manager.rs`):
 **Search**: Queries `ExtensionRegistry` (built-in curated list) first. If no results and `discover=true`, runs `OnlineDiscovery` concurrently (URL pattern probing + GitHub search). Discovered entries are cached in-session.
 
 **Install**:
+
 - MCP server: validates URL, saves `McpServerConfig` to DB or `mcp-servers.json`
 - WASM tool: downloads from HTTPS URL only, validates WASM magic bytes (`\0asm`), enforces 50 MB size cap, writes to `~/.ironclaw/tools/<name>.wasm`
 
 **Auth**:
+
 - MCP server: attempts full OAuth 2.1 PKCE flow; falls back to building an auth URL for non-interactive environments; falls back to manual token entry if OAuth is not supported
 - WASM tool: checks `auth.env_var` first, then checks secrets store; if neither, returns instructions for manual token entry
 
 **Activate**:
+
 - MCP server: connects client, calls `list_tools`, registers `McpTool` wrappers in `ToolRegistry`
 - WASM tool: loads `.wasm` + `.capabilities.json` via `WasmToolLoader`, registers in `ToolRegistry`; also reads `hooks` section from capabilities file and registers hook bundle
 
 **Remove**:
+
 - MCP server: unregisters tools with server's name prefix, removes MCP client, removes config entry
 - WASM tool: unregisters from `ToolRegistry`, unregisters any hooks with `plugin.tool:<name>::` prefix, deletes `.wasm` and `.capabilities.json` files
 - WASM channel: manual deletion required (`~/.ironclaw/channels/`) + restart
@@ -413,6 +418,7 @@ Modifications chain: if hook A modifies content, hook B receives the already-mod
 `HookRegistry` stores hooks as `Arc<dyn Hook>` with an associated priority (lower number = higher priority; default 100).
 
 Key behaviors:
+
 - Hooks are sorted by priority after every `register_with_priority` call.
 - Registering a hook with a duplicate name replaces the existing entry (name must be unique).
 - Hooks are cloned from the registry before execution so the read lock is released before any hook runs, allowing concurrent `register`/`unregister`/`run` calls.
@@ -462,6 +468,7 @@ Processing order: guard check (`when_regex`) â†’ reject if `reject_reason` set â
 Webhook delivery is fire-and-forget (spawned as a background task). The hook always returns `Continue` immediately.
 
 Security restrictions on outbound webhooks:
+
 - URL must use HTTPS (no HTTP)
 - No credentials in URL (no `user:pass@host`)
 - Forbidden hosts: `localhost`, `*.localhost`, `host.docker.internal`, GCP/AWS metadata endpoints

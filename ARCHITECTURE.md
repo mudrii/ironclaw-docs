@@ -335,6 +335,7 @@ If the thread has a `PendingAuth` state (awaiting an OAuth token or manual API k
 **Step 9 — LLM context construction**
 
 `process_user_input()` builds the completion request. This includes:
+
 - The system prompt from identity files (`AGENTS.md`, `SOUL.md`, `USER.md`, `IDENTITY.md`) loaded from the workspace
 - Active skills selected by `select_active_skills()` using deterministic keyword/tag/regex scoring, injected as `<skill name="..." trust="...">` blocks
 - Conversation history for the current thread (all prior turns)
@@ -399,16 +400,18 @@ For `ToolDomain::Container` tools when sandbox is enabled, the `create_job` tool
 **Step 7 — WASM execution path (for WASM tools)**
 
 For tools registered as `WasmToolWrapper`, execution proceeds through `WasmToolRuntime`:
-  - The compiled WASM component is instantiated via `wasmtime`
-  - Fuel metering enforces compute limits (the module is killed if it exhausts its fuel budget)
-  - Memory limits enforce the maximum linear memory the module can allocate
-  - Host functions provide logging, current time, and workspace read access
-  - HTTP calls from WASM pass through the `allowlist` module before being forwarded; the `CredentialInjector` injects secrets into request headers so the WASM module never sees raw credential values
-  - The WASM module's return value is deserialized as a `ToolOutput`
+
+- The compiled WASM component is instantiated via `wasmtime`
+- Fuel metering enforces compute limits (the module is killed if it exhausts its fuel budget)
+- Memory limits enforce the maximum linear memory the module can allocate
+- Host functions provide logging, current time, and workspace read access
+- HTTP calls from WASM pass through the `allowlist` module before being forwarded; the `CredentialInjector` injects secrets into request headers so the WASM module never sees raw credential values
+- The WASM module's return value is deserialized as a `ToolOutput`
 
 **Step 8 — Safety post-processing**
 
 If `tool.requires_sanitization()` is `true` (the default for all external-facing tools), `SafetyLayer::sanitize_tool_output(tool_name, output_string)` is called:
+
   1. Length check: truncates if the output exceeds `max_output_length`
   2. `LeakDetector::scan_and_clean()`: scans for 15+ secret patterns (API keys, connection strings, private keys) and redacts or blocks as configured per pattern
   3. `Policy::check()`: applies policy rules; `Block` violations replace the entire output, `Sanitize` violations force sanitizer pass
@@ -453,6 +456,7 @@ The builder makes an LLM call to analyze the request and produce a `BuildRequire
 **Step 5 — Iterative LLM code generation**
 
 The builder enters an iterative loop:
+
   1. LLM generates or modifies the implementation source code
   2. The shell tool runs `cargo build --target wasm32-wasip2 --release`
   3. If compilation fails, error output is fed back into the next LLM turn
@@ -465,9 +469,10 @@ The builder enters an iterative loop:
 **Step 7 — WASM validation**
 
 `WasmValidator::validate()` uses `wasmparser` to verify:
-  - The binary is a valid WASM module or component
-  - The component model interface matches the expected WIT definition
-  - The module does not import any host functions beyond the allowed set
+
+- The binary is a valid WASM module or component
+- The component model interface matches the expected WIT definition
+- The module does not import any host functions beyond the allowed set
 
 **Step 8 — Registration**
 

@@ -184,6 +184,7 @@ IronClaw Doctor
 | Config path | `crate::bootstrap::ironclaw_env_path()` | Absolute path to the `.env` file |
 
 **Database display detail:**
+
 - For libSQL: shows the path and whether Turso cloud sync is active (`LIBSQL_URL` set).
 - For PostgreSQL: attempts a live connection with a 5-second timeout and reports `connected` or the error string.
 
@@ -309,10 +310,11 @@ Reads and prints the full content of a workspace file. The path uses the workspa
 Writes content to a workspace path. If `CONTENT` is omitted, reads from stdin (useful for piping). The `--append` flag appends to an existing file rather than overwriting it. Creates the file if it does not exist.
 
 **`memory tree [PATH] [--depth N]`**
-Renders the workspace directory structure as an ASCII tree starting from `PATH` (default: root). Depth defaults to 3. Uses `├──` and `└──` connectors with `│   ` and `    ` indentation.
+Renders the workspace directory structure as an ASCII tree starting from `PATH` (default: root). Depth defaults to 3. Uses `├──` and `└──` connectors with `│` and `    ` indentation.
 
 **`memory status`**
 Prints a summary of the workspace:
+
 - User ID (`default`)
 - Total file count
 - Unique directory count
@@ -327,6 +329,7 @@ Prints a summary of the workspace:
 `ironclaw registry` manages the local extension registry — a `registry/` directory containing manifests for WASM tools and channel extensions. This is distinct from the MCP server registry.
 
 **Registry discovery:** The command locates the `registry/` directory by searching:
+
 1. `./registry` relative to the current working directory (development usage)
 2. Up to 3 parent directories from the executable path (installed binary)
 3. `$CARGO_MANIFEST_DIR/registry` (compile-time, dev builds)
@@ -347,11 +350,13 @@ Lists all extensions from the catalog. Filters by kind or tag if specified. Comp
 
 **`registry info <NAME>`**
 Shows full details for an extension or bundle:
+
 - Extension: version, description, keywords, source directory/crate, WASM artifact URL and SHA256, authentication method and secrets, tags.
 - Bundle: display name, description, list of member extensions with description and kind, shared auth group name if applicable.
 
 **`registry install <NAME> [--force] [--build]`**
 Installs a named extension or bundle.
+
 - By default, downloads the pre-built WASM artifact from the URL in the manifest.
 - `--build` compiles from source using `cargo component build` (requires `cargo-component` installed).
 - `--force` overwrites already-installed extensions.
@@ -368,6 +373,7 @@ Shorthand for `registry install default` — installs the `default` bundle, whic
 `ironclaw tool` manages WASM tools installed in `~/.ironclaw/tools/`. Tools are `.wasm` component files paired with `.capabilities.json` files that declare their permissions.
 
 **Installation paths:**
+
 - WASM binary: `~/.ironclaw/tools/<name>.wasm`
 - Capabilities: `~/.ironclaw/tools/<name>.capabilities.json`
 
@@ -375,6 +381,7 @@ Shorthand for `registry install default` — installs the `default` bundle, whic
 
 **`tool install <PATH> [OPTIONS]`**
 Installs a WASM tool from either:
+
 - A **source directory** containing `Cargo.toml` — extracts the crate name, runs `cargo component build [--release]`, finds the output `.wasm` file, and copies to the tools directory.
 - A **`.wasm` file** — copies directly to the tools directory.
 
@@ -388,6 +395,7 @@ Removes `<name>.wasm` and `<name>.capabilities.json` if present. Exits with an e
 
 **`tool info <NAME|PATH> [--dir DIR]`**
 Shows detailed information about a tool:
+
 - Path, size in bytes, full SHA-256 hash
 - Full capabilities breakdown: HTTP allowlist (method, host, path prefix), credentials (key name, secret, inject location), rate limits, allowed secrets, tool aliases, workspace read prefixes
 
@@ -439,6 +447,7 @@ For remote/VPS deployments where `127.0.0.1` is unreachable from the user's brow
 **`wait_for_callback(listener, path_prefix, param_name, display_name)`**
 
 Waits for a GET request matching `path_prefix`, extracts `param_name` from the query string, and serves a branded landing page. Times out after 5 minutes. Error handling:
+
 - `query.contains("error=")` → `OAuthCallbackError::Denied`
 - Timeout → `OAuthCallbackError::Timeout`
 - Port in use → `OAuthCallbackError::PortInUse`
@@ -460,6 +469,7 @@ Lists pending pairing requests for a named channel (e.g., `telegram`, `slack`). 
 **`pairing approve <CHANNEL> <CODE>`**
 
 Approves a pending request matching the code. On success, prints `Approved <channel> sender <id>`. On failure:
+
 - Wrong code: `No pending pairing request found for code: <CODE>`
 - Rate limited: `Too many failed approve attempts. Wait a few minutes.`
 

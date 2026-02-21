@@ -78,6 +78,7 @@ to `0.0.0.0` because containers reach the host via the docker bridge gateway
 ## 3. Orchestrator (`orchestrator/`)
 
 Source files:
+
 - `/Users/mudrii/src/ironclaw/src/orchestrator/mod.rs`
 - `/Users/mudrii/src/ironclaw/src/orchestrator/api.rs`
 - `/Users/mudrii/src/ironclaw/src/orchestrator/auth.rs`
@@ -117,6 +118,7 @@ The handle is kept briefly so the calling tool can read the completion result,
 then `cleanup_job()` removes it from memory.
 
 Two job modes are supported:
+
 - `JobMode::Worker`: CMD is `ironclaw worker --job-id <uuid> --orchestrator-url <url>`
 - `JobMode::ClaudeCode`: CMD is `ironclaw claude-bridge --job-id <uuid> --orchestrator-url <url> --max-turns <n> --model <m>`
 
@@ -159,6 +161,7 @@ Full endpoint list:
 | `GET` | `/worker/{id}/credentials` | Serve decrypted secrets to container |
 
 Job events received via `/event` are:
+
 - Persisted to the database (fire-and-forget tokio::spawn)
 - Converted to `SseEvent` variants and broadcast on the web gateway SSE channel
 
@@ -187,6 +190,7 @@ Startup sequence:
    a configurable timeout (default 600 seconds).
 
 The execution loop:
+
 - Calls `Reasoning::select_tools()` to ask the LLM (via `ProxyLlmProvider`)
   which tool to use next.
 - Executes the selected tool with a per-tool timeout.
@@ -204,6 +208,7 @@ require database access, secrets store access, or network calls to external
 APIs are not available.
 
 What the worker cannot do:
+
 - Access the database directly
 - Access the secrets store directly
 - Call LLM APIs directly (all calls are proxied through the orchestrator)
@@ -269,6 +274,7 @@ Startup sequence:
 
 The `claude` CLI emits NDJSON (one JSON object per line) on stdout with these
 top-level event types:
+
 - `system`: session init with `session_id`, tools list, model
 - `assistant`: LLM response; content blocks under `message.content[]`
   as `text` or `tool_use` blocks
@@ -282,6 +288,7 @@ The `session_id` captured from the initial `system` event is passed to
 `--resume <session_id>` for follow-up turns in the prompt polling loop.
 
 Follow-up prompt loop:
+
 - Polls `/worker/{id}/prompt` every 2 seconds.
 - On `done: true`, breaks and reports completion.
 - On a new prompt content, calls `run_claude_session()` with `--resume <sid>`.
@@ -313,6 +320,7 @@ because billing and token accounting happen on the orchestrator side, not in
 the container.
 
 This design means:
+
 - The container process never holds API keys for Anthropic, NEAR AI, OpenAI,
   or any other provider.
 - The orchestrator can apply rate limiting, audit logging, and cost tracking
@@ -332,6 +340,7 @@ Source file: `/Users/mudrii/src/ironclaw/Dockerfile.worker`
 The Dockerfile uses a two-stage build:
 
 **Stage 1 — Builder** (`rust:1.92-bookworm`):
+
 - Copies the full source tree into `/build`
 - Runs `cargo build --release --bin ironclaw`
 - Produces `/build/target/release/ironclaw`
@@ -339,6 +348,7 @@ The Dockerfile uses a two-stage build:
 **Stage 2 — Runtime** (`debian:bookworm-slim`):
 
 Installed packages (all via apt):
+
 - `ca-certificates`, `curl` — TLS and package fetching
 - `git` — version control in container tasks
 - `build-essential`, `pkg-config`, `libssl-dev` — C/C++ compilation
@@ -347,6 +357,7 @@ Installed packages (all via apt):
 - `gh` — GitHub CLI (from the official GitHub apt repository)
 
 Additional installs:
+
 - Rust toolchain (`rustup`, toolchain `1.92.0`) installed into
   `/usr/local/rustup` and `/usr/local/cargo`, world-readable. This allows
   workers to compile Rust code inside the container.
@@ -354,6 +365,7 @@ Additional installs:
   for `claude-bridge` mode.
 
 Security hardening at the Dockerfile level:
+
 - The final image runs as the non-root `sandbox` user (UID 1000, matching
   the orchestrator's `user: "1000:1000"` config).
 - `/workspace` is owned by `sandbox`.
@@ -365,6 +377,7 @@ The entrypoint is `ironclaw`. The orchestrator passes the full command
 allowing a single image to serve both modes.
 
 Build command:
+
 ```bash
 docker build -f Dockerfile.worker -t ironclaw-worker .
 ```
@@ -381,6 +394,7 @@ at runtime. The compose file defines only the infrastructure services that the
 main IronClaw process requires:
 
 **`postgres`** service:
+
 - Image: `pgvector/pgvector:pg16` (PostgreSQL 16 with the pgvector extension
   for semantic search)
 - Port: `5432:5432`

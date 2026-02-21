@@ -146,6 +146,7 @@ based on `NearAiConfig` settings (retry count, circuit breaker threshold,
 cache TTL, failover cooldown).
 
 Notable factory quirks:
+
 - **OpenAI uses `CompletionsClient`** (not the Responses API client) to avoid
   a known `rig-core` panic when threading `call_id` values.
 - **Tinfoil** always targets `https://inference.tinfoil.sh/v1` and supports
@@ -222,6 +223,7 @@ This means session expiry counts toward tripping the circuit breaker (signaling
 persistent auth problems) but does not trigger individual retries.
 
 **Default parameters:**
+
 - `failure_threshold`: 5 consecutive transient failures
 - `recovery_timeout`: 30 seconds
 - `half_open_successes_needed`: 2 successful probes before fully closing
@@ -243,6 +245,7 @@ entries (TTL exceeded) are pruned first, then the oldest entry is evicted if
 at capacity.
 
 **Default parameters:**
+
 - `response_cache_enabled`: false (opt-in)
 - `response_cache_ttl_secs`: 3600 (1 hour)
 - `response_cache_max_entries`: 1000
@@ -265,6 +268,7 @@ provider index each tokio task is currently using, so follow-up calls from
 the same logical request stay on the same provider.
 
 **Default parameters:**
+
 - `failover_cooldown_secs`: 300 (5 minutes)
 - `failover_cooldown_threshold`: 3 consecutive failures before cooldown
 
@@ -295,6 +299,7 @@ conversations.
 
 `seed_response_chain(response_id)` sets the chain anchor. On subsequent
 `complete()` calls:
+
 - System messages are extracted as `instructions`
 - Tool results are converted to `FunctionCallOutput` format
 - Only the new user turn is sent as delta messages
@@ -306,6 +311,7 @@ clears the chain ID and retries with the full conversation history.
 ### 5.3 Response Format Handling
 
 `NearAiProvider` handles two distinct response formats:
+
 - **Primary** `NearAiResponse`: NEAR AI native format with `output` array
 - **Alternative** `NearAiAltResponse`: OpenAI-compatible `choices` array
 
@@ -377,6 +383,7 @@ OpenAI returns schema validation errors for tools with optional parameters.
 
 `convert_messages()` splits the flat `Vec<ChatMessage>` into rig-core's
 expected structure:
+
 - System role messages → `preamble` (rig-core uses this separately)
 - All other messages → `history` (chronological order)
 
@@ -400,6 +407,7 @@ tokens.
 ### 8.1 Storage and Priority
 
 Token resolution order (highest to lowest priority):
+
 1. `NEARAI_SESSION_TOKEN` environment variable
 2. Database settings table (`nearai.session_token`)
 3. Disk file at `~/.ironclaw/session.json` (mode `0o600`)
@@ -464,7 +472,7 @@ This is implemented in `LlmConfig::resolve(settings: &Settings)`.
 | `OPENAI_BASE_URL` | OpenAi | Optional proxy override |
 | `ANTHROPIC_API_KEY` | Anthropic | Required |
 | `ANTHROPIC_MODEL` | Anthropic | Default: claude-sonnet-4-20250514 |
-| `OLLAMA_BASE_URL` | Ollama | Default: http://localhost:11434 |
+| `OLLAMA_BASE_URL` | Ollama | Default: <http://localhost:11434> |
 | `OLLAMA_MODEL` | Ollama | Default: llama3 |
 | `LLM_BASE_URL` | OpenAiCompatible | Required (e.g. OpenRouter URL) |
 | `LLM_API_KEY` | OpenAiCompatible | Optional |
@@ -490,6 +498,7 @@ in USD with `Decimal` precision. The function strips provider prefix from model
 IDs (e.g., `openai/gpt-4o` → `gpt-4o`) before looking up the table.
 
 Covered models include:
+
 - OpenAI: GPT-3.5-turbo through GPT-5.3-codex, reasoning models (o1, o3, o4-mini)
 - Anthropic: claude-haiku/sonnet/opus across all major versions
 - Local models: zero cost via `is_local_model()` heuristic matching prefixes
@@ -551,6 +560,7 @@ a tokenizer per model. The conservative 1.3 multiplier slightly over-estimates,
 which errs on the side of triggering compaction earlier.
 
 **Default limits:**
+
 - `context_limit`: 100,000 tokens
 - `compaction_threshold`: 80% of limit (80,000 tokens)
 
@@ -571,6 +581,7 @@ which errs on the side of triggering compaction earlier.
 It holds `Arc<dyn LlmProvider>` for the `Summarize` strategy.
 
 **Summarize strategy:**
+
 1. Collects turns to remove (all except the `keep_recent` most recent)
 2. Calls the LLM with temperature 0.3, max 1024 tokens, requesting a bullet-
    point summary of key decisions, actions, and outcomes
@@ -578,6 +589,7 @@ It holds `Arc<dyn LlmProvider>` for the `Summarize` strategy.
 4. Truncates the thread via `thread.truncate_turns(keep_recent)`
 
 **MoveToWorkspace strategy:**
+
 1. Formats turns as structured markdown with turn numbers, user input, agent
    response, and tool names used
 2. Appends raw content to the workspace daily log (no LLM call required)
@@ -608,6 +620,7 @@ logging and observability.
 | LLM call | $0.01/1K tokens | ~50 tokens/second |
 
 **`EstimationLearner` (EMA-based adaptive learning):**
+
 - Tracks per-category `cost_factor` and `time_factor` (ratio of actual to
   estimated)
 - Updates with Exponential Moving Average: `alpha = 0.1`
@@ -618,6 +631,7 @@ logging and observability.
 - Categories must be registered before use; unknown categories do not update
 
 **`ValueEstimator`:**
+
 - Target margin: 30% above cost
 - Minimum acceptable margin: 10% above cost
 - `is_profitable(cost, revenue)` → `revenue >= cost * 1.10`
@@ -628,17 +642,20 @@ logging and observability.
 `SuccessEvaluator` trait has two implementations:
 
 **`RuleBasedEvaluator`:**
+
 - Success rate threshold: 80% of tool actions must succeed
 - Maximum tolerated failures: 3
 - Critical error keywords: scans job output for patterns indicating hard failure
 - Job state: `Completed` and `Submitted` states count as successful
 
 **`LlmEvaluator`:**
+
 - Sends a structured JSON prompt to the cheap LLM requesting a JSON response
   with fields `success: bool`, `confidence: f64`, and `reasoning: String`
 - Falls back to `RuleBasedEvaluator` if JSON parsing fails
 
 **`MetricsCollector`:**
+
 - Per-tool `ToolMetrics`: call count, success/failure counts, average
   execution time, total cost
 - Error categorization: timeout, rate_limit, auth, not_found, invalid_input,

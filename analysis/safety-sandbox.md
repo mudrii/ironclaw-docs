@@ -142,6 +142,7 @@ Each pattern specifies a `LeakAction`:
 | High-entropy 64-char hex strings | Medium | Warn |
 
 The three actions mean:
+
 - **Block**: `scan_and_clean` returns `Err`, tool output is replaced with `[Output blocked due to potential secret leakage]`.
 - **Redact**: matched text is replaced in-place with `[REDACTED]`, content otherwise passes through.
 - **Warn**: the match is logged via `tracing::warn!`, content passes through unchanged.
@@ -209,6 +210,7 @@ Capabilities {
 **WorkspaceCapability**: grants read access to workspace paths filtered by `allowed_prefixes`. An empty prefix list allows all paths (within safety constraints). The actual read implementation is injected at runtime via the `WorkspaceReader` trait, decoupling the WASM runtime from the workspace module.
 
 **HttpCapability**: grants outbound HTTP access with the following fields:
+
 - `allowlist: Vec<EndpointPattern>` — each pattern has a `host` (supports `*.example.com` wildcards), optional `path_prefix`, and optional method restriction
 - `credentials: HashMap<String, CredentialMapping>` — credential mappings keyed by name; credentials are injected at the host boundary, never passed to WASM
 - `rate_limit: RateLimitConfig` — defaults to 60 requests/minute, 1000/hour
@@ -239,6 +241,7 @@ The `CredentialInjector` resolves secrets from the `SecretsStore` (AES-256-GCM e
 5. The WASM module receives only the response body and status code.
 
 **Supported injection locations**:
+
 - `AuthorizationBearer`: adds `Authorization: Bearer <value>`
 - `AuthorizationBasic { username }`: encodes `username:value` as base64 and adds `Authorization: Basic <encoded>`
 - `Header { name, prefix }`: adds a custom header with optional prefix (e.g., `X-Api-Key: <value>`)
@@ -284,12 +287,14 @@ Per-tool or per-job allowlist entries can be added via `NetworkProxyBuilder.allo
 ### 5.2 HTTP and HTTPS Handling (`src/sandbox/proxy/http.rs`)
 
 For plain HTTP requests, the proxy calls `handle_request`:
+
 1. Parses the target URL from the `Request-URI`.
 2. Constructs a `NetworkRequest` and passes it to the `NetworkPolicyDecider`.
 3. If `Deny`: returns HTTP 403 Forbidden with the denial reason.
 4. If `Allow` or `AllowWithCredentials`: calls `forward_request`, which copies headers (excluding hop-by-hop headers), optionally injects credentials, copies the body, and sends via `reqwest::Client`.
 
 For HTTPS, the proxy handles the `CONNECT` method in `handle_connect`:
+
 1. Extracts `host:port` from the CONNECT target.
 2. Validates the host against the allowlist.
 3. If allowed: returns `200 OK` to signal the client to begin TLS negotiation, then spawns a bidirectional TCP tunnel with a 30-minute timeout using `tokio::io::copy_bidirectional`.
@@ -308,6 +313,7 @@ async fn decide(&self, request: &NetworkRequest) -> NetworkDecision;
 ```
 
 `NetworkDecision` is one of:
+
 - `Allow` — forward as-is.
 - `AllowWithCredentials { secret_name, location }` — forward with credential injection.
 - `Deny { reason }` — reject with HTTP 403.
@@ -317,6 +323,7 @@ async fn decide(&self, request: &NetworkRequest) -> NetworkDecision;
 Credential mappings support glob host patterns (`*.example.com`). The `find_credential` method iterates all mappings and calls `host_matches_pattern`.
 
 Three built-in deciders are provided for different policy levels:
+
 - `DefaultPolicyDecider` — allowlist + credentials (used for `ReadOnly` and `WorkspaceWrite` policies)
 - `AllowAllDecider` — unrestricted (used for `FullAccess` policy; no proxy enforcement)
 - `DenyAllDecider` — deny everything (useful for testing or fully air-gapped configurations)
@@ -366,6 +373,7 @@ The orchestrator manages container lifecycle and provides an internal HTTP API f
 **Container cleanup**: `stop_job` sends a `stop_container` with 10 seconds grace, then `remove_container --force`, and revokes the token. Containers cannot persist between jobs. `complete_job` does the same cleanup when the worker self-reports completion.
 
 **Two job modes** (`JobMode`):
+
 - `Worker`: runs `ironclaw worker --job-id <uuid> --orchestrator-url <url>` — a standard agent loop with proxied LLM calls and a limited tool set.
 - `ClaudeCode`: runs `ironclaw claude-bridge --job-id <uuid> ...` — spawns the `claude` CLI inside the container and streams NDJSON events back to the orchestrator.
 
@@ -396,6 +404,7 @@ On macOS and Windows, Docker Desktop routes `host.docker.internal` through its V
 The worker binary runs inside Docker containers. It connects to the orchestrator over HTTP and uses a `ProxyLlmProvider` so that LLM calls never leave the container directly — all LLM traffic is forwarded through the orchestrator's `/worker/{id}/llm/` endpoints.
 
 **Startup sequence** (`WorkerRuntime::new`):
+
 1. Read `IRONCLAW_WORKER_TOKEN` from environment.
 2. Create `WorkerHttpClient` with the token and orchestrator URL.
 3. Instantiate `ProxyLlmProvider` backed by the HTTP client.
@@ -403,6 +412,7 @@ The worker binary runs inside Docker containers. It connects to the orchestrator
 5. Register only container-safe tools via `ToolRegistry::register_container_tools()` — shell, read_file, write_file, list_dir, apply_patch. Network tools requiring direct API access are not available inside the container.
 
 **Execution loop** (`WorkerRuntime::run`):
+
 1. Fetch job description from orchestrator.
 2. Fetch credential grants from `/worker/{id}/credentials` and store in `extra_env` (a `HashMap` passed to child processes via `Command::envs()`, not via `std::env::set_var` which would be unsafe in a multi-threaded tokio runtime).
 3. Run the reasoning loop up to `max_iterations` (default 50) times, with a total `timeout` (default 10 minutes).

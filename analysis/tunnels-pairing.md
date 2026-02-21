@@ -153,10 +153,12 @@ If `hostname` is not provided in config, `start()` runs `tailscale status --json
 **Command template substitution:**
 
 The `start_command` string supports two placeholders:
+
 - `{port}` — replaced with the local port number as a decimal string.
 - `{host}` — replaced with the local host string.
 
 Example commands from the source documentation:
+
 - `bore local {port} --to bore.pub`
 - `ssh -R 80:localhost:{port} serveo.net`
 
