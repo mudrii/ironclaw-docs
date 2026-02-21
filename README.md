@@ -3,7 +3,7 @@
 > Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.9.0
 > — a secure, self-hosted personal AI assistant written in Rust.
 
-**15 documents · 10,133 lines · 242 source files analyzed · ~107K lines of Rust**
+**Documentation set for IronClaw v0.9.0, validated against `~/src/ironclaw` source.**
 
 ---
 
@@ -44,7 +44,7 @@ IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.a
 | Module | Files | Description |
 |--------|------:|-------------|
 | `tools/` | 45+ | Tool system: built-in, MCP, WASM, dynamic builder |
-| `channels/` | 35+ | Channels: REPL, web gateway, HTTP, WASM plugins, TUI |
+| `channels/` | 35+ | Channels: REPL, web gateway, HTTP, WASM plugins |
 | `agent/` | 21 | Agent runtime: loop, sessions, jobs, routines, heartbeat |
 | `config/` | 17 | Configuration: all env vars and structs |
 | `workspace/` | 7 | Memory, embeddings, hybrid FTS+vector search |

@@ -36,7 +36,7 @@ Covers two paths: **pre-built binary** (fastest) and **build from source** (requ
 
 | Requirement | Version | Install |
 |-------------|---------|---------|
-| Rust | 1.85+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` |
+| Rust | 1.92+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` |
 | pgvector | latest | Only if using PostgreSQL backend |
 
 **macOS (Apple Silicon):** No extra steps — all dependencies via Cargo.
@@ -260,9 +260,9 @@ NEARAI_MODEL=zai-org/GLM-5-FP8
 NEARAI_BASE_URL=https://private.near.ai
 ```
 
-For hosting/service mode where browser OAuth is not possible, get a session token manually and set:
+For hosting/service mode where browser OAuth is not possible, use an API key:
 ```bash
-NEARAI_SESSION_TOKEN=sess_...
+NEARAI_API_KEY=<your-nearai-api-key>
 ```
 
 ### OpenAI
@@ -309,13 +309,13 @@ Full provider guide: `docs/LLM_PROVIDERS.md` in the repository.
 
 ## 7. Run Modes
 
-### Interactive (CLI / TUI)
+### Interactive (CLI / REPL)
 
 ```bash
 ironclaw
 ```
 
-Launches the full terminal UI with Ratatui. Use for interactive development and testing.
+Launches the interactive terminal REPL. Use for interactive development and testing.
 
 ```bash
 # Skip onboarding if already configured
@@ -330,14 +330,11 @@ Set `CLI_ENABLED=false` to prevent the REPL from starting. **This is required wh
 CLI_ENABLED=false ironclaw --no-onboard
 ```
 
-Access via the web gateway: `http://localhost:3001`
+Access via the web gateway: `http://localhost:3000` (or your configured `GATEWAY_PORT`)
 
-### REPL (simple, no TUI)
+### REPL
 
-For testing without the full TUI:
-```bash
-ironclaw repl
-```
+IronClaw's terminal interactive mode is the REPL started by `ironclaw`.
 
 ---
 

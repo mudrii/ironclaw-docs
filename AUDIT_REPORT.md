@@ -270,29 +270,24 @@ The dates are current but tied to v0.7.0.
 
 ---
 
-### 4.5 Ratatui vs Rustyline
+### 4.5 REPL Implementation Clarification
 
-ARCHITECTURE.md mentions:
-> CLI channel: Full TUI implementation using Ratatui
+Current source uses:
+- `rustyline` + `termimad` for the interactive REPL (`src/channels/repl.rs`)
+- no `ratatui` dependency in current `Cargo.toml`
 
-Source code analysis shows:
-- rustyline = "17" in Cargo.toml (for REPL)
-- ratatui mentioned in dependencies
-
-**Status**: Needs clarification — is TUI using Ratatui or Rustyline?
+**Status**: Clarified. Documentation now describes REPL mode (not a legacy TUI).
 
 ---
 
 ### 4.6 CLI Module Location
 
-ARCHITECTURE.md states:
-> `cli` | `src/cli/` | Full TUI implementation using Ratatui
+Current structure:
+- `src/cli/` = CLI command routing/subcommands
+- `src/channels/repl.rs` = interactive terminal channel
+- no dedicated `channels/cli` directory in current source
 
-Actual structure:
-- src/cli/ directory exists
-- src/channels/cli/ may also exist
-
-**Recommendation**: Verify exact CLI module location.
+**Status**: Clarified in architecture and developer reference docs.
 
 ---
 
@@ -347,8 +342,8 @@ Source config/ directory contains:
 |----|-------|----------|----------------|
 | N1 | Binary size outdated | DEPLOYMENT.md | Retest and update |
 | N2 | Build time outdated | DEPLOYMENT.md | Retest and update |
-| N3 | Ratatui vs Rustyline unclear | ARCHITECTURE.md | Clarify |
-| N4 | CLI module location | ARCHITECTURE.md | Verify path |
+| N3 | REPL implementation wording | ARCHITECTURE.md | Resolved (REPL wording updated) |
+| N4 | CLI module location | ARCHITECTURE.md | Resolved (`src/cli/` + `src/channels/repl.rs`) |
 | N5 | Missing hygiene.rs docs | Config docs | Add section |
 | N6 | Missing builder.rs docs | Config docs | Add section |
 | N7 | GATEWAY_PORT default | Docs vs code | Verify 3002 vs 3000 |

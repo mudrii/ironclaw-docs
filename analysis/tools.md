@@ -1382,12 +1382,12 @@ When writing tool schemas in IronClaw:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `SANDBOX_ENABLED` | `false` | Enable Docker sandbox for Container-domain tools |
+| `SANDBOX_ENABLED` | `true` | Enable Docker sandbox for Container-domain tools |
 | `SANDBOX_IMAGE` | `ironclaw-worker:latest` | Docker image for worker containers |
-| `SANDBOX_MEMORY_LIMIT_MB` | `512` | Container memory limit |
-| `SANDBOX_TIMEOUT_SECS` | `1800` | Container execution timeout |
-| `SANDBOX_DEFAULT_POLICY` | `workspace_write` | `ReadOnly`, `WorkspaceWrite`, or `FullAccess` |
-| `SANDBOX_NETWORK_PROXY` | `true` | Enable network proxy for containers |
+| `SANDBOX_MEMORY_LIMIT_MB` | `2048` | Container memory limit |
+| `SANDBOX_TIMEOUT_SECS` | `120` | Container execution timeout |
+| `SANDBOX_POLICY` | `readonly` | `readonly`, `workspace_write`, or `full_access` |
+| `SANDBOX_CPU_SHARES` | `1024` | Relative CPU weight for containers |
 
 ### MCP Server Configuration
 

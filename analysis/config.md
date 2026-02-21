@@ -66,9 +66,8 @@ default is possible.
 | `NEARAI_BASE_URL` | string | `https://private.near.ai` (Responses) or `https://cloud-api.near.ai` (Chat) | No | NEAR AI API base URL |
 | `NEARAI_AUTH_URL` | string | `https://private.near.ai` | No | NEAR AI auth/refresh endpoint base URL |
 | `NEARAI_SESSION_PATH` | path | `~/.ironclaw/session.json` | No | Path to NEAR AI session token file |
-| `NEARAI_API_MODE` | string | auto | No | `responses` (NEAR AI Chat) or `chat_completions` (NEAR AI Cloud). Auto-set to `chat_completions` when `NEARAI_API_KEY` is present |
 | `NEARAI_API_KEY` | secret | — | No | API key for NEAR AI Cloud (Chat Completions mode) |
-| `NEARAI_SESSION_TOKEN` | secret | — | No | Session token for NEAR AI Chat (Responses API mode) |
+| `NEARAI_SESSION_TOKEN` | secret | — | No | Optional session token env override used by session manager |
 | `NEARAI_FALLBACK_MODEL` | string | — | No | Optional secondary model for failover |
 | `NEARAI_MAX_RETRIES` | u32 | `3` | No | Maximum retries for transient NEAR AI errors |
 | `OPENAI_API_KEY` | secret | — | If `LLM_BACKEND=openai` | OpenAI API key |
@@ -705,7 +704,6 @@ OPENAI_MODEL="gpt-4o"
 # NEAR AI Cloud (Chat Completions API — API key auth)
 # LLM_BACKEND="nearai"
 # NEARAI_API_KEY="your-nearai-api-key"
-# NEARAI_API_MODE="chat_completions"
 # NEARAI_BASE_URL="https://cloud-api.near.ai"
 
 # Local Ollama

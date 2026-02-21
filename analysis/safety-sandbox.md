@@ -495,22 +495,21 @@ network_mode: "bridge"                     Containers cannot reach each other's 
 |---|---|---|
 | `SAFETY_MAX_OUTPUT_LENGTH` | `100000` | Maximum tool output length in bytes before truncation |
 | `SAFETY_INJECTION_CHECK_ENABLED` | `true` | Enable prompt injection scanning on tool outputs |
-| `SANDBOX_ENABLED` | `false` | Enable Docker sandbox for tool execution (requires Docker) |
+| `SANDBOX_ENABLED` | `true` | Enable Docker sandbox for tool execution (requires Docker) |
 | `SANDBOX_IMAGE` | `ironclaw-worker:latest` | Docker image for worker containers |
 | `SANDBOX_MEMORY_LIMIT_MB` | `2048` | Memory limit per container in megabytes |
 | `SANDBOX_TIMEOUT_SECS` | `120` | Default execution timeout per container in seconds |
-| `SANDBOX_CPU_LIMIT` | `1.0` | CPU shares for containers (relative weight) |
-| `SANDBOX_NETWORK_PROXY` | `true` | Enable SSRF proxy for container network traffic |
-| `SANDBOX_PROXY_PORT` | `0` | Port for the HTTP proxy (0 = auto-assign) |
-| `SANDBOX_DEFAULT_POLICY` | `workspace_write` | Sandbox policy: `readonly`, `workspace_write`, or `full_access` |
+| `SANDBOX_CPU_SHARES` | `1024` | Relative CPU weight for containers |
+| `SANDBOX_EXTRA_DOMAINS` | unset | Comma-separated domains added to default allowlist |
+| `SANDBOX_POLICY` | `readonly` | Sandbox policy: `readonly`, `workspace_write`, or `full_access` |
 | `GATEWAY_AUTH_TOKEN` | (required) | Bearer token for web gateway API access |
 | `GATEWAY_ENABLED` | `true` | Enable the web-facing gateway |
 | `GATEWAY_HOST` | `127.0.0.1` | Bind address for the web gateway |
-| `GATEWAY_PORT` | `3001` | Port for the web gateway |
+| `GATEWAY_PORT` | `3000` | Port for the web gateway |
 | `CLAUDE_CODE_ENABLED` | `false` | Enable ClaudeCode bridge mode for sandbox jobs |
-| `CLAUDE_CODE_MODEL` | `claude-sonnet-4-20250514` | Model passed to the `claude` CLI |
+| `CLAUDE_CODE_MODEL` | `sonnet` | Model passed to the `claude` CLI |
 | `CLAUDE_CODE_MAX_TURNS` | `50` | Max agentic turns per Claude Code session |
-| `CLAUDE_CODE_CONFIG_DIR` | `/home/worker/.claude` | Claude config dir inside container |
+| `CLAUDE_CONFIG_DIR` | `~/.claude` | Host config dir for Claude credential extraction |
 
 **Recommended token generation**:
 

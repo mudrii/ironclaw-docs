@@ -425,16 +425,16 @@ the primary fails. This future-proofs against API format migrations.
 
 ### 6.1 Auto-Selection Logic
 
-`NearAiApiMode::ChatCompletions` is automatically selected when `NEARAI_API_KEY`
-is set. Explicit override is available via `NEARAI_API_MODE=chat_completions`.
+Chat Completions mode is automatically selected when `NEARAI_API_KEY`
+is set. Otherwise, IronClaw uses Responses API mode with session credentials.
 The factory in `config/llm.rs` resolves this at startup:
 
 ```rust
-let api_mode = if nearai_api_key.is_some() {
-    NearAiApiMode::ChatCompletions
+if nearai_api_key.is_some() {
+    // Chat Completions mode
 } else {
-    NearAiApiMode::Responses
-};
+    // Responses API mode
+}
 ```
 
 ### 6.2 Tool Message Flattening
@@ -551,9 +551,8 @@ This is implemented in `LlmConfig::resolve(settings: &Settings)`.
 | Variable | Backend | Purpose |
 |----------|---------|---------|
 | `LLM_BACKEND` | All | Select backend (nearai/openai/anthropic/ollama/openai_compatible/tinfoil) |
-| `NEARAI_SESSION_TOKEN` | NearAi | Session token for Responses API |
+| `NEARAI_SESSION_TOKEN` | NearAi | Optional env override for session token (used by session manager) |
 | `NEARAI_API_KEY` | NearAi | API key; auto-selects ChatCompletions mode |
-| `NEARAI_API_MODE` | NearAi | Explicit mode override (responses/chat_completions) |
 | `NEARAI_MODEL` | NearAi | Primary model name |
 | `NEARAI_CHEAP_MODEL` | NearAi | Lightweight model for routing/heartbeat/evaluation |
 | `NEARAI_FALLBACK_MODEL` | NearAi | Failover model |

@@ -178,7 +178,9 @@ OPENAI_MODEL=gpt-4o
 
 # --- NEAR AI (default) ---
 # LLM_BACKEND=nearai
-# NEAR_API_KEY=...   (or authenticate via: ironclaw auth login)
+# NEARAI_API_KEY=...   (recommended for headless/service deployments)
+# Or run onboarding for browser OAuth/session setup:
+# ironclaw onboard
 
 # --- Ollama (local LLM) ---
 # LLM_BACKEND=ollama
@@ -211,7 +213,7 @@ EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
 
 # Dimensions must match the model
-# EMBEDDING_DIMENSIONS=1536
+# EMBEDDING_DIMENSION=1536
 
 ##############################################
 # AGENT
@@ -570,9 +572,11 @@ ANTHROPIC_MODEL=claude-opus-4-5      # or claude-sonnet-4-6, claude-haiku-4-5
 
 ```bash
 LLM_BACKEND=nearai
-# Then authenticate:
-ironclaw auth login
-# This opens a browser for NEAR AI OAuth and stores credentials
+# Option A (service/headless friendly): API key
+NEARAI_API_KEY=<your-nearai-api-key>
+
+# Option B (interactive): run onboarding once to authenticate
+ironclaw onboard
 ```
 
 ### Ollama (local, no API cost)

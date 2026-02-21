@@ -42,17 +42,17 @@
 | Memory pressure monitoring | `src/agent/context_monitor.rs` |
 | Routine (cron/event/webhook) engine | `src/agent/routine_engine.rs` |
 | Proactive heartbeat logic | `src/agent/heartbeat.rs` |
-| TUI (Ratatui terminal UI) | `src/channels/cli/` |
+| Interactive REPL channel | `src/channels/repl.rs` |
 | Web gateway routes (40+ endpoints) | `src/channels/web/server.rs` |
 | SSE broadcast | `src/channels/web/sse.rs` |
 | WebSocket | `src/channels/web/ws.rs` |
 | HTTP webhook channel | `src/channels/http.rs` |
 | WASM channel runtime | `src/channels/wasm/` |
 | All error types | `src/error.rs` |
-| All config structs / env var loading | `src/config.rs` |
+| All config structs / env var loading | `src/config/mod.rs` |
 | Tool trait definition | `src/tools/tool.rs` |
 | Tool registry / discovery | `src/tools/registry.rs` |
-| All 34 built-in tools | `src/tools/builtin/` |
+| Built-in tool implementations | `src/tools/builtin/` |
 | Shell tool (env scrubbing) | `src/tools/builtin/shell.rs` |
 | HTTP tool (external requests) | `src/tools/builtin/http.rs` |
 | File tools (read/write/patch/list) | `src/tools/builtin/file.rs` |
@@ -117,7 +117,7 @@
 | Module | Path | Responsibility |
 |--------|------|----------------|
 | `agent` | `src/agent/` | Core loop, job scheduling, sessions, routines, heartbeat |
-| `channels` | `src/channels/` | TUI, web gateway, HTTP webhooks, WASM plugin channels |
+| `channels` | `src/channels/` | REPL, web gateway, HTTP webhooks, WASM plugin channels |
 | `llm` | `src/llm/` | Multi-provider LLM: retry, circuit breaker, cache, failover |
 | `tools` | `src/tools/` | Built-in tools, WASM sandbox, MCP client, dynamic builder |
 | `safety` | `src/safety/` | Prompt injection defense: sanitize, validate, policy, leak-detect |
@@ -133,7 +133,7 @@
 | `evaluation` | `src/evaluation/` | Job success evaluation (rule-based + LLM) |
 | `history` | `src/history/` | PostgreSQL repositories, analytics aggregation |
 | `setup` | `src/setup/` | 7-step interactive onboarding wizard |
-| `config` | `src/config.rs` | All env var loading, 18 sub-config structs |
+| `config` | `src/config/` | All env var loading and sub-config structs |
 | `error` | `src/error.rs` | All error types via `thiserror` |
 
 ---
@@ -186,7 +186,7 @@ All error types defined in `src/error.rs`. Top-level `Error` wraps domain errors
 | `InvalidResponse { provider, reason }` | Unexpected JSON schema from provider | Provider API change — update parser |
 | `ContextLengthExceeded { used, limit }` | Conversation too long | Compaction triggered in `src/agent/compaction.rs` |
 | `ModelNotAvailable { provider, model }` | `*_MODEL` env var wrong | Check model name for provider |
-| `AuthFailed { provider }` | Wrong API key or session token | Check `*_API_KEY` / `NEARAI_SESSION_TOKEN` |
+| `AuthFailed { provider }` | Wrong API key or expired session | Check `*_API_KEY` and NEAR AI session/API key config |
 | `SessionExpired { provider }` | NEAR AI session token expired | Re-authenticate; session renewal in `src/llm/session.rs` |
 | `SessionRenewalFailed { provider, reason }` | Auto-renewal failed | Manual re-auth required |
 
@@ -221,7 +221,7 @@ All error types defined in `src/error.rs`. Top-level `Error` wraps domain errors
 | `InvalidTransition { id, state, target }` | Illegal state machine transition | See state machine in §7 |
 | `Failed { id, reason }` | Job execution failed | Inspect `reason`; check `tool_failures` table |
 | `Stuck { id, duration }` | Job in `InProgress` too long | Self-repair in `src/agent/self_repair.rs` |
-| `MaxJobsExceeded { max }` | `MAX_PARALLEL_JOBS` hit | Increase env var or queue jobs |
+| `MaxJobsExceeded { max }` | `AGENT_MAX_PARALLEL_JOBS` hit | Increase env var or queue jobs |
 | `ContextError { id, reason }` | Context manager error | Check `src/context/manager.rs` |
 
 ### 3.8 WorkerError (container-side)
@@ -250,7 +250,7 @@ All error types defined in `src/error.rs`. Top-level `Error` wraps domain errors
 
 Config loaded in priority order: **shell env → ./.env → ~/.ironclaw/.env → config.toml → DB settings → defaults**
 
-Config struct: `src/config.rs` · 18 sub-configs · `INJECTED_VARS: OnceLock<HashMap<String,String>>` for secret overlay
+Config struct: `src/config/mod.rs` · `INJECTED_VARS: OnceLock<HashMap<String,String>>` for secret overlay
 
 ### 4.1 Database
 
@@ -267,22 +267,22 @@ Config struct: `src/config.rs` · 18 sub-configs · `INJECTED_VARS: OnceLock<Has
 | Env Var | Type | Default | Required | Notes |
 |---------|------|---------|----------|-------|
 | `LLM_BACKEND` | enum | `nearai` | No | See §5 for all options |
-| `NEARAI_SESSION_TOKEN` | string | — | Yes (nearai default mode) | `sess_...` token |
-| `NEARAI_API_KEY` | string | — | Yes (nearai cloud mode) | Auto-selects Chat Completions API |
+| `NEARAI_API_KEY` | string | — | No | Enables API-key mode for NEAR AI cloud |
 | `NEARAI_BASE_URL` | URL | `https://private.near.ai` | No | Override for cloud: `https://cloud-api.near.ai` |
-| `NEARAI_MODEL` | string | `claude-3-5-sonnet-20241022` | No | Model name |
-| `NEARAI_API_MODE` | `"responses"\|"chat_completions"` | auto | No | Force API mode |
+| `NEARAI_MODEL` | string | `fireworks::accounts/fireworks/models/llama4-maverick-instruct-basic` | No | Model name |
+| `NEARAI_SESSION_PATH` | path | `~/.ironclaw/session.json` | No | Session file location |
 | `OPENAI_API_KEY` | string | — | Yes (openai) | `sk-...` |
-| `OPENAI_BASE_URL` | URL | `https://api.openai.com/v1` | No | Override for compatible APIs |
+| `OPENAI_BASE_URL` | URL | provider default | No | Optional override |
 | `OPENAI_MODEL` | string | `gpt-4o` | No | Model name |
 | `ANTHROPIC_API_KEY` | string | — | Yes (anthropic) | |
-| `ANTHROPIC_BASE_URL` | URL | `https://api.anthropic.com` | No | |
-| `ANTHROPIC_MODEL` | string | `claude-sonnet-4-6` | No | |
+| `ANTHROPIC_BASE_URL` | URL | provider default | No | |
+| `ANTHROPIC_MODEL` | string | `claude-sonnet-4-20250514` | No | |
 | `OLLAMA_BASE_URL` | URL | `http://localhost:11434` | Yes (ollama) | |
-| `OLLAMA_MODEL` | string | `llama3.2` | No | |
-| `OPENAI_COMPATIBLE_BASE_URL` | URL | — | Yes (openai_compatible) | Custom base URL |
-| `OPENAI_COMPATIBLE_API_KEY` | string | — | No | |
-| `OPENAI_COMPATIBLE_MODEL` | string | — | Yes (openai_compatible) | |
+| `OLLAMA_MODEL` | string | `llama3` | No | |
+| `LLM_BASE_URL` | URL | — | Yes (openai_compatible) | Custom base URL |
+| `LLM_API_KEY` | string | — | No | |
+| `LLM_MODEL` | string | `default` | No | Falls back to selected model from settings |
+| `LLM_EXTRA_HEADERS` | string | — | No | `Key:Value,Key2:Value2` |
 | `TINFOIL_API_KEY` | string | — | Yes (tinfoil) | |
 | `TINFOIL_MODEL` | string | `kimi-k2-5` | No | |
 
@@ -290,35 +290,38 @@ Config struct: `src/config.rs` · 18 sub-configs · `INJECTED_VARS: OnceLock<Has
 
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
-| `CIRCUIT_BREAKER_THRESHOLD` | u32 | `5` | Failures before circuit opens |
-| `CIRCUIT_BREAKER_TIMEOUT_SECS` | u64 | `60` | Seconds before half-open |
-| `RETRY_MAX_ATTEMPTS` | u32 | `3` | Max retry count |
-| `RETRY_INITIAL_DELAY_MS` | u64 | `1000` | Initial backoff |
-| `RETRY_MAX_DELAY_MS` | u64 | `30000` | Max backoff cap |
+| `CIRCUIT_BREAKER_THRESHOLD` | u32 | unset | Failures before circuit opens |
+| `CIRCUIT_BREAKER_RECOVERY_SECS` | u64 | `30` | Seconds before half-open |
+| `NEARAI_MAX_RETRIES` | u32 | `3` | Max retry count |
 | `RESPONSE_CACHE_ENABLED` | bool | `false` | Cache LLM responses |
 | `RESPONSE_CACHE_TTL_SECS` | u64 | `3600` | Cache TTL |
-| `LLM_FAILOVER_PROVIDERS` | comma-list | — | Ordered fallback list |
+| `RESPONSE_CACHE_MAX_ENTRIES` | usize | `1000` | Cache size cap |
+| `LLM_FAILOVER_COOLDOWN_SECS` | u64 | `300` | Provider cooldown after repeated failures |
+| `LLM_FAILOVER_THRESHOLD` | u32 | `3` | Failures before provider cooldown |
+| `SMART_ROUTING_CASCADE` | bool | `true` | Cheap-model cascade behavior |
 
 ### 4.4 Agent
 
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
 | `AGENT_NAME` | string | `ironclaw` | Display name |
-| `MAX_PARALLEL_JOBS` | usize | `5` | Job concurrency limit |
+| `AGENT_MAX_PARALLEL_JOBS` | usize | `5` | Job concurrency limit |
 | `AGENT_JOB_TIMEOUT_SECS` | u64 | `1800` | Per-job timeout |
-| `AGENT_MAX_PARALLEL_JOBS` | usize | `5` | Alias for MAX_PARALLEL_JOBS |
+| `AGENT_STUCK_THRESHOLD_SECS` | u64 | `1800` | Stuck-job detector threshold |
+| `AGENT_MAX_TOOL_ITERATIONS` | usize | `50` | Max agentic tool-call loop iterations |
+| `AGENT_AUTO_APPROVE_TOOLS` | bool | `false` | Skip tool approvals (CI/benchmarks) |
 
 ### 4.5 Web Gateway
 
 | Env Var | Type | Default | Required | Notes |
 |---------|------|---------|----------|-------|
-| `GATEWAY_ENABLED` | bool | `false` | No | Must be `true` to start gateway |
+| `GATEWAY_ENABLED` | bool | `true` | No | Must be `true` to start gateway |
 | `GATEWAY_HOST` | string | `127.0.0.1` | No | Bind address |
-| `GATEWAY_PORT` | u16 | `3001` | No | Listen port |
-| `GATEWAY_AUTH_TOKEN` | string | — | Yes (if enabled) | Bearer token for all API calls |
+| `GATEWAY_PORT` | u16 | `3000` | No | Listen port |
+| `GATEWAY_AUTH_TOKEN` | string | random if unset | No | Bearer token for protected API calls |
 | `GATEWAY_USER_ID` | string | `default` | No | Default user context |
 
-### 4.6 CLI / TUI
+### 4.6 CLI / REPL
 
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
@@ -328,14 +331,13 @@ Config struct: `src/config.rs` · 18 sub-configs · `INJECTED_VARS: OnceLock<Has
 
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
-| `SANDBOX_ENABLED` | bool | `false` | Enable Docker sandbox |
+| `SANDBOX_ENABLED` | bool | `true` | Enable Docker sandbox |
 | `SANDBOX_IMAGE` | string | `ironclaw-worker:latest` | Container image |
-| `SANDBOX_MEMORY_LIMIT_MB` | u64 | `512` | Container memory cap |
-| `SANDBOX_TIMEOUT_SECS` | u64 | `1800` | Container execution timeout |
-| `SANDBOX_CPU_LIMIT` | f64 | `1.0` | CPU cores per container |
-| `SANDBOX_NETWORK_PROXY` | bool | `true` | Enable CONNECT proxy |
-| `SANDBOX_PROXY_PORT` | u16 | `8080` | Proxy listener port |
-| `SANDBOX_DEFAULT_POLICY` | enum | `workspace_write` | `readonly\|workspace_write\|full_access` |
+| `SANDBOX_MEMORY_LIMIT_MB` | u64 | `2048` | Container memory cap |
+| `SANDBOX_TIMEOUT_SECS` | u64 | `120` | Container execution timeout |
+| `SANDBOX_CPU_SHARES` | u32 | `1024` | Relative CPU weight |
+| `SANDBOX_POLICY` | enum | `readonly` | `readonly\|workspace_write\|full_access` |
+| `SANDBOX_AUTO_PULL` | bool | `true` | Auto-pull missing image |
 | `DOCKER_HOST` | string | system default | Set to Podman socket for Podman users |
 
 ### 4.8 Claude Code Mode (in containers)
@@ -343,63 +345,70 @@ Config struct: `src/config.rs` · 18 sub-configs · `INJECTED_VARS: OnceLock<Has
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
 | `CLAUDE_CODE_ENABLED` | bool | `false` | Enable Claude Code bridge |
-| `CLAUDE_CODE_MODEL` | string | `claude-sonnet-4-20250514` | Model for Claude Code |
+| `CLAUDE_CODE_MODEL` | string | `sonnet` | Model for Claude Code |
 | `CLAUDE_CODE_MAX_TURNS` | u32 | `50` | Max turns per job |
-| `CLAUDE_CODE_CONFIG_DIR` | path | `/home/worker/.claude` | Config dir in container |
+| `CLAUDE_CONFIG_DIR` | path | `~/.claude` | Host config dir for credential extraction |
 
 ### 4.9 Routines
 
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
 | `ROUTINES_ENABLED` | bool | `true` | Enable routine engine |
-| `ROUTINES_CRON_INTERVAL` | u64 | `60` | Tick interval (seconds) |
-| `ROUTINES_MAX_CONCURRENT` | usize | `3` | Max concurrent routine runs |
+| `ROUTINES_CRON_INTERVAL` | u64 | `15` | Tick interval (seconds) |
+| `ROUTINES_MAX_CONCURRENT` | usize | `10` | Max concurrent routine runs |
+| `ROUTINES_DEFAULT_COOLDOWN` | u64 | `300` | Default cooldown between runs |
+| `ROUTINES_MAX_TOKENS` | u32 | `4096` | Lightweight routine token budget |
 
 ### 4.10 Skills
 
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
-| `SKILLS_ENABLED` | bool | `true` | Enable skills system |
-| `SKILLS_MAX_TOKENS` | usize | `4000` | Max prompt budget per turn |
-| `SKILLS_CATALOG_URL` | URL | `https://clawhub.dev` | ClawHub registry |
-| `SKILLS_AUTO_DISCOVER` | bool | `true` | Scan skill dirs on startup |
+| `SKILLS_ENABLED` | bool | `false` | Enable skills system |
+| `SKILLS_DIR` | path | `~/.ironclaw/skills` | Local skill directory |
+| `SKILLS_MAX_ACTIVE` | usize | `3` | Max active skills per request |
+| `SKILLS_MAX_CONTEXT_TOKENS` | usize | `4000` | Max prompt budget per turn |
 
 ### 4.11 Workspace / Memory
 
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
 | `EMBEDDING_ENABLED` | bool | `false` | Enable vector embeddings |
-| `EMBEDDING_PROVIDER` | enum | `openai` | `openai\|nearai\|ollama\|mock` |
+| `EMBEDDING_PROVIDER` | enum | `nearai` | `openai\|nearai\|ollama` |
 | `EMBEDDING_MODEL` | string | `text-embedding-3-small` | Embedding model name |
+| `EMBEDDING_DIMENSION` | usize | model-derived | Explicit vector size override |
 | `HEARTBEAT_ENABLED` | bool | `false` | Enable proactive execution |
 | `HEARTBEAT_INTERVAL_SECS` | u64 | `1800` | 30 minutes default |
-| `HEARTBEAT_NOTIFY_CHANNEL` | string | `tui` | Channel to send findings |
-| `HEARTBEAT_NOTIFY_USER` | string | `default` | User to notify |
+| `HEARTBEAT_NOTIFY_CHANNEL` | string | unset | Channel to send findings |
+| `HEARTBEAT_NOTIFY_USER` | string | unset | User to notify |
 
 ### 4.12 Tunnel
 
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
 | `TUNNEL_PROVIDER` | enum | — | `cloudflare\|ngrok\|tailscale\|custom` |
-| `TUNNEL_DOMAIN` | string | — | Custom domain for tunnel |
-| `NGROK_AUTH_TOKEN` | string | — | Required for ngrok |
-| `TAILSCALE_AUTH_KEY` | string | — | Required for Tailscale |
+| `TUNNEL_URL` | string | — | Static public URL (manual tunnel) |
+| `TUNNEL_NGROK_TOKEN` | string | — | Required for ngrok |
+| `TUNNEL_NGROK_DOMAIN` | string | — | Optional ngrok domain |
+| `TUNNEL_CF_TOKEN` | string | — | Required for Cloudflare |
+| `TUNNEL_TS_FUNNEL` | bool | `false` | Use tailscale funnel |
+| `TUNNEL_TS_HOSTNAME` | string | — | Tailscale hostname |
 
 ### 4.13 WASM Runtime
 
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
-| `WASM_FUEL_LIMIT` | u64 | `1_000_000_000` | Execution fuel cap |
-| `WASM_MEMORY_LIMIT_MB` | u64 | `64` | Memory cap per module |
-| `WASM_CACHE_DIR` | path | `~/.ironclaw/wasm_cache` | Compiled module cache |
+| `WASM_ENABLED` | bool | `true` | Enable WASM tools |
+| `WASM_TOOLS_DIR` | path | `~/.ironclaw/tools` | Tool directory |
+| `WASM_DEFAULT_FUEL_LIMIT` | u64 | `10_000_000` | Execution fuel cap |
+| `WASM_DEFAULT_MEMORY_LIMIT` | u64 | `10485760` | Memory cap in bytes (10MB) |
+| `WASM_DEFAULT_TIMEOUT_SECS` | u64 | `60` | Execution timeout |
+| `WASM_CACHE_DIR` | path | unset | Compiled module cache override |
 
 ### 4.14 Rate Limiting
 
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
-| `RATE_LIMIT_ENABLED` | bool | `true` | Global rate limiting |
-| `RATE_LIMIT_REQUESTS_PER_MIN` | u32 | `60` | Gateway requests/min |
-| `WASM_RATE_LIMIT_PER_MIN` | u32 | `100` | Per WASM tool calls/min |
+| Built-in/WASM tool rate limiting is configured in tool/runtime capabilities and code defaults (`src/tools/rate_limiter.rs`, `src/tools/wasm/capabilities.rs`). |
 
 ### 4.15 Logging
 
@@ -413,19 +422,18 @@ Config struct: `src/config.rs` · 18 sub-configs · `INJECTED_VARS: OnceLock<Has
 
 | Backend | `LLM_BACKEND` value | Required Env Vars | API Protocol | Tool Call Format |
 |---------|---------------------|-------------------|--------------|------------------|
-| NEAR AI Chat | `nearai` (default) | `NEARAI_SESSION_TOKEN` | Responses API | Native |
-| NEAR AI Cloud | `nearai` + `NEARAI_API_KEY` | `NEARAI_API_KEY` | Chat Completions | Text-flattened |
+| NEAR AI (session mode) | `nearai` (default) | session file at `NEARAI_SESSION_PATH` | Responses API | Native |
+| NEAR AI (API key mode) | `nearai` + `NEARAI_API_KEY` | `NEARAI_API_KEY` | Chat Completions | Text-flattened |
 | OpenAI | `openai` | `OPENAI_API_KEY` | Chat Completions | Native |
 | Anthropic | `anthropic` | `ANTHROPIC_API_KEY` | Messages API | Native |
 | Ollama | `ollama` | `OLLAMA_BASE_URL` | Chat Completions | Native |
-| OpenAI-compatible | `openai_compatible` | `OPENAI_COMPATIBLE_BASE_URL`, `OPENAI_COMPATIBLE_MODEL` | Chat Completions | Native |
+| OpenAI-compatible | `openai_compatible` | `LLM_BASE_URL`, `LLM_MODEL` | Chat Completions | Native |
 | Tinfoil (TEE) | `tinfoil` | `TINFOIL_API_KEY` | Chat Completions (adapted) | Chat-format |
 
 **NEAR AI mode selection logic** (`src/llm/mod.rs`):
 
 - If `NEARAI_API_KEY` set → Chat Completions API (`nearai_chat.rs`)
-- If `NEARAI_API_MODE=chat_completions` → Chat Completions API
-- Otherwise → Responses API (`nearai.rs`) using `NEARAI_SESSION_TOKEN`
+- Otherwise → Responses API (`nearai.rs`) using session credentials from `NEARAI_SESSION_PATH`
 
 **Three-tier wrapper chain** (all backends):
 
@@ -558,28 +566,26 @@ impl Tool for MyTool {
 - Property types: `"string"`, `"integer"`, `"boolean"`, `"array"`, `"object"` (never `["string", "null"]` array form — OpenAI 400)
 - For optional string fields: omit from `"required"`, do not use array type syntax
 
-### 8.2 Built-in Tools (34 total)
+### 8.2 Core Tool Groups
 
 | Tool Name | Source File | Category |
 |-----------|-------------|----------|
 | `echo` | `builtin/echo.rs` | Debug |
 | `time` | `builtin/time.rs` | Utility |
-| `json_format`, `json_query` | `builtin/json.rs` | Data |
-| `http_get`, `http_post`, `http_put`, `http_delete` | `builtin/http.rs` | Network |
+| `json` | `builtin/json.rs` | Data |
+| `http` | `builtin/http.rs` | Network |
 | `read_file`, `write_file`, `list_dir`, `apply_patch` | `builtin/file.rs` | Filesystem |
 | `shell` | `builtin/shell.rs` | Execution |
 | `memory_search`, `memory_write`, `memory_read`, `memory_tree` | `builtin/memory.rs` | Workspace |
 | `create_job`, `list_jobs`, `job_status`, `cancel_job` | `builtin/job.rs` | Agent |
 | `routine_create`, `routine_list`, `routine_update`, `routine_delete`, `routine_history` | `builtin/routine.rs` | Routines |
-| `extension_install`, `extension_auth`, `extension_activate`, `extension_remove` | `builtin/extension_tools.rs` | Extensions |
+| `tool_search`, `tool_install`, `tool_auth`, `tool_activate`, `tool_list`, `tool_remove` | `builtin/extension_tools.rs` | Extensions |
 | `skill_list`, `skill_search`, `skill_install`, `skill_remove` | `builtin/skill_tools.rs` | Skills |
-| `marketplace`, `ecommerce`, `taskrabbit`, `restaurant` | `builtin/{...}.rs` | **Stubs** (placeholder responses) |
 
-### 8.3 Protected Tool Names (35 names)
+### 8.3 Protected Tool Names
 
-These names cannot be shadowed by WASM or dynamically-built tools. Attempting to register any of these throws `ToolError::Disabled`.
-
-The protected list is defined in `src/tools/registry.rs`. Includes all 34 built-in tool names plus `ironclaw_internal`.
+These names cannot be shadowed by WASM or dynamically-built tools.
+The protected list is defined in `src/tools/registry.rs` (`PROTECTED_TOOL_NAMES`).
 
 ### 8.4 Tool Registration
 
@@ -596,11 +602,11 @@ Source: `src/tools/wasm/`
 
 | Constraint | Value |
 |-----------|-------|
-| Fuel limit | `WASM_FUEL_LIMIT` (default: 1 billion units) |
-| Memory limit | `WASM_MEMORY_LIMIT_MB` (default: 64 MB) |
+| Fuel limit | `WASM_DEFAULT_FUEL_LIMIT` (default: 10,000,000) |
+| Memory limit | `WASM_DEFAULT_MEMORY_LIMIT` (default: 10MB in bytes) |
 | Network | Allowlisted domains only (`src/tools/wasm/allowlist.rs`) |
 | Credentials | Injected via proxy; never in WASM env |
-| Rate limit | `WASM_RATE_LIMIT_PER_MIN` (default: 100) |
+| Rate limit | Capability-driven per-tool limits (`capabilities.json`) |
 | Module cache | `WASM_CACHE_DIR` (compiled `.cwasm` files) |
 | Component model | wasmtime component model (WASM P2) |
 
@@ -669,7 +675,7 @@ Source: `src/skills/`
 
 1. **Gating** (`src/skills/gating.rs`): Check `bins`, `env`, `config` requirements; skip if missing
 2. **Scoring** (`src/skills/selector.rs`): Deterministic score against message keywords/patterns
-3. **Budget**: Select top skills within `SKILLS_MAX_TOKENS`
+3. **Budget**: Select top skills within `SKILLS_MAX_CONTEXT_TOKENS`
 4. **Attenuation** (`src/skills/attenuation.rs`): Strip dangerous tool access for `Installed` skills
 
 **SKILL.md format** (frontmatter + markdown body):
@@ -697,7 +703,7 @@ metadata:
 
 Source: `src/sandbox/config.rs`
 
-| Policy | `SANDBOX_DEFAULT_POLICY` | Filesystem | Network |
+| Policy | `SANDBOX_POLICY` | Filesystem | Network |
 |--------|--------------------------|-----------|---------|
 | `ReadOnly` | `readonly` | Read-only workspace mount | Allowlisted domains only |
 | `WorkspaceWrite` | `workspace_write` | Read-write workspace mount | Allowlisted domains only |
@@ -774,7 +780,7 @@ grep -rn '<the_pattern>' src/
 **Symptom**: Service starts then immediately exits when launched via launchd/systemd
 **Root cause**: `CLI_ENABLED=true` + stdin from `/dev/null` → REPL reads EOF → graceful shutdown
 **Fix**: Set `CLI_ENABLED=false` in service environment
-**File**: `src/channels/cli/mod.rs` (`TuiChannel` startup), `src/config.rs` (`CliConfig.enabled`)
+**File**: `src/channels/repl.rs` (`ReplChannel` startup), `src/config/channels.rs` (`CliConfig.enabled`)
 
 ### Pattern: "Job stuck, never completes"
 
@@ -786,9 +792,9 @@ grep -rn '<the_pattern>' src/
 ### Pattern: "NEAR AI session expired"
 
 **Symptom**: `LlmError::SessionExpired { provider: "nearai" }`
-**Root cause**: `NEARAI_SESSION_TOKEN` expired (OAuth session token has finite TTL)
+**Root cause**: NEAR AI session credentials expired
 **Handler**: `src/llm/session.rs` — auto-renewal attempted
-**Fix if auto-renewal fails**: Re-authenticate browser OAuth, update `NEARAI_SESSION_TOKEN`
+**Fix if auto-renewal fails**: Re-authenticate via `ironclaw onboard` or use `NEARAI_API_KEY`
 
 ### Pattern: "libSQL workspace search returns no results"
 
@@ -802,7 +808,7 @@ grep -rn '<the_pattern>' src/
 **Symptom**: Env var set but behavior unchanged
 **Root cause**: Wrong priority level; `.env` file in wrong location overriding shell env
 **Priority order**: shell env > `./.env` > `~/.ironclaw/.env` > config.toml > DB > defaults
-**Grep**: `grep -rn 'INJECTED_VARS\|from_env\|env::var' src/config.rs`
+**Grep**: `grep -rn 'INJECTED_VARS\|from_env\|env::var' src/config/`
 
 ### Pattern: "TOCTOU race in DB operations"
 
@@ -882,7 +888,7 @@ grep -rn '"type": \[' src/tools/ --include="*.rs"
 grep -rn 'requires_sanitization' src/tools/ --include="*.rs"
 
 # Find all env var reads (config coverage check)
-grep -rn 'env::var\|std::env' src/config.rs
+grep -rn 'env::var\|std::env' src/config/
 
 # Find all Database trait methods (check both backends implement)
 grep -n 'async fn ' src/db/mod.rs

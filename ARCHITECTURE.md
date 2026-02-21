@@ -29,7 +29,7 @@ The binary is a single self-contained executable. There is no separate daemon ma
 
 IronClaw differs from TypeScript-based AI gateways in several important ways. First, it compiles to a native binary with no Node.js or Python runtime requirement. Second, it uses libsql (an embedded SQLite fork by Turso) or PostgreSQL as its storage layer, both exposed through a single `Database` trait abstraction with approximately sixty async methods. Third, multi-LLM support is provided by `rig-core`, a Rust framework that abstracts over OpenAI, Anthropic, Ollama, and OpenAI-compatible endpoints. NEAR AI is supported natively through a custom `NearAiProvider` that uses the Responses API with session-token authentication and response chaining for efficient multi-turn conversations. Tinfoil private inference, which runs models in hardware-attested TEEs, is also supported via the OpenAI-compatible Chat Completions API.
 
-The channel abstraction is the core extensibility point for message ingestion. A `Channel` trait with five lifecycle methods (`start`, `respond`, `send_status`, `broadcast`, `health_check`) allows any input source to feed the same agent loop. Implemented channels include a full TUI built on Ratatui, an HTTP webhook server, a web gateway with SSE/WebSocket streaming and a single-page browser UI, and a WASM channel runtime that loads compiled channel implementations at startup. A `ChannelManager` merges all active streams via `futures::stream::select_all` and provides a single injection sender for background tasks to push synthetic messages into the agent loop without being full Channel implementations.
+The channel abstraction is the core extensibility point for message ingestion. A `Channel` trait with five lifecycle methods (`start`, `respond`, `send_status`, `broadcast`, `health_check`) allows any input source to feed the same agent loop. Implemented channels include an interactive REPL channel (rustyline + termimad), an HTTP webhook server, a web gateway with SSE/WebSocket streaming and a single-page browser UI, and a WASM channel runtime that loads compiled channel implementations at startup. A `ChannelManager` merges all active streams via `futures::stream::select_all` and provides a single injection sender for background tasks to push synthetic messages into the agent loop without being full Channel implementations.
 
 ---
 
@@ -40,8 +40,8 @@ The channel abstraction is the core extensibility point for message ingestion. A
 │                               CHANNELS LAYER                                    │
 │                                                                                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐   │
-│  │  TUI Channel │  │ HTTP Webhook │  │ Web Gateway  │  │  WASM Channels   │   │
-│  │  (Ratatui)   │  │  (axum)     │  │ SSE/WebSocket│  │ (Telegram, Slack)│   │
+│  │ REPL Channel │  │ HTTP Webhook │  │ Web Gateway  │  │  WASM Channels   │   │
+│  │ (rustyline)  │  │  (axum)      │  │ SSE/WebSocket│  │ (Telegram, Slack)│   │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────────┘   │
 │         │                 │                  │                  │               │
 │         └─────────────────┴──────────────────┴──────────────────┘               │
@@ -157,7 +157,7 @@ The following table lists every source module directory and the key top-level fi
 |--------|------|---------|
 | `agent` | `src/agent/` | Core agent orchestration: main event loop, session management, job scheduling, self-repair, heartbeat, routine engine, context compaction, undo/redo, skill selection, cost guardrails |
 | `channels` | `src/channels/` | Multi-channel input abstraction: `Channel` trait, `ChannelManager` (stream merge), HTTP webhook, web gateway (axum + SSE + WebSocket), WASM channel runtime, REPL |
-| `cli` | `src/cli/` | Full TUI implementation using Ratatui: application state, rendering, event handling, approval overlays, message composer |
+| `cli` | `src/cli/` | CLI command surface: onboarding, config, tool, mcp, memory, pairing, service, doctor, status |
 | `config` | `src/config/` | Configuration loading from environment, DB settings table, and optional TOML overlay. Sub-modules per domain: agent, builder, channels, database, embeddings, heartbeat, llm, routines, safety, sandbox, secrets, skills, tunnel, wasm |
 | `context` | `src/context/` | Per-job state isolation: `JobState` state machine (Pending → InProgress → Completed/Failed/Stuck), `JobContext`, `ContextManager` for concurrent job tracking |
 | `db` | `src/db/` | Database abstraction: `Database` trait (~60 async methods), PostgreSQL backend (`deadpool-postgres`, `refinery` migrations), libSQL/Turso embedded backend |
@@ -259,7 +259,7 @@ src/main.rs
     │        ├──▶ channels::http     (HttpChannel, axum webhook)
     │        ├──▶ channels::repl     (ReplChannel, rustyline)
     │        ├──▶ channels::wasm     (WASM channel runtime)
-    │        └──▶ channels::cli      (TUI, Ratatui)
+    │        └──▶ cli                 (clap command routing)
     │
     └──▶ agent (Agent)
              ├──▶ agent::agent_loop       (main run loop, message dispatch)
@@ -343,7 +343,7 @@ If the thread has a `PendingAuth` state (awaiting an OAuth token or manual API k
 
 **Step 10 — Skill selection and tool attenuation**
 
-`prefilter_skills()` scores all loaded skills against the message content and selects those that fit within the `SKILLS_MAX_TOKENS` budget. If any `Installed`-trust skills are active, `attenuate_tools()` restricts the tool set to read-only tools for the entire turn, preventing privilege escalation.
+`prefilter_skills()` scores all loaded skills against the message content and selects those that fit within the `SKILLS_MAX_CONTEXT_TOKENS` budget. If any `Installed`-trust skills are active, `attenuate_tools()` restricts the tool set to read-only tools for the entire turn, preventing privilege escalation.
 
 **Step 11 — LLM API call**
 
@@ -518,18 +518,18 @@ The "chicken-and-egg" bootstrap problem — needing the database URL before conn
 | Sub-module | Key env vars |
 |------------|-------------|
 | `config::database` | `DATABASE_BACKEND`, `DATABASE_URL`, `LIBSQL_PATH`, `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN` |
-| `config::llm` | `LLM_BACKEND`, `NEARAI_SESSION_TOKEN`, `NEARAI_API_KEY`, `NEARAI_MODEL`, `NEARAI_BASE_URL`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OLLAMA_BASE_URL`, `TINFOIL_API_KEY` |
-| `config::agent` | `AGENT_NAME`, `MAX_PARALLEL_JOBS`, `MAX_COST_PER_DAY_CENTS`, `MAX_ACTIONS_PER_HOUR` |
-| `config::sandbox` | `SANDBOX_ENABLED`, `SANDBOX_IMAGE`, `SANDBOX_MEMORY_LIMIT_MB`, `SANDBOX_TIMEOUT_SECS`, `SANDBOX_DEFAULT_POLICY` |
-| `config::channels` | `GATEWAY_ENABLED`, `GATEWAY_HOST`, `GATEWAY_PORT`, `GATEWAY_AUTH_TOKEN`, `HTTP_WEBHOOK_PORT`, `HTTP_SECRET` |
+| `config::llm` | `LLM_BACKEND`, `NEARAI_API_KEY`, `NEARAI_MODEL`, `NEARAI_BASE_URL`, `NEARAI_SESSION_PATH`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OLLAMA_BASE_URL`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `TINFOIL_API_KEY` |
+| `config::agent` | `AGENT_NAME`, `AGENT_MAX_PARALLEL_JOBS`, `MAX_COST_PER_DAY_CENTS`, `MAX_ACTIONS_PER_HOUR` |
+| `config::sandbox` | `SANDBOX_ENABLED`, `SANDBOX_IMAGE`, `SANDBOX_MEMORY_LIMIT_MB`, `SANDBOX_TIMEOUT_SECS`, `SANDBOX_POLICY`, `SANDBOX_CPU_SHARES` |
+| `config::channels` | `GATEWAY_ENABLED`, `GATEWAY_HOST`, `GATEWAY_PORT`, `GATEWAY_AUTH_TOKEN`, `HTTP_PORT`, `HTTP_HOST`, `HTTP_WEBHOOK_SECRET` |
 | `config::safety` | `SAFETY_MAX_OUTPUT_LENGTH`, `SAFETY_INJECTION_CHECK_ENABLED` |
 | `config::wasm` | `WASM_ENABLED`, `WASM_TOOLS_DIR` |
 | `config::secrets` | `SECRETS_MASTER_KEY` (or OS keychain) |
 | `config::heartbeat` | `HEARTBEAT_ENABLED`, `HEARTBEAT_INTERVAL_SECS`, `HEARTBEAT_NOTIFY_CHANNEL` |
-| `config::skills` | `SKILLS_ENABLED`, `SKILLS_MAX_TOKENS`, `SKILLS_CATALOG_URL`, `SKILLS_LOCAL_DIR` |
+| `config::skills` | `SKILLS_ENABLED`, `SKILLS_MAX_CONTEXT_TOKENS`, `SKILLS_MAX_ACTIVE`, `SKILLS_DIR` |
 | `config::routines` | `ROUTINES_ENABLED`, `ROUTINES_MAX_CONCURRENT`, `ROUTINES_CRON_INTERVAL` |
-| `config::embeddings` | `EMBEDDING_ENABLED`, `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `OPENAI_API_KEY` |
-| `config::tunnel` | `TUNNEL_ENABLED`, `TUNNEL_PUBLIC_URL` |
+| `config::embeddings` | `EMBEDDING_ENABLED`, `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, `OPENAI_API_KEY` |
+| `config::tunnel` | `TUNNEL_URL`, `TUNNEL_PROVIDER`, `TUNNEL_CF_TOKEN`, `TUNNEL_NGROK_TOKEN`, `TUNNEL_TS_FUNNEL`, `TUNNEL_TS_HOSTNAME`, `TUNNEL_CUSTOM_COMMAND` |
 
 **LLM API key injection via secrets:**
 
@@ -741,7 +741,7 @@ Every major extension point is expressed as a trait. This allows swapping implem
 - `Arc<dyn Database>` — PostgreSQL and libSQL backends
 - `Arc<dyn SecretsStore + Send + Sync>` — PostgreSQL and libSQL secrets stores
 - `Arc<dyn EmbeddingProvider>` — OpenAI, NEAR AI, and Ollama embeddings
-- `Box<dyn Channel>` — TUI, HTTP, web gateway, WASM channels
+- `Box<dyn Channel>` — REPL, HTTP, web gateway, WASM channels
 - `Arc<dyn NetworkPolicyDecider>` — custom network access policies for sandbox containers
 - `Arc<dyn CredentialResolver>` — custom credential resolution for the network proxy
 
@@ -835,7 +835,7 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 
 > **Note**: File counts updated for v0.9.0. The tools module now includes 12 files in `builtin/`, 13 files in `wasm/`, and additional builder/mcp files.
 
-The `tools` module is the largest at 39 files, reflecting the breadth of the tool system: 4 built-in tool categories, a full WASM runtime (8 files), an MCP client (2+ files), a software builder (4 files), and the registry and trait definitions. The `channels` module at 33 files is next, encompassing the full TUI implementation (5 files under `cli/`), the web gateway (7 files under `web/`), the WASM channel runtime (3 files under `wasm/`), and the channel trait infrastructure. The `agent` module at 21 files reflects the complexity of the orchestration layer: 20+ distinct concerns from session management through self-repair to routine scheduling.
+The `tools` module is one of the largest modules, reflecting the breadth of the tool system: built-ins, a full WASM runtime, an MCP client, a software builder, and the registry/trait definitions. The `channels` module includes REPL, web gateway, HTTP, and WASM channel runtime implementations.
 
 **Key third-party crate dependencies:**
 
@@ -856,7 +856,8 @@ The `tools` module is the largest at 39 files, reflecting the breadth of the too
 | `anyhow` | 1.x | Flexible error handling for application code |
 | `tracing` | 0.1 | Structured logging and diagnostics |
 | `clap` | 4.x | CLI argument parsing with derive macros |
-| `ratatui` | latest | Terminal UI framework for TUI channel |
+| `rustyline` | 17.x | REPL line editing, history, completion |
+| `termimad` | 0.34 | Markdown rendering in terminal REPL |
 | `pgvector` | 0.4 | PostgreSQL vector type support for semantic search |
 | `regex` | 1.x | Pattern matching for safety layer and skill scoring |
 | `serde_yml` | 0.0.12 | YAML parsing for SKILL.md frontmatter |

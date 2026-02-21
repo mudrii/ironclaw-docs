@@ -799,7 +799,7 @@ To add a new channel:
    - `start()` sets up the transport and returns a `MessageStream`.
    - `respond()` delivers the agent's reply back to the caller.
    - Optionally implement `send_status()` for live progress feedback.
-3. Add a config section in `src/config.rs`.
+3. Add a config section in `src/config/`.
 4. Wire up in `main.rs` in the channel setup block:
 
    ```rust
