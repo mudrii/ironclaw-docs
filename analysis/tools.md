@@ -23,6 +23,7 @@ an MCP server — is expressed as a `Tool` implementation registered in the `Too
 | Routines | `builtin/routine.rs` | Orchestrator | routine_create/list/update/delete/history |
 | Extensions | `builtin/extension_tools.rs` | Orchestrator | tool_search/install/auth/activate/list/remove |
 | Skills | `builtin/skill_tools.rs` | Orchestrator | skill_list/search/install/remove |
+| HTML Converter | `builtin/html_converter.rs` | Orchestrator | HTML to Markdown conversion for HTTP responses |
 | MCP client | `mcp/` | Orchestrator | Dynamic tools from MCP servers |
 | WASM sandbox | `wasm/` | Orchestrator | Sandboxed WASM component tools |
 | Builder | `builder/` | Orchestrator | build_software (LLM-driven code generation) |
@@ -244,6 +245,7 @@ The registry assembles built-in tools in these groups during startup:
 | `skill_install` | name* | Orchestrator | Yes |
 | `skill_remove` | name* | Orchestrator | Yes |
 | `build_software` | description* | Orchestrator | Yes |
+| `html_to_markdown` | html*, url | Orchestrator | No |
 
 ---
 
@@ -710,6 +712,65 @@ Manage SKILL.md prompt extensions.
 | `skill_search` | `query` | No | Searches ClawHub registry |
 | `skill_install` | `name` | Yes | Optional `url` or `content`; SSRF-protected fetch |
 | `skill_remove` | `name` | Yes | Removes installed skill |
+
+---
+
+### 4.12 HTML to Markdown Converter (`builtin/html_converter.rs`)
+
+Two-stage pipeline for converting HTML content to clean Markdown. Used internally by the `http` tool when fetching HTML pages.
+
+**Feature flag:** `html-to-markdown` (enabled by default)
+
+**Pipeline:**
+1. **Readability extraction** (`readabilityrs`) — Extracts article content from HTML
+2. **HTML-to-Markdown conversion** (`html_to_markdown_rs`) — Converts clean HTML to Markdown
+
+**When feature is disabled:** Content passes through unchanged (returns raw HTML).
+
+**Usage:**
+```rust
+use crate::tools::builtin::html_converter::convert_html_to_markdown;
+
+let markdown = convert_html_to_markdown(html_content, "https://example.com/article")?;
+```
+
+**Error conditions:**
+- Readability parser failure
+- No content extracted from article
+- HTML-to-Markdown conversion failure
+
+---
+
+### 4.13 Built-in Tool Rate Limiter (`rate_limiter.rs`)
+
+Shared rate limiter for built-in tool invocations (separate from WASM tool rate limiting). Provides per-tool, per-user rate limiting using a sliding window counter.
+
+**Scope:** Applied to built-in tools including:
+- `shell` — Shell command execution
+- `http` — HTTP requests
+- `write_file` — File write operations
+- Other mutating built-in tools
+
+**Algorithm:** Simplified sliding window counter
+- Tracks request counts for current minute and hour windows
+- Resets counters when window expires
+- In-memory only (resets on process restart)
+
+**Default Limits:**
+| Window | Limit |
+|--------|-------|
+| Per-minute | 60 requests |
+| Per-hour | 1000 requests |
+
+**Rate Limit Result:**
+```rust
+pub enum RateLimitResult {
+    Allowed { remaining_minute: u32, remaining_hour: u32 },
+    Limited { retry_after: Duration, limit_type: LimitType },
+}
+```
+
+**Note:** Rate limit state is in-memory only. Limits reset on process restart. This is acceptable for v1; future versions may persist to the database.
 
 ---
 

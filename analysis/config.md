@@ -92,6 +92,7 @@ default is possible.
 | `RESPONSE_CACHE_MAX_ENTRIES` | usize | `1000` | No | Max cached responses before LRU eviction |
 | `LLM_FAILOVER_COOLDOWN_SECS` | u64 | `300` | No | Seconds a failed provider stays in cooldown |
 | `LLM_FAILOVER_THRESHOLD` | u32 | `3` | No | Consecutive retryable failures before provider enters cooldown |
+| `SMART_ROUTING_CASCADE` | bool | `true` | No | Enable cascade escalation when cheap model returns uncertain response |
 | **Embeddings** | | | | |
 | `EMBEDDING_ENABLED` | bool | `false` | No | Enable vector embeddings for semantic memory search |
 | `EMBEDDING_PROVIDER` | string | `nearai` | No | Provider: `openai`, `nearai`, or `ollama` |
@@ -101,6 +102,8 @@ default is possible.
 | `AGENT_NAME` | string | `ironclaw` | No | Agent display name |
 | `AGENT_MAX_PARALLEL_JOBS` | usize | `5` | No | Maximum concurrent jobs |
 | `AGENT_JOB_TIMEOUT_SECS` | u64 | `3600` | No | Per-job hard timeout in seconds |
+| `AGENT_MAX_TOOL_ITERATIONS` | usize | `50` | No | Maximum tool-call iterations per agent loop invocation |
+| `AGENT_AUTO_APPROVE_TOOLS` | bool | `false` | No | Skip tool approval checks entirely (for benchmarks/CI) |
 | `AGENT_STUCK_THRESHOLD_SECS` | u64 | `300` | No | Seconds without progress before a job is considered stuck |
 | `AGENT_USE_PLANNING` | bool | `true` | No | Whether the agent uses planning before tool execution |
 | `SESSION_IDLE_TIMEOUT_SECS` | u64 | `604800` (7 days) | No | Sessions idle longer than this are pruned from memory |

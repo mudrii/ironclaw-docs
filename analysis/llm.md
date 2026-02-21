@@ -12,15 +12,16 @@
 2. [Provider Trait and Core Types](#2-provider-trait-and-core-types)
 3. [Supported Backends](#3-supported-backends)
 4. [Reliability Wrapper Chain](#4-reliability-wrapper-chain)
-5. [NEAR AI — Responses API](#5-near-ai--responses-api)
-6. [NEAR AI — Chat Completions](#6-near-ai--chat-completions)
-7. [rig-core Adapter and Schema Normalization](#7-rig-core-adapter-and-schema-normalization)
-8. [Session Management](#8-session-management)
-9. [Configuration Resolution](#9-configuration-resolution)
-10. [Cost Accounting and Guardrails](#10-cost-accounting-and-guardrails)
-11. [Context Window Management](#11-context-window-management)
-12. [Estimation, Evaluation, and Observability](#12-estimation-evaluation-and-observability)
-13. [Extension Points](#13-extension-points)
+5. [Smart Routing Provider](#5-smart-routing-provider)
+6. [NEAR AI — Responses API](#6-near-ai--responses-api)
+7. [NEAR AI — Chat Completions](#7-near-ai--chat-completions)
+8. [rig-core Adapter and Schema Normalization](#8-rig-core-adapter-and-schema-normalization)
+9. [Session Management](#9-session-management)
+10. [Configuration Resolution](#10-configuration-resolution)
+11. [Cost Accounting and Guardrails](#11-cost-accounting-and-guardrails)
+12. [Context Window Management](#12-context-window-management)
+13. [Estimation, Evaluation, and Observability](#13-estimation-evaluation-and-observability)
+14. [Extension Points](#14-extension-points)
 
 ---
 
@@ -274,7 +275,104 @@ the same logical request stay on the same provider.
 
 ---
 
-## 5. NEAR AI — Responses API
+## 5. Smart Routing Provider
+
+`src/llm/smart_routing.rs` implements cost-optimized model selection by routing requests to cheap or primary models based on task complexity analysis.
+
+### 5.1 Overview
+
+Smart routing reduces API costs by sending simple queries to cheaper models (e.g., Haiku) while reserving expensive models (e.g., Sonnet/Opus) for complex tasks:
+
+```
+User Request → Complexity Classification → Route Decision
+     ↓
+Simple (<200 chars) ──────────────→ Cheap Model
+Moderate (200-1000 chars) ────────→ Cheap Model (with optional cascade)
+Complex (>1000 chars or tool use) ─→ Primary Model
+```
+
+### 5.2 Task Complexity Classification
+
+| Complexity | Criteria | Routing Behavior |
+|------------|----------|------------------|
+| `Simple` | < 200 characters, no code indicators | Always cheap model |
+| `Moderate` | 200-1000 characters, mixed indicators | Cheap model with cascade option |
+| `Complex` | > 1000 characters OR tool use requested | Always primary model |
+
+Classification heuristics (from `classify_message()`):
+- **Simple indicators**: Short length, question marks, conversational phrases ("hello", "how are you", "what's the weather")
+- **Complex indicators**: Code blocks, file paths, URLs, analysis requests ("analyze", "implement", "debug")
+- **Tool use**: Any request with tools is always routed to primary model for reliable structured output
+
+### 5.3 Cascade Mode
+
+When `smart_routing_cascade: true` (default):
+
+1. Moderate-complexity tasks go to cheap model first
+2. Response is analyzed for uncertainty indicators:
+   - Uncertainty phrases: "I don't know", "I'm not sure", "cannot", "unable"
+   - Overly short responses (< 50 chars for non-trivial queries)
+   - Error conditions
+3. If uncertain, request is escalated to primary model
+4. Stats track cascade escalations separately
+
+### 5.4 Configuration
+
+Controlled via `NearAiConfig` in `src/config/llm.rs`:
+
+| Environment Variable | Type | Default | Description |
+|---------------------|------|---------|-------------|
+| `NEARAI_CHEAP_MODEL` | string | — | Cheap model identifier (e.g., "claude-3-haiku-20240307") |
+| `SMART_ROUTING_CASCADE` | bool | `true` | Enable cascade escalation on uncertainty |
+
+If `NEARAI_CHEAP_MODEL` is not set, smart routing is disabled and all requests go to the primary model.
+
+### 5.5 Provider Architecture
+
+```rust
+pub struct SmartRoutingProvider {
+    primary: Arc<dyn LlmProvider>,  // Expensive, capable model
+    cheap: Arc<dyn LlmProvider>,    // Fast, cheap model
+    config: SmartRoutingConfig,
+    stats: SmartRoutingStats,
+}
+```
+
+The provider wraps two `LlmProvider` instances and implements the trait itself, fitting into the standard provider chain:
+
+```
+RetryProvider → SmartRoutingProvider → CircuitBreakerProvider → CachedProvider → FailoverProvider
+                     ↓
+              ┌──────┴──────┐
+              ↓             ↓
+         Cheap Model   Primary Model
+```
+
+### 5.6 Statistics and Observability
+
+Atomic counters track routing decisions:
+
+```rust
+pub struct SmartRoutingSnapshot {
+    pub total_requests: u64,
+    pub cheap_requests: u64,
+    pub primary_requests: u64,
+    pub cascade_escalations: u64,
+}
+```
+
+Stats are logged at `DEBUG` level per request:
+- "Smart routing: Simple task -> cheap model"
+- "Smart routing: Complex task -> primary model"
+- "Smart routing: Escalating to primary (cheap model response uncertain)"
+
+### 5.7 Tool Use Behavior
+
+`complete_with_tools()` always routes to the primary model regardless of complexity. Tool calling requires reliable structured output that cheaper models may not consistently provide.
+
+---
+
+## 6. NEAR AI — Responses API
 
 `src/llm/nearai.rs` implements `NearAiProvider`, targeting
 `https://private.near.ai/v1/responses`.
@@ -320,7 +418,7 @@ the primary fails. This future-proofs against API format migrations.
 
 ---
 
-## 6. NEAR AI — Chat Completions
+## 7. NEAR AI — Chat Completions
 
 `src/llm/nearai_chat.rs` implements `NearAiChatProvider`, targeting
 `https://cloud-api.near.ai/v1/chat/completions`.
@@ -360,7 +458,7 @@ is missing.
 
 ---
 
-## 7. rig-core Adapter and Schema Normalization
+## 8. rig-core Adapter and Schema Normalization
 
 `src/llm/rig_adapter.rs` bridges `rig-core`'s `CompletionModel` trait to
 IronClaw's `LlmProvider` trait. This adapter is used by OpenAI, Anthropic,
@@ -399,7 +497,7 @@ some providers omit.
 
 ---
 
-## 8. Session Management
+## 9. Session Management
 
 `src/llm/session.rs` implements `SessionManager` for NEAR AI OAuth session
 tokens.
@@ -431,7 +529,7 @@ For `cloud-api.near.ai`, API keys are used directly (saved to
 
 ---
 
-## 9. Configuration Resolution
+## 10. Configuration Resolution
 
 `src/config/llm.rs` implements a three-tier priority system for all LLM
 settings.
@@ -489,7 +587,7 @@ job evaluation. When not set, it falls back to the primary model.
 
 ---
 
-## 10. Cost Accounting and Guardrails
+## 11. Cost Accounting and Guardrails
 
 ### 10.1 Cost Table — `src/llm/costs.rs`
 
@@ -544,7 +642,7 @@ before commitment, but the cost is only counted after actual token consumption.
 
 ---
 
-## 11. Context Window Management
+## 12. Context Window Management
 
 ### 11.1 ContextMonitor — `src/agent/context_monitor.rs`
 
@@ -605,7 +703,7 @@ logging and observability.
 
 ---
 
-## 12. Estimation, Evaluation, and Observability
+## 13. Estimation, Evaluation, and Observability
 
 ### 12.1 Cost and Time Estimation — `src/estimation/`
 
@@ -699,7 +797,7 @@ Future backends (OpenTelemetry, Prometheus) can be added by implementing the
 
 ---
 
-## 13. Extension Points
+## 14. Extension Points
 
 ### 13.1 Adding a New LLM Backend
 
@@ -756,7 +854,7 @@ async fn evaluate(
 
 ---
 
-*Generated from IronClaw v0.7.0 source — `src/llm/`, `src/config/llm.rs`,
+*Generated from IronClaw v0.9.0 source — `src/llm/`, `src/config/llm.rs`,
 `src/agent/cost_guard.rs`, `src/agent/context_monitor.rs`,
 `src/agent/compaction.rs`, `src/estimation/`, `src/evaluation/`,
 `src/observability/`.*

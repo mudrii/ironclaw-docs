@@ -866,4 +866,4 @@ The `tools` module is the largest at 39 files, reflecting the breadth of the too
 
 ---
 
-*Document generated from source code inspection of IronClaw v0.7.0 (`src/` directory). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*
+*Document generated from source code inspection of IronClaw v0.9.0 (`src/` directory). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*

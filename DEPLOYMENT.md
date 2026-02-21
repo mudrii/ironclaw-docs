@@ -96,7 +96,7 @@ cargo build --release --no-default-features --features libsql
 
 ```bash
 ./target/release/ironclaw --version
-# Expected: ironclaw 0.7.0
+# Expected: ironclaw 0.9.0
 ```
 
 ---
