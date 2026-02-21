@@ -664,7 +664,7 @@ then streams live entries.
 ## 7. WASM Channel System (`wasm/`)
 
 The WASM channel system enables dynamically loaded channel plugins — the same
-mechanism used for Telegram and Slack integrations. It follows a
+mechanism used for Telegram, Slack, and WhatsApp integrations. It follows a
 **Host-Managed Event Loop** pattern.
 
 ### Architecture
@@ -734,6 +734,72 @@ The minimum polling interval is enforced at 30 seconds to prevent API flooding.
 Each loaded channel produces a `WasmChannel` that implements the `Channel` trait
 and integrates with `ChannelManager` like any other channel.
 
+### Bundled WASM Channels
+
+The following channels are compiled into the IronClaw binary and loaded
+automatically when their required secrets are configured.
+
+#### WhatsApp (added in v0.9.0)
+
+**Source:** `channels-src/whatsapp/` (`channels-src/whatsapp/whatsapp.capabilities.json`,
+`channels-src/whatsapp/src/lib.rs`)
+
+The WhatsApp channel integrates with the **WhatsApp Cloud API** (Meta) to
+receive and respond to WhatsApp messages via webhook delivery. Unlike the
+Telegram and Slack channels, WhatsApp is **webhook-only** — `allow_polling` is
+`false` in its capabilities declaration, so the host never calls `on_poll()`.
+All inbound traffic arrives through the registered HTTP path `/webhook/whatsapp`.
+
+**Required configuration:**
+
+| Secret / Env Var | Description |
+|-----------------|-------------|
+| `WHATSAPP_ACCESS_TOKEN` | WhatsApp Cloud API access token from the Meta Developer Portal. Validated at startup against `https://graph.facebook.com/v18.0/me`. |
+| `WHATSAPP_VERIFY_TOKEN` | Webhook verify token sent by Meta during endpoint registration. Auto-generated (32 chars) if not provided. |
+
+**Webhook registration:** The host registers the endpoint at
+`/webhook/whatsapp` and handles the `hub.verify_token` challenge used by Meta
+to verify ownership of the endpoint. Signature validation uses the
+`X-Hub-Signature-256` header.
+
+**Message handling:** The WASM module parses the incoming Cloud API webhook
+payload (field `"messages"` within `"whatsapp_business_account"` entries) and
+calls `emit_message()` for each inbound text message. The `user_id` is set to
+the sender's WhatsApp phone number; the optional `user_name` is populated from
+the `contacts` array when Meta includes it.
+
+**Supported event types:**
+
+| Webhook field | Handled | Notes |
+|---------------|---------|-------|
+| `messages` (type `text`) | Yes | Forwarded to agent as `IncomingMessage` |
+| `statuses` (`delivered`, `read`, etc.) | Ignored | Parsed but not forwarded |
+| `contacts` | Metadata only | Provides `user_name` for messages |
+
+**Outbound replies:** `respond()` sends a `text` message back to the originating
+phone number via `POST https://graph.facebook.com/v18.0/<phone_number_id>/messages`.
+The access token is injected by the host at the HTTP boundary —
+`{WHATSAPP_ACCESS_TOKEN}` placeholder in the request template — so the WASM
+module never sees the raw credential.
+
+**Rate limits (capabilities.json):**
+
+| Limit | Value |
+|-------|-------|
+| Outbound HTTP to `graph.facebook.com` | 80 req/min, 1 000 req/hr |
+| `emit_message()` calls per callback | 100 msg/min, 5 000 msg/hr |
+
+**Workspace storage:** State is persisted under `channels/whatsapp/` (scoped
+by the host; the module cannot escape this prefix).
+
+**API version:** Cloud API `v18.0`. The `config.api_version` field in
+`whatsapp.capabilities.json` controls the path segment; update it there when
+upgrading to a newer Graph API version.
+
+**Access control:** By default `allow_from` is empty (all senders accepted).
+Set `config.owner_id` to restrict the channel to a single WhatsApp account ID,
+or populate `allow_from` with an allowlist of phone numbers.
+
 ---
 
 ## 8. Configuration Reference
@@ -751,6 +817,8 @@ and integrates with `ChannelManager` like any other channel.
 | `GATEWAY_PORT` | `3002` | Gateway listen port |
 | `GATEWAY_AUTH_TOKEN` | auto-generated | Bearer token for all protected API endpoints. If unset, a random 32-char token is generated and logged at startup. |
 | `GATEWAY_USER_ID` | `default` | User identity for messages sent through the gateway |
+| `WHATSAPP_ACCESS_TOKEN` | — | WhatsApp Cloud API access token (Meta Developer Portal). Required to enable the WhatsApp WASM channel. |
+| `WHATSAPP_VERIFY_TOKEN` | auto-generated | Webhook verify token used during Meta endpoint registration. Auto-generated (32 chars) if unset. |
 
 ### Service Mode Example
 
@@ -812,7 +880,7 @@ Channels that need a shared HTTP server should contribute route fragments to
 `WebhookServer` via `add_routes()` rather than binding their own listener. This
 keeps all webhook traffic on a single port.
 
-For dynamically loaded channels (Telegram, Slack, custom bots), use the WASM
-channel system: implement the WASM callback exports and declare capabilities in
-`channel.json`. The host runtime handles polling, HTTP, rate limiting, and
-credential injection automatically.
+For dynamically loaded channels (Telegram, Slack, WhatsApp, custom bots), use
+the WASM channel system: implement the WASM callback exports and declare
+capabilities in `channel.json`. The host runtime handles polling, HTTP, rate
+limiting, and credential injection automatically.
