@@ -54,6 +54,7 @@
 | Tool registry / discovery | `src/tools/registry.rs` |
 | Built-in tool implementations | `src/tools/builtin/` |
 | Shell tool (env scrubbing) | `src/tools/builtin/shell.rs` |
+| HTML-to-Markdown converter (for HTTP responses) | `src/tools/builtin/html_converter.rs` |
 | HTTP tool (external requests) | `src/tools/builtin/http.rs` |
 | File tools (read/write/patch/list) | `src/tools/builtin/file.rs` |
 | Memory tools (search/write/read) | `src/tools/builtin/memory.rs` |
@@ -70,10 +71,11 @@
 | Input validator | `src/safety/validator.rs` |
 | Policy rules engine | `src/safety/policy.rs` |
 | Secret leak detector (15+ patterns) | `src/safety/leak_detector.rs` |
+| Credential detection in HTTP params | `src/safety/credential_detect.rs` |
 | LLM provider trait | `src/llm/provider.rs` |
 | LLM provider factory / backend enum | `src/llm/mod.rs` |
-| NEAR AI (Responses API) | `src/llm/nearai.rs` |
-| NEAR AI (Chat Completions fallback) | `src/llm/nearai_chat.rs` |
+| NEAR AI provider (Chat Completions, dual auth) | `src/llm/nearai_chat.rs` |
+| Smart routing (cheap/primary cascade) | `src/llm/smart_routing.rs` |
 | Circuit breaker | `src/llm/circuit_breaker.rs` |
 | Retry + exponential backoff | `src/llm/retry.rs` |
 | Multi-provider failover | `src/llm/failover.rs` |
@@ -282,7 +284,8 @@ Config struct: `src/config/mod.rs` · `INJECTED_VARS: OnceLock<HashMap<String,St
 | `LLM_BASE_URL` | URL | — | Yes (openai_compatible) | Custom base URL |
 | `LLM_API_KEY` | string | — | No | |
 | `LLM_MODEL` | string | `default` | No | Falls back to selected model from settings |
-| `LLM_EXTRA_HEADERS` | string | — | No | `Key:Value,Key2:Value2` |
+| `LLM_EXTRA_HEADERS` | string | — | No | Extra HTTP headers injected into every LLM request. Format: `Key:Value,Key2:Value2`. Useful for OpenRouter attribution. |
+| `NEARAI_CHEAP_MODEL` | string | — | No | Cheap model for smart routing, evaluation, heartbeat tasks |
 | `TINFOIL_API_KEY` | string | — | Yes (tinfoil) | |
 | `TINFOIL_MODEL` | string | `kimi-k2-5` | No | |
 
@@ -422,26 +425,32 @@ Config struct: `src/config/mod.rs` · `INJECTED_VARS: OnceLock<HashMap<String,St
 
 | Backend | `LLM_BACKEND` value | Required Env Vars | API Protocol | Tool Call Format |
 |---------|---------------------|-------------------|--------------|------------------|
-| NEAR AI (session mode) | `nearai` (default) | session file at `NEARAI_SESSION_PATH` | Responses API | Native |
-| NEAR AI (API key mode) | `nearai` + `NEARAI_API_KEY` | `NEARAI_API_KEY` | Chat Completions | Text-flattened |
+| NEAR AI | `nearai` (default) | `NEARAI_SESSION_TOKEN` **or** `NEARAI_API_KEY` | Chat Completions | Text-flattened |
 | OpenAI | `openai` | `OPENAI_API_KEY` | Chat Completions | Native |
 | Anthropic | `anthropic` | `ANTHROPIC_API_KEY` | Messages API | Native |
 | Ollama | `ollama` | `OLLAMA_BASE_URL` | Chat Completions | Native |
 | OpenAI-compatible | `openai_compatible` | `LLM_BASE_URL`, `LLM_MODEL` | Chat Completions | Native |
 | Tinfoil (TEE) | `tinfoil` | `TINFOIL_API_KEY` | Chat Completions (adapted) | Chat-format |
 
-**NEAR AI mode selection logic** (`src/llm/mod.rs`):
+**NEAR AI auth mode selection** (`src/llm/nearai_chat.rs`):
+- If `NEARAI_API_KEY` set → Bearer API key auth (base URL defaults to `https://cloud-api.near.ai`)
+- Otherwise → session token auth via `SessionManager` with auto-renewal on 401 (base URL defaults to `https://private.near.ai`)
+- Both modes use Chat Completions API (`/v1/chat/completions`) with tool-message flattening
 
-- If `NEARAI_API_KEY` set → Chat Completions API (`nearai_chat.rs`)
-- Otherwise → Responses API (`nearai.rs`) using session credentials from `NEARAI_SESSION_PATH`
-
-**Three-tier wrapper chain** (all backends):
+**Five-tier wrapper chain** (all backends):
 
 ```
-Request → RetryProvider → CircuitBreakerProvider → ResponseCacheProvider → FailoverProvider → actual backend
+Request → SmartRoutingProvider → RetryProvider → CircuitBreakerProvider → ResponseCacheProvider → FailoverProvider → actual backend
 ```
 
-Source: `src/llm/retry.rs`, `src/llm/circuit_breaker.rs`, `src/llm/response_cache.rs`, `src/llm/failover.rs`
+Source: `src/llm/smart_routing.rs`, `src/llm/retry.rs`, `src/llm/circuit_breaker.rs`, `src/llm/response_cache.rs`, `src/llm/failover.rs`
+
+**SmartRoutingProvider** (`src/llm/smart_routing.rs`): Routes requests to cheap vs primary model based on message complexity.
+- `Simple` (greetings, yes/no, ≤10 chars, simple keywords) → cheap model (`NEARAI_CHEAP_MODEL`)
+- `Complex` (code blocks, implementation/refactor/debug/analyze keywords, >1000 chars) → primary model
+- `Moderate` (everything else) → cheap model first; if response contains uncertainty phrases → escalate to primary (cascade)
+- Tool calls (`complete_with_tools`) always go to primary — reliable structured output required
+- Config: `SMART_ROUTING_CASCADE=true` (enable cascade), `simple_max_chars=200`, `complex_min_chars=1000`
 
 ---
 
@@ -581,6 +590,7 @@ impl Tool for MyTool {
 | `routine_create`, `routine_list`, `routine_update`, `routine_delete`, `routine_history` | `builtin/routine.rs` | Routines |
 | `tool_search`, `tool_install`, `tool_auth`, `tool_activate`, `tool_list`, `tool_remove` | `builtin/extension_tools.rs` | Extensions |
 | `skill_list`, `skill_search`, `skill_install`, `skill_remove` | `builtin/skill_tools.rs` | Skills |
+| `html_to_markdown` | `builtin/html_converter.rs` | Utility |
 
 ### 8.3 Protected Tool Names
 
@@ -657,6 +667,8 @@ Tool Output
     ▼
 LLM context (sanitized)
 ```
+
+**Credential detect** (`src/safety/credential_detect.rs`): Used by the HTTP tool specifically to detect manually-provided credentials in request parameters (headers, URL query params, URL userinfo). Checks for auth header names (Authorization, X-Api-Key, etc.), auth value prefixes (Bearer, Basic, Token), credential query params (api_key, access_token, etc.), and embedded URL userinfo. Triggers approval prompt before executing the HTTP request.
 
 **Shell tool** (`src/tools/builtin/shell.rs`): scrubs sensitive env vars before command execution to prevent `env` / `printenv` / `$VAR` leakage.
 
