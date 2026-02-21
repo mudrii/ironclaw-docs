@@ -336,6 +336,33 @@ Access via the web gateway: `http://localhost:3000` (or your configured `GATEWAY
 
 IronClaw's terminal interactive mode is the REPL started by `ironclaw`.
 
+### Memory Commands (CLI)
+
+IronClaw provides a CLI for direct workspace/memory operations without starting the agent:
+
+```bash
+# Search workspace (hybrid FTS + semantic with PostgreSQL, FTS-only with libSQL)
+ironclaw memory search "deployment notes"
+
+# Read a workspace file
+ironclaw memory read context/project.md
+
+# Write to workspace (creates directories as needed)
+ironclaw memory write notes/meeting.md "Key decisions:\n- Use PostgreSQL\n- Enable embeddings"
+
+# Append to existing file
+ironclaw memory write notes/log.md "2026-02-22: Deployed to production" --append
+
+# Show workspace directory tree
+ironclaw memory tree
+ironclaw memory tree context/
+
+# Show workspace statistics
+ironclaw memory status
+```
+
+**Note**: Memory commands require database connection. With libSQL, only keyword search is available (no semantic/vector search).
+
 ---
 
 ## 8. Service Mode: macOS (launchd)
@@ -728,6 +755,16 @@ in your plist or systemd unit. The sandbox module uses bollard which reads `DOCK
 **Cause:** The libSQL backend implements FTS5 keyword search only; vector search (pgvector) is not yet wired in.
 
 **Fix:** Use keyword-rich queries with libSQL, or switch to PostgreSQL for full hybrid search.
+
+---
+
+### libSQL embedding dimension must be 1536
+
+**Symptom:** Embedding operations fail or return errors about dimension mismatch.
+
+**Cause:** The libSQL schema uses `F32_BLOB(1536)` for vector storage, which requires exactly 1536 dimensions.
+
+**Fix:** Use `text-embedding-3-small` (1536 dims) or set `EMBEDDING_DIMENSION=1536`. The `text-embedding-3-large` model (3072 dims) is NOT compatible with libSQL backend.
 
 ---
 
