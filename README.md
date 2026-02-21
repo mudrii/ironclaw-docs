@@ -3,36 +3,96 @@
 > Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.7.0
 > — a secure, self-hosted personal AI assistant written in Rust.
 
+**15 documents · 10,133 lines · 242 source files analyzed · ~107K lines of Rust**
+
+---
+
 ## Contents
 
-| Document | Description |
-|----------|-------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Master architecture: modules, data flows, diagrams |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Build, install, configure, run as macOS/Linux service |
-| [analysis/agent.md](analysis/agent.md) | Agent loop, sessions, jobs, routines, heartbeat |
-| [analysis/channels.md](analysis/channels.md) | REPL, web gateway, HTTP, WASM, webhook channels |
-| [analysis/cli.md](analysis/cli.md) | CLI subcommands, doctor, service manager, registry |
-| [analysis/config.md](analysis/config.md) | Configuration system, env vars, all config structs |
-| [analysis/db-storage.md](analysis/db-storage.md) | Database backends (libsql/postgres), migrations, schema |
-| [analysis/llm.md](analysis/llm.md) | LLM backends, multi-provider, retry, cost guard |
-| [analysis/safety-sandbox.md](analysis/safety-sandbox.md) | Safety layer, WASM sandbox, Docker orchestrator, proxy |
-| [analysis/tools.md](analysis/tools.md) | Tool system, built-in tools, MCP client, WASM tools |
-| [analysis/skills-extensions.md](analysis/skills-extensions.md) | Skills system, WASM channels, extensions, hooks |
-| [analysis/workspace-memory.md](analysis/workspace-memory.md) | Workspace FS, semantic memory, embeddings, search |
-| [analysis/secrets-keychain.md](analysis/secrets-keychain.md) | Secrets store, keychain, crypto, credential injection |
-| [analysis/tunnels-pairing.md](analysis/tunnels-pairing.md) | Tunnels (cloudflare/ngrok/tailscale), mobile pairing |
-| [analysis/worker-orchestrator.md](analysis/worker-orchestrator.md) | Worker runtime, Claude bridge, proxy LLM, Docker sandbox |
+| Document | Lines | Description |
+|----------|------:|-------------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | 862 | Master architecture: modules, data flows, diagrams |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | 909 | Build, install, configure, run as macOS/Linux service |
+| [analysis/agent.md](analysis/agent.md) | 890 | Agent loop, sessions, jobs, routines, heartbeat, cost guard |
+| [analysis/channels.md](analysis/channels.md) | 815 | REPL, web gateway, HTTP, WASM, webhook channels + full API routes |
+| [analysis/cli.md](analysis/cli.md) | 492 | CLI subcommands, doctor, service manager, MCP, registry |
+| [analysis/config.md](analysis/config.md) | 926 | Configuration system — exhaustive env var reference |
+| [analysis/llm.md](analysis/llm.md) | 745 | LLM backends, multi-provider, retry, cost guard, schema fix |
+| [analysis/safety-sandbox.md](analysis/safety-sandbox.md) | 511 | Safety layer, WASM sandbox, Docker orchestrator, SSRF proxy |
+| [analysis/skills-extensions.md](analysis/skills-extensions.md) | 703 | Skills system, WASM channels, extensions, hooks |
+| [analysis/tools.md](analysis/tools.md) | 1367 | Tool system, all built-in tools, MCP client, WASM tools, builder |
+| [analysis/tunnels-pairing.md](analysis/tunnels-pairing.md) | 343 | Tunnels (cloudflare/ngrok/tailscale/custom), mobile pairing |
+| [analysis/worker-orchestrator.md](analysis/worker-orchestrator.md) | 469 | Worker runtime, Claude bridge, proxy LLM, Docker sandbox |
+| [analysis/workspace-memory.md](analysis/workspace-memory.md) | 717 | Workspace FS, semantic memory, embeddings, hybrid search |
+| [analysis/secrets-keychain.md](analysis/secrets-keychain.md) | 346 | Secrets store, keychain, AES-GCM crypto, credential injection |
+
+---
 
 ## About IronClaw
 
-IronClaw is a Rust-based personal AI assistant with:
-- **Multi-channel support**: REPL, web gateway, HTTP webhooks, WASM plugin channels
-- **Security-first**: WASM sandbox, Docker isolation, credential protection, SSRF proxy
-- **Self-expanding**: Dynamic WASM tool building, MCP protocol, plugin architecture
-- **Persistent memory**: Hybrid FTS+vector search, workspace filesystem, identity files
-- **Multiple LLM backends**: Anthropic, OpenAI, Gemini, OpenAI-compatible (any endpoint)
+IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.ai) with:
+
+- **Multi-channel**: REPL, web gateway (axum), HTTP webhooks, WASM plugin channels
+- **Security-first**: WASM sandbox (wasmtime), Docker isolation (bollard), credential injection, SSRF proxy
+- **Self-expanding**: Dynamic WASM tool builder, MCP protocol client, plugin architecture
+- **Persistent memory**: Hybrid FTS+vector search (RRF), workspace filesystem, identity files
+- **Multiple LLM backends**: NEAR AI, Anthropic, OpenAI, Ollama, OpenAI-compatible, Tinfoil
+- **Dual database**: libSQL (embedded, no server required) or PostgreSQL (with pgvector)
+
+### Source Module Statistics (v0.7.0)
+
+| Module | Files | Description |
+|--------|------:|-------------|
+| `tools/` | 39 | Tool system: built-in, MCP, WASM, dynamic builder |
+| `channels/` | 33 | Channels: REPL, web gateway, HTTP, WASM plugins |
+| `agent/` | 21 | Agent runtime: loop, sessions, jobs, routines, heartbeat |
+| `config/` | 13 | Configuration: all env vars and structs |
+| `workspace/` | 7 | Memory, embeddings, hybrid FTS+vector search |
+| `tunnel/` | 6 | Tunnels: cloudflare, ngrok, tailscale, custom |
+| `secrets/` | 5 | Keychain, AES-256-GCM crypto, credential injection |
+| `worker/` | 5 | Docker worker: runtime, LLM bridge, proxy |
+| **Total** | **242** | ~107,000 lines of Rust |
+
+---
+
+## Quick Start (macOS, local mode)
+
+```bash
+# Build (libSQL only, no PostgreSQL required)
+git clone https://github.com/nearai/ironclaw ~/src/ironclaw
+cd ~/src/ironclaw
+cargo build --release --no-default-features --features libsql
+
+# Install
+install -m 755 target/release/ironclaw ~/.local/bin/ironclaw
+
+# Configure
+mkdir -p ~/.ironclaw
+cat > ~/.ironclaw/.env <<'EOF'
+DATABASE_BACKEND=libsql
+LLM_BACKEND=openai
+OPENAI_API_KEY=sk-proj-...
+GATEWAY_ENABLED=true
+GATEWAY_PORT=3002
+GATEWAY_AUTH_TOKEN=<run: openssl rand -hex 32>
+CLI_ENABLED=false
+RUST_LOG=ironclaw=info
+EOF
+
+# Run (one-shot)
+ironclaw --no-onboard
+
+# Test
+curl http://127.0.0.1:3002/api/health
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for macOS LaunchAgent, Linux systemd, all LLM backends, and troubleshooting.
+
+---
 
 ## Version
 
 Documented: IronClaw v0.7.0
 Source: [github.com/nearai/ironclaw](https://github.com/nearai/ironclaw)
+Docs repo: [github.com/mudrii/ironclaw-docs](https://github.com/mudrii/ironclaw-docs)
+Generated: 2026-02-21
