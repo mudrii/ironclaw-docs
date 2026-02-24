@@ -3,7 +3,7 @@
 > **AI Agent Use**: Optimized for code review, bug triage, and targeted fixes.
 > Jump directly to the section relevant to the error or task — no narrative reading required.
 
-**Source**: IronClaw v0.11.1 · `~/src/ironclaw/` · ~115K lines Rust
+**Source**: IronClaw v0.11.1 (`ebb4ce95`) · `~/src/ironclaw/` · ~113K Rust lines in `src/` (~129K repo-wide)
 
 ---
 
@@ -1069,4 +1069,4 @@ sqlite3 ~/.ironclaw/ironclaw.db "SELECT id, status, created_at FROM agent_jobs O
 
 ---
 
-*Source: IronClaw v0.11.1 · Docs: github.com/mudrii/ironclaw-docs · Generated: 2026-02-24*
+*Source: IronClaw v0.11.1 (`ebb4ce95`) · Docs: github.com/mudrii/ironclaw-docs · Generated: 2026-02-24*

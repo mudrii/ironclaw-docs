@@ -813,8 +813,8 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | Module | Directory | `.rs` Files |
 |--------|-----------|------------|
 | `agent` | `src/agent/` | 21 |
-| `channels` | `src/channels/` | 35+ |
-| `cli` | `src/cli/` | 11 |
+| `channels` | `src/channels/` | 33 |
+| `cli` | `src/cli/` | 12 |
 | `config` | `src/config/` | 17 |
 | `context` | `src/context/` | 4 |
 | `db` | `src/db/` | 11 |
@@ -827,19 +827,19 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | `observability` | `src/observability/` | 5 |
 | `orchestrator` | `src/orchestrator/` | 4 |
 | `pairing` | `src/pairing/` | 2 |
-| `registry` | `src/registry/` | 4 |
-| `safety` | `src/safety/` | 5 |
+| `registry` | `src/registry/` | 6 |
+| `safety` | `src/safety/` | 6 |
 | `sandbox` | `src/sandbox/` | 9 |
 | `secrets` | `src/secrets/` | 5 |
 | `setup` | `src/setup/` | 4 |
 | `skills` | `src/skills/` | 7 |
-| `tools` | `src/tools/` | 45+ |
+| `tools` | `src/tools/` | 41 |
 | `tunnel` | `src/tunnel/` | 6 |
 | `worker` | `src/worker/` | 5 |
 | `workspace` | `src/workspace/` | 7 |
 | **Top-level files** | `src/*.rs` | 11 (`main.rs`, `lib.rs`, `app.rs`, `bootstrap.rs`, `service.rs`, `error.rs`, `settings.rs`, `util.rs`, `boot_screen.rs`, `testing.rs`, `tracing_fmt.rs`) |
 
-> **Note**: File counts updated for v0.11.1. The tools module now includes 12 files in `builtin/`, 13 files in `wasm/`, and additional builder/mcp files.
+> **Note**: File counts are pinned to the `v0.11.1` release tag snapshot. The tools module includes 13 files in `builtin/`, 13 files in `wasm/`, plus builder/mcp support modules.
 
 The `tools` module is one of the largest modules, reflecting the breadth of the tool system: built-ins, a full WASM runtime, an MCP client, a software builder, and the registry/trait definitions. The `channels` module includes REPL, web gateway, HTTP, and WASM channel runtime implementations.
 

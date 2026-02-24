@@ -4,6 +4,8 @@
 
 Complete guide for installing, configuring, and deploying IronClaw as a personal AI assistant.
 
+Related guides: [LLM_PROVIDERS.md](LLM_PROVIDERS.md), [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md), [BUILDING_CHANNELS.md](BUILDING_CHANNELS.md).
+
 ---
 
 ## Table of Contents

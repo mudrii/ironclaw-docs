@@ -3,7 +3,7 @@
 > Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.11.1
 > — a secure, self-hosted personal AI assistant written in Rust.
 
-**Documentation set for IronClaw v0.11.1, validated against `~/src/ironclaw` source.**
+**Documentation set for IronClaw v0.11.1, validated against tag `v0.11.1` (`ebb4ce95`) in `~/src/ironclaw`.**
 
 ---
 
@@ -11,21 +11,24 @@
 
 | Document | Lines | Description |
 |----------|------:|-------------|
-| [INSTALLATION.md](INSTALLATION.md) | ~690 | Installation, configuration, service setup, troubleshooting |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | ~871 | Master architecture: modules, data flows, diagrams |
-| [DEVELOPER-REFERENCE.md](DEVELOPER-REFERENCE.md) | ~1065 | Developer reference: errors, config, code review patterns |
-| [analysis/agent.md](analysis/agent.md) | ~890 | Agent loop, sessions, jobs, routines, heartbeat, cost guard |
-| [analysis/channels.md](analysis/channels.md) | ~886 | REPL, web gateway, HTTP, WASM, webhook channels + full API routes |
-| [analysis/cli.md](analysis/cli.md) | ~492 | CLI subcommands, doctor, service manager, MCP, registry |
-| [analysis/config.md](analysis/config.md) | ~926 | Configuration system — exhaustive env var reference |
-| [analysis/llm.md](analysis/llm.md) | ~745 | LLM backends, multi-provider, retry, cost guard, schema fix |
+| [INSTALLATION.md](INSTALLATION.md) | ~715 | Installation, configuration, service setup, troubleshooting |
+| [LLM_PROVIDERS.md](LLM_PROVIDERS.md) | ~174 | LLM backend configuration quick guide (NEAR AI, OpenAI, Anthropic, Ollama, OpenAI-compatible) |
+| [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md) | ~137 | Telegram channel setup with DM pairing flow and webhook/polling modes |
+| [BUILDING_CHANNELS.md](BUILDING_CHANNELS.md) | ~442 | WASM channel authoring and build/deploy workflow |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | ~876 | Master architecture: modules, data flows, diagrams |
+| [DEVELOPER-REFERENCE.md](DEVELOPER-REFERENCE.md) | ~1072 | Developer reference: errors, config, code review patterns |
+| [analysis/agent.md](analysis/agent.md) | ~930 | Agent loop, sessions, jobs, routines, heartbeat, cost guard |
+| [analysis/channels.md](analysis/channels.md) | ~906 | REPL, web gateway, HTTP, WASM, webhook channels + full API routes |
+| [analysis/cli.md](analysis/cli.md) | ~504 | CLI subcommands, doctor, service manager, MCP, registry |
+| [analysis/config.md](analysis/config.md) | ~928 | Configuration system — exhaustive env var reference |
+| [analysis/llm.md](analysis/llm.md) | ~803 | LLM backends, multi-provider, retry, cost guard, schema fix |
 | [analysis/safety-sandbox.md](analysis/safety-sandbox.md) | ~520 | Safety layer, WASM sandbox, Docker orchestrator, SSRF proxy |
-| [analysis/skills-extensions.md](analysis/skills-extensions.md) | ~703 | Skills system, WASM channels, extensions, hooks |
-| [analysis/tools.md](analysis/tools.md) | ~1466 | Tool system, all built-in tools, MCP client, WASM tools, builder |
-| [analysis/tunnels-pairing.md](analysis/tunnels-pairing.md) | ~345 | Tunnels (cloudflare/ngrok/tailscale/custom), mobile pairing |
-| [analysis/worker-orchestrator.md](analysis/worker-orchestrator.md) | ~484 | Worker runtime, Claude bridge, proxy LLM, Docker sandbox |
-| [analysis/workspace-memory.md](analysis/workspace-memory.md) | ~726 | Workspace FS, semantic memory, embeddings, hybrid search |
-| [analysis/secrets-keychain.md](analysis/secrets-keychain.md) | ~346 | Secrets store, keychain, AES-GCM crypto, credential injection |
+| [analysis/skills-extensions.md](analysis/skills-extensions.md) | ~729 | Skills system, WASM channels, extensions, hooks |
+| [analysis/tools.md](analysis/tools.md) | ~1465 | Tool system, all built-in tools, MCP client, WASM tools, builder |
+| [analysis/tunnels-pairing.md](analysis/tunnels-pairing.md) | ~347 | Tunnels (cloudflare/ngrok/tailscale/custom), mobile pairing |
+| [analysis/worker-orchestrator.md](analysis/worker-orchestrator.md) | ~485 | Worker runtime, Claude bridge, proxy LLM, Docker sandbox |
+| [analysis/workspace-memory.md](analysis/workspace-memory.md) | ~730 | Workspace FS, semantic memory, embeddings, hybrid search |
+| [analysis/secrets-keychain.md](analysis/secrets-keychain.md) | ~349 | Secrets store, keychain, AES-GCM crypto, credential injection |
 
 ---
 
@@ -44,16 +47,17 @@ IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.a
 
 | Module | Files | Description |
 |--------|------:|-------------|
-| `tools/` | 47+ | Tool system: built-in, MCP, WASM, dynamic builder, rate limiter, HTML-to-Markdown |
-| `channels/` | 35+ | Channels: REPL, web gateway, HTTP, WASM plugins (with pairing + hot-activate) |
-| `agent/` | 22 | Agent runtime: loop, sessions, jobs, routines, heartbeat, context compaction |
+| `tools/` | 41 | Tool system: built-in, MCP, WASM, dynamic builder, rate limiter, HTML-to-Markdown |
+| `channels/` | 33 | Channels: REPL, web gateway, HTTP, WASM plugins (with pairing + hot-activate) |
+| `agent/` | 21 | Agent runtime: loop, sessions, jobs, routines, heartbeat, context compaction |
 | `config/` | 17 | Configuration: all env vars and structs |
 | `workspace/` | 7 | Memory, embeddings, hybrid FTS+vector search |
-| `llm/` | 9+ | LLM backends, smart routing provider, reliability wrappers |
+| `llm/` | 12 | LLM backends, smart routing provider, reliability wrappers |
 | `tunnel/` | 6 | Tunnels: cloudflare, ngrok, tailscale, custom |
 | `secrets/` | 5 | Keychain, AES-256-GCM crypto, credential injection |
 | `worker/` | 5 | Docker worker: runtime, LLM bridge, proxy |
-| **Total** | **260+** | ~115,000 Rust source lines (approximate; measured on v0.11.1, including app code, tests, comments) |
+| **Total (`src/`)** | **248** | ~113,083 Rust source lines in `src/` (v0.11.1 tag snapshot) |
+| **Total (repo-wide)** | **291** | ~129,040 Rust source lines including tests, channel/tool source trees, and helper binaries |
 
 ---
 
@@ -102,7 +106,7 @@ ironclaw --no-onboard
 curl http://127.0.0.1:3000/api/health
 ```
 
-See [INSTALLATION.md](INSTALLATION.md) for complete setup, all LLM backends, service configuration, and troubleshooting.
+See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_PROVIDERS.md](LLM_PROVIDERS.md) for backend-specific examples, [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md) for Telegram pairing setup, and [BUILDING_CHANNELS.md](BUILDING_CHANNELS.md) for custom WASM channels.
 
 ---
 
@@ -141,6 +145,7 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup, all LLM backends, ser
 ## Version
 
 Documented: IronClaw v0.11.1
+Release tag: [`v0.11.1`](https://github.com/nearai/ironclaw/releases/tag/v0.11.1) (`ebb4ce95`, 2026-02-23)
 Source: [github.com/nearai/ironclaw](https://github.com/nearai/ironclaw)
 Docs repo: [github.com/mudrii/ironclaw-docs](https://github.com/mudrii/ironclaw-docs)
 Generated: 2026-02-24
