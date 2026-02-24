@@ -1,9 +1,9 @@
 # IronClaw Documentation
 
-> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.9.0
+> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.11.1
 > — a secure, self-hosted personal AI assistant written in Rust.
 
-**Documentation set for IronClaw v0.9.0, validated against `~/src/ironclaw` source.**
+**Documentation set for IronClaw v0.11.1, validated against `~/src/ironclaw` source.**
 
 ---
 
@@ -40,34 +40,46 @@ IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.a
 - **Multiple LLM backends**: NEAR AI, Anthropic, OpenAI, Ollama, OpenAI-compatible, Tinfoil
 - **Dual database**: libSQL (embedded, no server required) or PostgreSQL (with pgvector)
 
-### Source Module Statistics (v0.9.0)
+### Source Module Statistics (v0.11.1)
 
 | Module | Files | Description |
 |--------|------:|-------------|
-| `tools/` | 45+ | Tool system: built-in, MCP, WASM, dynamic builder |
-| `channels/` | 35+ | Channels: REPL, web gateway, HTTP, WASM plugins |
-| `agent/` | 21 | Agent runtime: loop, sessions, jobs, routines, heartbeat |
+| `tools/` | 47+ | Tool system: built-in, MCP, WASM, dynamic builder, rate limiter, HTML-to-Markdown |
+| `channels/` | 35+ | Channels: REPL, web gateway, HTTP, WASM plugins (with pairing + hot-activate) |
+| `agent/` | 22 | Agent runtime: loop, sessions, jobs, routines, heartbeat, context compaction |
 | `config/` | 17 | Configuration: all env vars and structs |
 | `workspace/` | 7 | Memory, embeddings, hybrid FTS+vector search |
+| `llm/` | 9+ | LLM backends, smart routing provider, reliability wrappers |
 | `tunnel/` | 6 | Tunnels: cloudflare, ngrok, tailscale, custom |
 | `secrets/` | 5 | Keychain, AES-256-GCM crypto, credential injection |
 | `worker/` | 5 | Docker worker: runtime, LLM bridge, proxy |
-| **Total** | **260+** | ~115,000 Rust source lines (approximate; measured on v0.9.0, including app code, tests, comments) |
+| **Total** | **260+** | ~115,000 Rust source lines (approximate; measured on v0.11.1, including app code, tests, comments) |
 
 ---
 
 ## Quick Start (macOS, local mode)
 
+**Fastest option — Homebrew:**
 ```bash
-# Build (libSQL only, no PostgreSQL required)
+brew install ironclaw
+```
+
+**Or install pre-built binary:**
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/nearai/ironclaw/releases/latest/download/ironclaw-installer.sh | sh
+```
+
+**Or build from source (libSQL, no PostgreSQL required):**
+```bash
 git clone https://github.com/nearai/ironclaw ~/src/ironclaw
 cd ~/src/ironclaw
 cargo build --release --no-default-features --features libsql
-
-# Install
 install -m 755 target/release/ironclaw ~/.local/bin/ironclaw
+```
 
-# Configure
+**Configure and run:**
+```bash
 mkdir -p ~/.ironclaw
 cat > ~/.ironclaw/.env <<'EOF'
 DATABASE_BACKEND=libsql
@@ -83,7 +95,7 @@ EOF
 # Generate a secure token: openssl rand -hex 32
 # Replace REPLACE_WITH_SECURE_TOKEN above with the output
 
-# Run (one-shot)
+# Run
 ironclaw --no-onboard
 
 # Test
@@ -94,26 +106,41 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup, all LLM backends, ser
 
 ---
 
-## What's New in v0.9.0
+## What's New
+
+### v0.11.1 (2026-02-23)
+- **CI/CD Fix**: Resolved release pipeline issue allowing custom `release.yml` jobs
+
+### v0.11.0 (2026-02-23)
+- **Context Auto-Compaction**: Automatic compaction with retry on `ContextLengthExceeded` — three strategies: Summarize (LLM-generated summary written to `daily/{date}.md`), Truncate (drop oldest turns), MoveToWorkspace (archive full turns)
+- **Completion improvements**: Better handling of completion edge cases
+
+### v0.10.0 (2026-02-22)
+- **Smart Routing Provider**: Cost-optimized model selection — routes Simple queries to cheap models (e.g., Haiku), Complex queries to primary models (Sonnet/Opus), with cascade escalation on uncertain responses (`SMART_ROUTING_CASCADE`, `NEARAI_CHEAP_MODEL`)
+- **Rate Limiting for Built-in Tools**: Per-tool, per-user sliding window rate limiting (per-minute and per-hour limits)
+- **WASM Channel Enhancements**: Hot-activate WASM channels, channel-first prompts, unified artifact resolution
+- **Pairing/Permission System**: All WASM channels now support device pairing and permissions
+- **Group Chat Privacy**: Privacy controls and channel-aware prompts with safety hardening
+- **Embedded Registry Catalog**: Offline-capable extension discovery with WASM bundle install pipeline
+- **Token Usage & Cost Tracking**: Gateway status popover shows real-time token usage and cost
+- **Custom HTTP Headers**: Support for `LLM_EXTRA_HEADERS` on OpenAI-compatible providers
+- **HTML-to-Markdown Conversion**: New built-in tool for converting HTML content
+- **FullJob Routine Mode**: Scheduler dispatch for routine jobs
+- **Startup Optimization**: Startup time reduced from ~15s to ~2s
+- **Homebrew Install**: `brew install ironclaw` now available
+- **Web UI Refresh**: Agent-market design language, dashboard favicon, Chrome extension test skill
 
 ### v0.9.0 (2026-02-22)
-- **TEE Attestation Shield**: Added hardware-attested TEEs for enhanced security in web gateway UI
+- **TEE Attestation Shield**: Hardware-attested TEEs for enhanced security in web gateway UI
 - **Configurable Tool Iterations**: New `AGENT_MAX_TOOL_ITERATIONS` setting for agentic loop control
 - **Auto-Approve Tools**: New `AGENT_AUTO_APPROVE_TOOLS` for CI/benchmarking
 - **X-Accel-Buffering**: SSE endpoint performance improvements
-
-### v0.8.0 (2026-02-20)
-- **Extension Registry**: New metadata catalog with onboarding integration
-- **New LLM Models**: GPT-5.3 Codex, GPT-5.x family, Claude 4.x series, o4-mini
-- **Memory Hygiene**: Wired memory cleanup into heartbeat loop
-- **Parallel Tool Execution**: JoinSet-based concurrent tool calls
-- **Approval Improvements**: Multi-tool approval resume flow
 
 ---
 
 ## Version
 
-Documented: IronClaw v0.9.0
+Documented: IronClaw v0.11.1
 Source: [github.com/nearai/ironclaw](https://github.com/nearai/ironclaw)
 Docs repo: [github.com/mudrii/ironclaw-docs](https://github.com/mudrii/ironclaw-docs)
-Generated: 2026-02-22
+Generated: 2026-02-24

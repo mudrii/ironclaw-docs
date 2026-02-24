@@ -1,6 +1,6 @@
 # IronClaw Installation & Deployment Guide
 
-> Version: v0.9.0 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel), Linux
+> Version: v0.11.1 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel), Linux
 
 Complete guide for installing, configuring, and deploying IronClaw as a personal AI assistant.
 
@@ -80,7 +80,12 @@ Access the web UI at `http://localhost:3000`
 
 ### 3.1 Pre-built Binary (Recommended)
 
-**macOS / Linux / WSL:**
+**macOS (Homebrew — easiest):**
+```bash
+brew install ironclaw
+```
+
+**macOS / Linux / WSL (shell installer):**
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf \
   https://github.com/nearai/ironclaw/releases/latest/download/ironclaw-installer.sh | sh
@@ -94,7 +99,7 @@ irm https://github.com/nearai/ironclaw/releases/latest/download/ironclaw-install
 **Verify:**
 ```bash
 ironclaw --version
-# Expected: ironclaw 0.9.0
+# Expected: ironclaw 0.11.1
 ```
 
 ### 3.2 Build from Source
@@ -190,6 +195,11 @@ OPENAI_MODEL=gpt-4o              # or gpt-4-turbo, gpt-4o-mini, o1, o3-mini
 # LLM_BACKEND=nearai
 # NEARAI_API_KEY=your-nearai-key
 # NEARAI_MODEL=fireworks::accounts/fireworks/models/llama4-maverick-instruct-basic
+# NEARAI_CHEAP_MODEL=claude-haiku-4-20250514  # For smart routing (v0.10.0+)
+
+# Smart Routing (v0.10.0+)
+# Routes simple queries to NEARAI_CHEAP_MODEL, complex to NEARAI_MODEL
+# SMART_ROUTING_CASCADE=true            # Escalate uncertain cheap-model responses
 
 # Ollama (local, no API cost)
 # LLM_BACKEND=ollama
@@ -201,7 +211,7 @@ OPENAI_MODEL=gpt-4o              # or gpt-4-turbo, gpt-4o-mini, o1, o3-mini
 # LLM_BASE_URL=https://api.groq.com/openai/v1
 # LLM_API_KEY=gsk_...
 # LLM_MODEL=llama-3.3-70b-versatile
-# LLM_EXTRA_HEADERS="HTTP-Referer:https://myapp.com,X-Title:MyApp"
+# LLM_EXTRA_HEADERS="HTTP-Referer:https://myapp.com,X-Title:MyApp"  # Custom headers (v0.10.0+)
 
 ##############################################
 # Embeddings (Semantic Memory)
@@ -216,7 +226,8 @@ EMBEDDING_MODEL=text-embedding-3-small   # 1536-dim, recommended
 AGENT_NAME=ironclaw
 AGENT_MAX_PARALLEL_JOBS=5
 AGENT_JOB_TIMEOUT_SECS=3600
-# AGENT_AUTO_APPROVE_TOOLS=false  # Skip tool approvals (CI/benchmarks)
+# AGENT_AUTO_APPROVE_TOOLS=false      # Skip tool approvals (CI/benchmarks)
+# AGENT_MAX_TOOL_ITERATIONS=50        # Max tool calls per agentic loop turn
 
 ##############################################
 # Web Gateway
@@ -300,6 +311,8 @@ LLM_BACKEND=openai_compatible
 LLM_BASE_URL=https://api.groq.com/openai/v1
 LLM_API_KEY=gsk_...
 LLM_MODEL=llama-3.3-70b-versatile
+# Custom HTTP headers (v0.10.0+): comma-separated Key:Value pairs
+# LLM_EXTRA_HEADERS="HTTP-Referer:https://myapp.com,X-Title:MyApp"
 ```
 
 ---
@@ -582,6 +595,14 @@ INFO Agent ironclaw ready and listening
 
 **Fix:** This is fixed in v0.9.0. If you encounter it, update IronClaw.
 
+### Context length exceeded errors
+
+**Symptom:** `ContextLengthExceeded` error mid-conversation.
+
+**Cause:** Conversation context grew beyond the model's token limit.
+
+**Fix:** IronClaw v0.11.0+ automatically detects this and compacts the context (summarizes or truncates old turns) before retrying. No action needed. To tune, use `AGENT_MAX_TOOL_ITERATIONS` to limit per-turn tool calls.
+
 ### Anthropic OAuth tokens rejected
 
 **Symptom:** `sk-ant-oat01-...` causes "invalid x-api-key" error.
@@ -689,4 +710,4 @@ launchctl load ~/Library/LaunchAgents/ai.ironclaw.plist
 
 ---
 
-*Source: IronClaw v0.9.0 · See also: [ARCHITECTURE.md](ARCHITECTURE.md), [DEVELOPER-REFERENCE.md](DEVELOPER-REFERENCE.md)*
+*Source: IronClaw v0.11.1 · See also: [ARCHITECTURE.md](ARCHITECTURE.md), [DEVELOPER-REFERENCE.md](DEVELOPER-REFERENCE.md)*

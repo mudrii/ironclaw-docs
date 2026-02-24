@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Tunnels & Mobile Pairing
 
-> Updated: 2026-02-22 | Version: v0.9.0
+> Updated: 2026-02-24 | Version: v0.11.1
 
 ## 1. Overview
 
@@ -183,6 +183,8 @@ If `health_url` is set, `health_check()` sends an HTTP GET to that URL with a 5-
 The pairing system gates inbound direct messages from channels such as Telegram, Slack, and similar messaging platforms. Before the agent responds to any sender, it verifies that sender is on the `allowFrom` list for that channel. Unknown senders receive a pairing code and must be approved by the owner via the CLI.
 
 This prevents the agent from responding to arbitrary strangers who discover or guess the Telegram bot username.
+
+As of v0.10.0, all WASM channel plugins support device pairing — not just selected channels. Telegram, Slack, Discord, and WhatsApp WASM channels all implement the pairing flow. Each WASM channel calls into the same `PairingStore` API (`upsert_request`, `is_sender_allowed`, `approve`), so the pairing behavior is consistent regardless of which channel the inbound message arrives on.
 
 ### How Pairing Works
 

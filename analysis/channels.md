@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Channel System
 
-> Updated: 2026-02-22 | Version: v0.9.0
+> Updated: 2026-02-24 | Version: v0.11.1
 
 ---
 
@@ -529,7 +529,7 @@ Static routes (`/`, `/style.css`, `/app.js`) and `/api/health` are public.
 | GET | `/api/settings/{key}` | Yes | — | `{key,value,updated_at}` | Get single setting |
 | PUT | `/api/settings/{key}` | Yes | `{"value":any}` | `ActionResponse` | Set single setting |
 | DELETE | `/api/settings/{key}` | Yes | — | `ActionResponse` | Delete setting |
-| GET | `/api/gateway/status` | Yes | — | Status info | Gateway health + connection counts |
+| GET | `/api/gateway/status` | Yes | — | Status info | Gateway health + connection counts; v0.10.0 adds a token usage and cost tracker displayed in this popover, updated in real time as the agent processes messages |
 | POST | `/v1/chat/completions` | Yes | OpenAI format | OpenAI format | OpenAI-compatible completions |
 | GET | `/v1/models` | Yes | — | OpenAI models list | List available models |
 | GET | `/` | No | — | HTML | Browser UI entry point |
@@ -733,6 +733,26 @@ The minimum polling interval is enforced at 30 seconds to prevent API flooding.
 `~/.ironclaw/channels/`) and from bundled channels compiled into the binary.
 Each loaded channel produces a `WasmChannel` that implements the `Channel` trait
 and integrates with `ChannelManager` like any other channel.
+
+### Hot-Activate WASM Channels (v0.10.0)
+
+WASM channel plugins can now be hot-activated without restarting the agent.
+`ChannelManager` supports runtime addition of channels via the extension
+activation flow. The activation call installs the WASM binary, loads it into
+wasmtime, and adds it to the active channel `select_all` stream.
+
+### Pairing/Permission System (v0.10.0)
+
+All WASM channels now support device pairing. Pairing enables authentication
+from mobile or remote devices via a QR code or pairing code flow. Permissions
+are granted per-channel and stored in the extension registry.
+
+### Channel-Aware Prompts (v0.10.0)
+
+Group chat context is injected into the system prompt for multi-participant
+channels. Group chat privacy controls prevent cross-participant information
+leakage. Channel metadata (channel name, group/DM mode, participant list) is
+available to the agent.
 
 ### Bundled WASM Channels
 
