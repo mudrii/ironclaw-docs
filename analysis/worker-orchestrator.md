@@ -453,7 +453,7 @@ secret is recorded in the audit trail.
 Containers use Docker `bridge` network mode. They cannot reach each other
 directly. Each container can only reach `host.docker.internal:50051` (the
 orchestrator API) and external networks (controlled by the sandbox network
-proxy allowlist when `SANDBOX_NETWORK_PROXY=true`).
+proxy allowlist configured via sandbox policy).
 
 ### Capability drop
 

@@ -204,7 +204,7 @@ OPENAI_MODEL=gpt-4o              # or gpt-4-turbo, gpt-4o-mini, o1, o3-mini
 # Ollama (local, no API cost)
 # LLM_BACKEND=ollama
 # OLLAMA_BASE_URL=http://localhost:11434
-# OLLAMA_MODEL=llama3.2
+# OLLAMA_MODEL=llama3
 
 # OpenAI-compatible (vLLM, Together, Groq, OpenRouter, etc.)
 # LLM_BACKEND=openai_compatible
@@ -593,7 +593,7 @@ INFO Agent ironclaw ready and listening
 
 **Cause:** Tool schema uses `"type": ["string", "object"]` array syntax.
 
-**Fix:** This is fixed in v0.9.0. If you encounter it, update IronClaw.
+**Fix:** This is fixed in v0.10.0. If you encounter it, update IronClaw.
 
 ### Context length exceeded errors
 

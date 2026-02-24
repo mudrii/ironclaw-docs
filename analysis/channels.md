@@ -759,7 +759,7 @@ available to the agent.
 The following channels are compiled into the IronClaw binary and loaded
 automatically when their required secrets are configured.
 
-#### WhatsApp (added in v0.9.0)
+#### WhatsApp
 
 **Source:** `channels-src/whatsapp/` (`channels-src/whatsapp/whatsapp.capabilities.json`,
 `channels-src/whatsapp/src/lib.rs`)

@@ -156,7 +156,7 @@ Only `SkillSource::User` skills can be removed. `SkillSource::Workspace` and `Sk
 
 Source: `src/skills/catalog.rs`
 
-`SkillCatalog` is a runtime HTTP client for the ClawHub public registry at `https://clawhub.ai`. No compile-time entries exist; the catalog is always live.
+`SkillCatalog` is a runtime HTTP client for the ClawHub public registry. The compiled-in default backend is `https://wry-manatee-359.convex.site` (a Convex backend). No compile-time catalog entries exist; the catalog is always fetched live.
 
 **Configuration**: `CLAWHUB_REGISTRY` env var overrides the default base URL. The legacy `CLAWDHUB_REGISTRY` var is also checked as a fallback.
 
@@ -688,10 +688,10 @@ The host provides functions the channel WASM can call:
 | `SKILLS_DIR` | `~/.ironclaw/skills/` | User skills directory |
 | `SKILLS_MAX_ACTIVE` | `3` | Maximum simultaneously active skills |
 | `SKILLS_MAX_CONTEXT_TOKENS` | `4000` | Total prompt token budget for skills |
-| `CLAWHUB_REGISTRY` | `https://clawhub.dev` | ClawHub registry base URL (changed from `https://clawhub.ai` in v0.10.0) |
+| `CLAWHUB_REGISTRY` | `https://wry-manatee-359.convex.site` | Overrides the compiled-in Convex backend URL for the ClawHub registry |
 | `CLAWDHUB_REGISTRY` | — | Legacy alias for `CLAWHUB_REGISTRY` |
 
-Skills are **enabled by default** as of v0.10.0 (`SKILLS_ENABLED=true`). The registry URL defaults to `https://clawhub.dev`. The skill install flow was fixed to correctly handle the registry API and WASM binary download.
+Skills are **enabled by default** as of v0.10.0 (`SKILLS_ENABLED=true`). The compiled-in registry backend is a Convex URL (`https://wry-manatee-359.convex.site`), overridable via `CLAWHUB_REGISTRY`. The skill install flow was fixed to correctly handle the registry API and WASM binary download.
 
 ### 7.2 Skill Directory Layout
 

@@ -21,7 +21,7 @@
 | [analysis/llm.md](analysis/llm.md) | ~745 | LLM backends, multi-provider, retry, cost guard, schema fix |
 | [analysis/safety-sandbox.md](analysis/safety-sandbox.md) | ~520 | Safety layer, WASM sandbox, Docker orchestrator, SSRF proxy |
 | [analysis/skills-extensions.md](analysis/skills-extensions.md) | ~703 | Skills system, WASM channels, extensions, hooks |
-| [analysis/tools.md](analysis/tools.md) | ~1367 | Tool system, all built-in tools, MCP client, WASM tools, builder |
+| [analysis/tools.md](analysis/tools.md) | ~1466 | Tool system, all built-in tools, MCP client, WASM tools, builder |
 | [analysis/tunnels-pairing.md](analysis/tunnels-pairing.md) | ~345 | Tunnels (cloudflare/ngrok/tailscale/custom), mobile pairing |
 | [analysis/worker-orchestrator.md](analysis/worker-orchestrator.md) | ~484 | Worker runtime, Claude bridge, proxy LLM, Docker sandbox |
 | [analysis/workspace-memory.md](analysis/workspace-memory.md) | ~726 | Workspace FS, semantic memory, embeddings, hybrid search |
@@ -130,7 +130,7 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup, all LLM backends, ser
 - **Homebrew Install**: `brew install ironclaw` now available
 - **Web UI Refresh**: Agent-market design language, dashboard favicon, Chrome extension test skill
 
-### v0.9.0 (2026-02-22)
+### v0.9.0 (2026-02-21)
 - **TEE Attestation Shield**: Hardware-attested TEEs for enhanced security in web gateway UI
 - **Configurable Tool Iterations**: New `AGENT_MAX_TOOL_ITERATIONS` setting for agentic loop control
 - **Auto-Approve Tools**: New `AGENT_AUTO_APPROVE_TOOLS` for CI/benchmarking
