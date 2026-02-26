@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — CLI Interface
 
-> Updated: 2026-02-24 | Version: v0.11.1
+> Updated: 2026-02-26 | Version: v0.12.0
 
 ## 1. Overview
 
@@ -14,6 +14,7 @@ ironclaw [OPTIONS] [SUBCOMMAND]
 
 | Flag | Description |
 |------|-------------|
+| `--version` | Print the version and exit. As of v0.12.0, `ironclaw --version` is officially supported and outputs `ironclaw 0.12.0` (version from Cargo.toml). |
 | `--cli-only` | Run in interactive CLI mode only, disabling other channels (HTTP, WASM) |
 | `--no-db` | Skip database connection (useful for testing or offline use) |
 | `-m, --message <MSG>` | Single-message mode: send one message and exit |
@@ -247,7 +248,7 @@ IronClaw supports the Model Context Protocol (MCP) for connecting to hosted tool
 ```json
 {
   "name": "notion",
-  "url": "https://mcp.notion.com",
+  "url": "https://mcp.notion.com/mcp",
   "description": "Notion workspace integration",
   "enabled": true,
   "oauth": {

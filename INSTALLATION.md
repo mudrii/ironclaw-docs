@@ -1,10 +1,10 @@
 # IronClaw Installation & Deployment Guide
 
-> Version: v0.11.1 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel), Linux
+> Version: v0.12.0 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel), Linux
 
 Complete guide for installing, configuring, and deploying IronClaw as a personal AI assistant.
 
-Related guides: [LLM_PROVIDERS.md](LLM_PROVIDERS.md), [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md), [BUILDING_CHANNELS.md](BUILDING_CHANNELS.md).
+Related guides: [LLM_PROVIDERS.md](LLM_PROVIDERS.md), [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md), [SIGNAL_SETUP.md](SIGNAL_SETUP.md), [BUILDING_CHANNELS.md](BUILDING_CHANNELS.md).
 
 ---
 
@@ -101,7 +101,7 @@ irm https://github.com/nearai/ironclaw/releases/latest/download/ironclaw-install
 **Verify:**
 ```bash
 ironclaw --version
-# Expected: ironclaw 0.11.1
+# Expected: ironclaw 0.12.0
 ```
 
 ### 3.2 Build from Source
@@ -316,6 +316,8 @@ LLM_MODEL=llama-3.3-70b-versatile
 # Custom HTTP headers (v0.10.0+): comma-separated Key:Value pairs
 # LLM_EXTRA_HEADERS="HTTP-Referer:https://myapp.com,X-Title:MyApp"
 ```
+
+As of v0.12.0, **OpenRouter** is available as a dedicated preset option in the wizard (option 5), pre-configured with `https://openrouter.ai/api/v1`.
 
 ---
 
@@ -541,6 +543,8 @@ ironclaw registry info github-tools
 ironclaw registry install github-tools
 ```
 
+As of v0.12.0, skills are **enabled by default** — no configuration needed to activate the skills system.
+
 ---
 
 ## 11. Verify Your Installation
@@ -712,4 +716,4 @@ launchctl load ~/Library/LaunchAgents/ai.ironclaw.plist
 
 ---
 
-*Source: IronClaw v0.11.1 · See also: [ARCHITECTURE.md](ARCHITECTURE.md), [DEVELOPER-REFERENCE.md](DEVELOPER-REFERENCE.md)*
+*Source: IronClaw v0.12.0 · See also: [ARCHITECTURE.md](ARCHITECTURE.md), [DEVELOPER-REFERENCE.md](DEVELOPER-REFERENCE.md)*

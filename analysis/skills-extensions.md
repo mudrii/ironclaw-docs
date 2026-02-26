@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Skills, Extensions & Hooks
 
-> Updated: 2026-02-24 | Version: v0.11.1
+> Updated: 2026-02-26 | Version: v0.12.0
 
 ## 1. Overview
 
@@ -341,25 +341,27 @@ All operations flow through `ExtensionManager` (`src/extensions/manager.rs`):
 
 `ExtensionRegistry` (`src/extensions/registry.rs`) ships with a hardcoded list of well-known MCP servers:
 
-| Name | Display Name | Auth |
-|------|-------------|------|
-| `notion` | Notion | DCR (Dynamic Client Registration) |
-| `linear` | Linear | DCR |
-| `google-calendar` | Google Calendar | DCR |
-| `google-drive` | Google Drive | DCR |
-| `github` | GitHub | DCR |
-| `slack` | Slack | DCR |
-| `sentry` | Sentry | DCR |
-| `stripe` | Stripe | DCR |
-| `cloudflare` | Cloudflare | DCR |
-| `asana` | Asana | DCR |
-| `intercom` | Intercom | DCR |
+| Name | Display Name | URL | Auth |
+|------|-------------|-----|------|
+| `notion` | Notion | `https://mcp.notion.com/mcp` | DCR (Dynamic Client Registration) |
+| `linear` | Linear | `https://mcp.linear.app/sse` | DCR |
+| `github` | GitHub Copilot | `https://api.githubcopilot.com/mcp/` | DCR |
+| `slack` | Slack | `https://mcp.slack.com` | DCR |
+| `sentry` | Sentry | `https://mcp.sentry.dev/mcp` | DCR |
+| `stripe` | Stripe | — | DCR |
+| `cloudflare` | Cloudflare | `https://mcp.cloudflare.com/mcp` | DCR |
+| `asana` | Asana | `https://mcp.asana.com/v2/mcp` | DCR |
+| `intercom` | Intercom | `https://mcp.intercom.com/mcp` | DCR |
+
+> **v0.12.0 note (#370):** Google Drive and Google Calendar were removed from the built-in registry — `mcp.google.com` does not exist and Google has no official remote MCP servers. The URLs for all remaining entries were corrected to match the providers' actual endpoints.
 
 Search scoring: exact name match = 100 points, name contains token = 50, display name contains = 30, exact keyword match = 40, keyword contains = 20, description contains = 10.
 
 ### 3.5 Embedded Registry Catalog (v0.10.0)
 
 The extension registry now ships with an embedded catalog of known extensions. This allows offline discovery of available extensions without requiring network access. The embedded catalog is updated with each release.
+
+> **v0.12.0 note:** The extension registry catalog is embedded in the binary for offline-capable extension discovery.
 
 ### 3.6 WASM Bundle Install Pipeline (v0.10.0)
 
@@ -692,6 +694,8 @@ The host provides functions the channel WASM can call:
 | `CLAWDHUB_REGISTRY` | — | Legacy alias for `CLAWHUB_REGISTRY` |
 
 Skills are **enabled by default** as of v0.10.0 (`SKILLS_ENABLED=true`). The compiled-in registry backend is a Convex URL (`https://wry-manatee-359.convex.site`), overridable via `CLAWHUB_REGISTRY`. The skill install flow was fixed to correctly handle the registry API and WASM binary download.
+
+> **v0.12.0 note (#300):** As of v0.12.0, skills are **enabled by default**. The skills system no longer needs to be explicitly activated — it is active on every fresh installation. The registry loading and installation pipeline were fixed in this release.
 
 ### 7.2 Skill Directory Layout
 
