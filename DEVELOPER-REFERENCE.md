@@ -530,7 +530,7 @@ After compaction completes, the failed LLM request is automatically retried with
 
 | Limitation | Impact |
 |-----------|--------|
-| Secrets store not available | AES-GCM encrypted secrets require PostgreSQL |
+| Secrets store available | AES-GCM encrypted secrets supported on both PostgreSQL and libSQL |
 | Hybrid search: FTS5 only (no vector) | Semantic search unavailable |
 | Settings reload from DB skipped | Config changes require restart |
 | No incremental migrations | Schema uses `CREATE IF NOT EXISTS`; no `ALTER TABLE` |

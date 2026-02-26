@@ -111,10 +111,11 @@ Source: `src/skills/registry.rs`
 
 `SkillRegistry` manages the in-memory set of loaded skills and the on-disk `~/.ironclaw/skills/` directory.
 
-**Discovery** (`discover_all`): Scans two directories in priority order:
+**Discovery** (`discover_all`): Scans three directories in priority order:
 
 1. `<workspace>/skills/` — loaded as `SkillTrust::Trusted`, `SkillSource::Workspace`
-2. `~/.ironclaw/skills/` — loaded as `SkillTrust::Trusted`, `SkillSource::User`
+2. `~/.ironclaw/skills/` — loaded as `SkillTrust::Trusted`, `SkillSource::User` (user-placed skills)
+3. `~/.ironclaw/installed_skills/` — loaded as `SkillTrust::Installed`, `SkillSource::Installed` (registry-installed; restricted tool ceiling)
 
 On name collision, the workspace skill wins; the user skill is silently skipped. Discovery is capped at 100 skills per directory (`MAX_DISCOVERED_SKILLS`).
 
@@ -701,10 +702,11 @@ Skills are **enabled by default** as of v0.10.0 (`SKILLS_ENABLED=true`). The com
 
 | Path | Trust | Managed by |
 |------|-------|-----------|
-| `~/.ironclaw/skills/` | `Trusted` | User; registry `install_skill` writes here |
-| `<workspace>/skills/` | `Trusted` | Workspace; read-only from registry |
+| `<workspace>/skills/` | `Trusted` | Workspace; highest priority |
+| `~/.ironclaw/skills/` | `Trusted` | User; user-placed skills only |
+| `~/.ironclaw/installed_skills/` | `Installed` | Registry; `install_skill` writes here (restricted tool ceiling) |
 
-Workspace overrides user: if both contain a skill with the same name, the workspace version is used.
+Workspace overrides user: if both contain a skill with the same name, the workspace version is used. Registry-installed skills use `SkillTrust::Installed` (read-only tool ceiling survives restarts), while user and workspace skills use `SkillTrust::Trusted` (full tool access).
 
 ### 7.3 Extension Configuration
 
