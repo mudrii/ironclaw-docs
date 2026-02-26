@@ -934,12 +934,12 @@ When the agent requests a tool that requires approval, the Signal channel sends 
 StatusUpdate::ApprovalNeeded → formatted markdown message with:
   - Tool name and description
   - Parameters (pretty-printed JSON)
-  - User instructions: yes/y (once), always/a (always), no/n (deny)
+  - User instructions with supported keywords
 
-User replies → parsed by incoming message handler
-  - "yes" / "y"     → Approve once
-  - "always" / "a"  → Approve for session
-  - "no" / "n"      → Deny
+User replies → parsed by `src/agent/submission.rs`
+  - Approve once: `yes`, `y`, `approve`, `ok`, `/approve`, `/yes`, `/y`
+  - Approve always: `always`, `a`, `yes always`, `approve always`, `/always`, `/a`
+  - Deny: `no`, `n`, `deny`, `reject`, `cancel`, `/deny`, `/no`, `/n`
 ```
 
 Status updates (debug-gated):

@@ -142,10 +142,13 @@ Parameters:
   "content": "Meeting notes..."
 }
 
-Reply with:  yes/y (once)  |  always/a (always approve)  |  no/n (deny)
+Reply: yes/approve/ok (once) | always (session) | no/deny/reject (block)
 ```
 
-Reply with `yes` or `y` to approve once, `always` or `a` to approve this tool for the session, or `no` or `n` to deny.
+Supported responses:
+- **Approve once**: `yes`, `y`, `approve`, `ok`, `/approve`, `/yes`, `/y`
+- **Approve always**: `always`, `a`, `yes always`, `approve always`, `/always`, `/a`
+- **Deny**: `no`, `n`, `deny`, `reject`, `cancel`, `/deny`, `/no`, `/n`
 
 ## Debug Mode
 

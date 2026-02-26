@@ -57,8 +57,8 @@ IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.a
 | `tunnel/` | 6 | Tunnels: cloudflare, ngrok, tailscale, custom |
 | `secrets/` | 5 | Keychain, AES-256-GCM crypto, credential injection |
 | `worker/` | 5 | Docker worker: runtime, LLM bridge, proxy |
-| **Total (`src/`)** | **249** | ~113,000+ Rust source lines in `src/` (v0.12.0 tag snapshot) |
-| **Total (repo-wide)** | **292** | ~129,000+ Rust source lines including tests, channel/tool source trees, and helper binaries |
+| **Total (`src/`)** | **250** | ~113,000+ Rust source lines in `src/` (v0.12.0 tag snapshot) |
+| **Total (repo-wide)** | **293** | ~129,000+ Rust source lines including tests, channel/tool source trees, and helper binaries |
 
 ---
 

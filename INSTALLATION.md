@@ -280,7 +280,7 @@ ANTHROPIC_API_KEY=sk-ant-api03-...   # Standard API key ONLY
 ANTHROPIC_MODEL=claude-sonnet-4-20250514
 ```
 
-> **Important:** OAuth tokens (`sk-ant-oat01-*`) do NOT work. Use standard API keys from [console.anthropic.com](https://console.anthropic.com).
+> **Important:** OAuth tokens (`sk-ant-oat01-*`) do NOT work. Use standard API keys from [platform.claude.com](https://platform.claude.com).
 
 ### NEAR AI
 
@@ -613,7 +613,7 @@ INFO Agent ironclaw ready and listening
 
 **Symptom:** `sk-ant-oat01-...` causes "invalid x-api-key" error.
 
-**Fix:** Use standard API keys (`sk-ant-api03-*`) from [console.anthropic.com](https://console.anthropic.com).
+**Fix:** Use standard API keys (`sk-ant-api03-*`) from [platform.claude.com](https://platform.claude.com).
 
 ### libSQL memory search returns no results
 
