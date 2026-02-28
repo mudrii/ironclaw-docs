@@ -87,7 +87,7 @@
 | Session token auto-renewal | `src/llm/session.rs` |
 | Database trait (~60 async methods) | `src/db/mod.rs` |
 | PostgreSQL backend | `src/db/postgres.rs` |
-| libSQL/Turso backend | `src/db/libsql_backend.rs` |
+| libSQL/Turso backend | `src/db/libsql/mod.rs` |
 | libSQL schema (SQLite-dialect) | `src/db/libsql_migrations.rs` |
 | PostgreSQL migrations | `migrations/V1__initial.sql` |
 | Workspace / memory system | `src/workspace/mod.rs` |
@@ -313,8 +313,8 @@ Config struct: `src/config/mod.rs` · `INJECTED_VARS: OnceLock<HashMap<String,St
 |---------|------|---------|-------|
 | `AGENT_NAME` | string | `ironclaw` | Display name |
 | `AGENT_MAX_PARALLEL_JOBS` | usize | `5` | Job concurrency limit |
-| `AGENT_JOB_TIMEOUT_SECS` | u64 | `1800` | Per-job timeout |
-| `AGENT_STUCK_THRESHOLD_SECS` | u64 | `1800` | Stuck-job detector threshold |
+| `AGENT_JOB_TIMEOUT_SECS` | u64 | `3600` | Per-job timeout |
+| `AGENT_STUCK_THRESHOLD_SECS` | u64 | `300` | Stuck-job detector threshold |
 | `AGENT_MAX_TOOL_ITERATIONS` | usize | `50` | Max agentic tool-call loop iterations |
 | `AGENT_AUTO_APPROVE_TOOLS` | bool | `false` | Skip tool approvals (CI/benchmarks) |
 
@@ -385,8 +385,9 @@ Config struct fields: `http_url`, `account`, `allow_from`, `dm_policy`, `group_p
 
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
-| `SKILLS_ENABLED` | bool | `false` | Enable skills system |
+| `SKILLS_ENABLED` | bool | `true` | Enable skills system |
 | `SKILLS_DIR` | path | `~/.ironclaw/skills` | Local skill directory |
+| `SKILLS_INSTALLED_DIR` | path | `~/.ironclaw/installed_skills/` | Installed skills directory |
 | `SKILLS_MAX_ACTIVE` | usize | `3` | Max active skills per request |
 | `SKILLS_MAX_CONTEXT_TOKENS` | usize | `4000` | Max prompt budget per turn |
 
@@ -488,7 +489,7 @@ After compaction completes, the failed LLM request is automatically retried with
 
 1. Add method to `Database` trait in `src/db/mod.rs`
 2. Implement in `src/db/postgres.rs` (delegate to Store/Repository pattern)
-3. Implement in `src/db/libsql_backend.rs` (native SQLite-dialect SQL)
+3. Implement in `src/db/libsql/mod.rs` (native SQLite-dialect SQL)
 4. Add schema in `migrations/V1__initial.sql` (PostgreSQL)
 5. Add schema in `src/db/libsql_migrations.rs` (SQLite-dialect)
 6. Test with both feature flags (see §16)
@@ -531,7 +532,7 @@ After compaction completes, the failed LLM request is automatically retried with
 | Limitation | Impact |
 |-----------|--------|
 | Secrets store available | AES-GCM encrypted secrets supported on both PostgreSQL and libSQL |
-| Hybrid search: FTS5 only (no vector) | Semantic search unavailable |
+| Hybrid search: supported (FTS + vector) when embeddings enabled | Full semantic search requires embeddings + query vector |
 | Settings reload from DB skipped | Config changes require restart |
 | No incremental migrations | Schema uses `CREATE IF NOT EXISTS`; no `ALTER TABLE` |
 | No encryption at rest | SQLite file is plaintext; use FileVault / LUKS |
@@ -838,7 +839,7 @@ grep -rn '<the_pattern>' src/
 
 | Check | Description |
 |-------|-------------|
-| Both DB backends | Any new persistence method in `Database` trait? → Must be in BOTH `postgres.rs` AND `libsql_backend.rs` |
+| Both DB backends | Any new persistence method in `Database` trait? → Must be in BOTH `postgres.rs` AND `libsql/mod.rs` |
 | Schema sync | New table/index? → Must be in BOTH `migrations/V1__initial.sql` AND `libsql_migrations.rs` |
 | Seed data | Any `INSERT INTO` in migrations? → Check libSQL migration for same seed data |
 | Index parity | Diff `CREATE INDEX` between the two schema files |
@@ -893,9 +894,9 @@ grep -rn '<the_pattern>' src/
 ### Pattern: "libSQL workspace search returns no results"
 
 **Symptom**: `memory_search` returns empty even when documents exist
-**Root cause**: libSQL backend uses FTS5 only; vector search not implemented
-**Impact**: Semantic queries don't match; only exact keyword matches work
-**Fix**: Use PostgreSQL backend for full hybrid search, or phrase queries for FTS
+**Root cause**: No embeddings were provided to the search call, or vector search was disabled
+**Impact**: Semantic retrieval is bypassed and only FTS results are used
+**Fix**: Ensure `EMBEDDING_ENABLED=true` and a vector was produced, or set `SearchConfig::fts_only()` when expected
 
 ### Pattern: "Config value silently ignored"
 

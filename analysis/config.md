@@ -191,8 +191,9 @@ default is possible.
 | `ROUTINES_DEFAULT_COOLDOWN` | u64 | `300` | No | Default cooldown in seconds between routine firings |
 | `ROUTINES_MAX_TOKENS` | u32 | `4096` | No | Max output tokens for lightweight routine LLM calls |
 | **Skills** | | | | |
-| `SKILLS_ENABLED` | bool | `false` | No | Enable the SKILL.md prompt extension system |
+| `SKILLS_ENABLED` | bool | `true` | No | Enable the SKILL.md prompt extension system |
 | `SKILLS_DIR` | path | `~/.ironclaw/skills/` | No | Directory containing local (trusted) skills |
+| `SKILLS_INSTALLED_DIR` | path | `~/.ironclaw/installed_skills/` | No | Directory for ClawHub-installed skills |
 | `SKILLS_MAX_ACTIVE` | usize | `3` | No | Maximum skills active simultaneously |
 | `SKILLS_MAX_CONTEXT_TOKENS` | usize | `4000` | No | Maximum total context tokens allocated to skill prompts |
 | **Safety** | | | | |
@@ -574,8 +575,9 @@ pub struct ClaudeCodeConfig {
 
 ```rust
 pub struct SkillsConfig {
-    pub enabled: bool,              // SKILLS_ENABLED (default: false)
+    pub enabled: bool,              // SKILLS_ENABLED (default: true)
     pub local_dir: PathBuf,         // SKILLS_DIR (default: ~/.ironclaw/skills/)
+    pub installed_dir: PathBuf,     // SKILLS_INSTALLED_DIR (default: ~/.ironclaw/installed_skills/)
     pub max_active_skills: usize,   // SKILLS_MAX_ACTIVE (default: 3)
     pub max_context_tokens: usize,  // SKILLS_MAX_CONTEXT_TOKENS (default: 4000)
 }
@@ -972,8 +974,9 @@ GATEWAY_AUTH_TOKEN="replace-with-random-hex-token"
 ##############################################
 # Skills
 ##############################################
-# SKILLS_ENABLED="false"
+# SKILLS_ENABLED="true"
 # SKILLS_DIR="~/.ironclaw/skills/"
+# SKILLS_INSTALLED_DIR="~/.ironclaw/installed_skills/"
 # SKILLS_MAX_ACTIVE="3"
 # SKILLS_MAX_CONTEXT_TOKENS="4000"
 
