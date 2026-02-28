@@ -1015,3 +1015,20 @@ RUST_LOG="ironclaw=info,tower_http=info"
 # Verbose: RUST_LOG="ironclaw=debug,tower_http=debug"
 # Trace:   RUST_LOG="ironclaw=trace"
 ```
+
+## 9. Automated QA and CI Validation (`a24fd3e`)
+
+Commit `a24fd3e` added automated quality gates around schema correctness, CI coverage,
+and end-to-end behavior:
+
+- `src/tools/schema_validator.rs` — strict-mode tool schema validation used by tests.
+- `tests/tool_schema_validation.rs` — validates all built-in, MCP, and WASM schemas.
+- `tests/config_round_trip.rs` — validates bootstrap config read/write/read-back behavior.
+- `.github/workflows/test.yml` — matrix (`all-features`, `default`, `libsql-only`) plus
+  Telegram tests, Docker build checks, and a roll-up `Run Tests` status.
+- `.github/workflows/code_style.yml` — `cargo fmt`, matrixed clippy checks,
+  and a roll-up `Code Style (fmt + clippy)` status.
+- `.github/workflows/e2e.yml` — browser E2E workflow for web gateway and interaction flows.
+
+The workflow roll-ups are used to match branch protection check names and prevent partial
+matrix failures from passing through as green PR checks.
