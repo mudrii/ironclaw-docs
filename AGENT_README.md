@@ -3,7 +3,7 @@
 > **AI Agent Use**: Optimized for code review, bug triage, and targeted fixes.
 > Jump directly to the section relevant to the error or task — no narrative reading required.
 
-**Source**: IronClaw v0.12.0 (`v0.12.0`) · `~/src/ironclaw/` · ~113K Rust lines in `src/` (~129K repo-wide)
+**Source**: IronClaw v0.12.0 (`v0.12.0`) · `~/src/ironclaw/`
 
 ---
 
@@ -53,6 +53,8 @@
 | WASM channel runtime | `src/channels/wasm/` |
 | All error types | `src/error.rs` |
 | All config structs / env var loading | `src/config/mod.rs` |
+| Bootstrap and startup wiring | `src/bootstrap.rs` |
+| Runtime config overlay and defaults | `src/settings.rs` |
 | Tool trait definition | `src/tools/tool.rs` |
 | Tool registry / discovery | `src/tools/registry.rs` |
 | Built-in tool implementations | `src/tools/builtin/` |
@@ -393,7 +395,7 @@ Enablement is currently by setting `SIGNAL_HTTP_URL` (plus `SIGNAL_ACCOUNT`); th
 | `SIGNAL_HTTP_URL` | URL | — | Yes (if enabled) | signal-cli HTTP daemon endpoint |
 | `SIGNAL_ACCOUNT` | string | — | Yes (if enabled) | Registered Signal phone number |
 | `SIGNAL_ALLOW_FROM` | string list | — | No | Comma-separated allowed sender numbers |
-| `SIGNAL_ALLOW_FROM_GROUPS` | string list | account | No | Optional explicit group allowlist |
+| `SIGNAL_ALLOW_FROM_GROUPS` | string list | empty | No | Optional explicit group allowlist |
 | `SIGNAL_DM_POLICY` | enum | `pairing` | No | `open\|allowlist\|pairing` |
 | `SIGNAL_GROUP_POLICY` | enum | `allowlist` | No | `disabled\|allowlist\|open` |
 | `SIGNAL_GROUP_ALLOW_FROM` | string list | inherited from `SIGNAL_ALLOW_FROM_GROUPS` | No | Optional explicit group allowlist |
@@ -1204,7 +1206,7 @@ Some modules have authoritative spec files. **Code must match spec** — spec is
 Run this sequence before starting development or review:
 
 1. Read the task scope and map to concrete files (`src/agent`, `src/tools`, `src/db`, `src/config`, `src/channels` first).
-2. Confirm startup path and feature flags from `src/main.rs` and `src/app.rs`.
+2. Confirm startup path and feature flags from `src/main.rs`, `src/app.rs`, `src/bootstrap.rs`, and `src/settings.rs`.
 3. Identify any spec files in section 18 for the touched module and update those together with code.
 4. Make one change per pass and validate with the section 17 feature-flag test matrix.
 5. Add/adjust tests in owning module and run focused grep checks from section 16.
