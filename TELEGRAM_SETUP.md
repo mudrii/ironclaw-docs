@@ -1,6 +1,6 @@
 # Telegram Channel Setup
 
-> Version baseline: IronClaw v0.13.0 (`v0.13.0` tag snapshot)
+> Version baseline: IronClaw v0.12.0 (`v0.12.0` tag snapshot)
 
 This guide covers configuring the Telegram channel for IronClaw, including DM pairing for access control.
 
@@ -34,7 +34,7 @@ ironclaw onboard
 
 When prompted, enable the Telegram channel and paste your bot token. The wizard will:
 
-- Validate the token against the Telegram `getMe` API before saving it; an invalid token is rejected immediately with an error and you are prompted to try again
+- Validate the token
 - Optionally configure a webhook secret
 - Set up tunnel (if you want webhook mode)
 
@@ -87,12 +87,6 @@ Edit `~/.ironclaw/channels/telegram.capabilities.json` (or the config injected b
 | `owner_id` | Telegram user ID | `null` | When set, only this user can message (overrides dm_policy) |
 | `bot_username` | Bot username (no @) | `null` | Used for mention detection in groups; when set, only strips this mention from messages |
 | `respond_to_all_group_messages` | `true`/`false` | `false` | When true, respond to all group messages; when false, only @mentions and /commands |
-
-### Web UI Setup
-
-The Telegram channel can also be configured through the IronClaw web UI (Settings → Extensions). When you submit a bot token there, it is validated against the Telegram `getMe` API before being saved. If validation fails the token is not stored and an error is shown.
-
-After the token is saved the channel attempts to hot-activate. If activation fails the extension card shows a **Reconfigure** button — use it to re-enter credentials and retry. There is no "Restart" button in the web UI for channel activation failures.
 
 ## Manual Installation
 

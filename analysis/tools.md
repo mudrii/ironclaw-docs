@@ -1,6 +1,6 @@
 # IronClaw Tool System — Developer Reference
 
-Version: v0.13.0
+Version: v0.12.0
 Source: `src/tools/`
 
 ---
@@ -16,7 +16,6 @@ an MCP server — is expressed as a `Tool` implementation registered in the `Too
 | Category | Source | Domain | Description |
 |----------|--------|--------|-------------|
 | Core utilities | `builtin/` | Orchestrator | echo, time, json, http |
-| Web fetch | `builtin/web_fetch.rs` | Orchestrator | web_fetch (GET a URL, return clean Markdown) |
 | Filesystem | `builtin/file.rs` | Container | read_file, write_file, list_dir, apply_patch |
 | Shell | `builtin/shell.rs` | Container | shell command execution |
 | Memory | `builtin/memory.rs` | Orchestrator | memory_search, memory_write, memory_read, memory_tree |
@@ -163,10 +162,10 @@ impl Tool for MyTool {
 
 ### Protected Tool Names
 
-37 names are protected at startup. Dynamic tools (WASM, MCP) cannot shadow these names:
+36 names are protected at startup. Dynamic tools (WASM, MCP) cannot shadow these names:
 
 ```
-echo, time, json, http, web_fetch, shell,
+echo, time, json, http, shell,
 read_file, write_file, list_dir, apply_patch,
 memory_search, memory_write, memory_read, memory_tree,
 create_job, list_jobs, job_status, cancel_job, job_events, job_prompt,
@@ -195,7 +194,7 @@ The registry assembles built-in tools in these groups during startup:
 
 | Method | Tools Registered |
 |--------|-----------------|
-| `register_builtin_tools()` | echo, time, json, http, web_fetch |
+| `register_builtin_tools()` | echo, time, json, http |
 | `register_dev_tools()` | shell, read_file, write_file, list_dir, apply_patch |
 | `register_memory_tools()` | memory_search, memory_write, memory_read, memory_tree |
 | `register_job_tools()` | create_job, list_jobs, job_status, cancel_job, job_events, job_prompt |
@@ -221,7 +220,6 @@ The registry assembles built-in tools in these groups during startup:
 | `time` | operation* | Orchestrator | No |
 | `json` | operation*, data* | Orchestrator | No |
 | `http` | method*, url* | Orchestrator | Yes |
-| `web_fetch` | url* | Orchestrator | No |
 | `read_file` | path* | Container | No |
 | `write_file` | path*, content* | Container | No |
 | `list_dir` | — | Container | No |
@@ -790,66 +788,7 @@ let markdown = convert_html_to_markdown(html_content, "https://example.com/artic
 
 ---
 
-### 4.14 `web_fetch` (`builtin/web_fetch.rs`)
-
-Added in v0.13.0 (PR #435). Purpose-built tool for reading public web pages, articles, and documentation. Distinct from the generic `http` tool — `web_fetch` is GET-only with no custom headers or body, and always attempts HTML-to-Markdown conversion via the Readability pipeline.
-
-**Parameters schema:**
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "url": {
-      "type": "string",
-      "description": "HTTPS URL to fetch. Must be a public URL (no localhost or private IPs)."
-    }
-  },
-  "required": ["url"],
-  "additionalProperties": false
-}
-```
-
-**Output schema:**
-
-```json
-{
-  "url": "<original url>",
-  "final_url": "<url after redirects>",
-  "status": 200,
-  "title": "<page title extracted from <title> tag>",
-  "content": "<clean Markdown text>",
-  "word_count": 1234
-}
-```
-
-**Key behaviours (verified from `src/tools/builtin/web_fetch.rs`):**
-
-- GET-only; no custom HTTP method, headers, or request body.
-- Approval requirement: `ApprovalRequirement::Never` — always auto-approved.
-- User-Agent: Chrome-like string (`Mozilla/5.0 ... Chrome/124.0.0.0`) to avoid 403s on sites that block default `reqwest` strings.
-- 30-second request timeout.
-- Follows up to 3 redirects, SSRF-validating each `Location` URL before following it.
-- HTTPS-only, SSRF protection, DNS rebinding defence (shared with `http` via `validate_url()`).
-- Outbound leak scan applied to the URL before the request is sent.
-- Response size cap: 5 MB (same as `http` tool). Pre-checks `Content-Length` header; also enforces the cap while streaming.
-- HTML detection: if `Content-Type` contains `text/html`, the Readability + HTML-to-Markdown pipeline is applied (feature-gated on `html-to-markdown`; falls back to raw text if the feature is disabled or conversion fails).
-- Title extraction: a dedicated `extract_title()` function using `to_ascii_lowercase()` (not `to_lowercase()`) to avoid byte-offset panics on non-ASCII content before the `<title>` tag.
-- Rate limit config: `ToolRateLimitConfig::new(30, 500)` — 30 requests per minute, 500 per hour (same as `http`).
-- `requires_sanitization: true` — external content always passes through the safety sanitizer.
-
-**When to use `web_fetch` vs `http`:**
-
-| Use case | Tool |
-|----------|------|
-| Read an article or documentation page | `web_fetch` |
-| Call a REST API (POST, custom headers, auth) | `http` |
-| Download binary data | `http` |
-| Check a status page or scrape content | `web_fetch` |
-
----
-
-### 4.15 Built-in Tool Rate Limiter (`src/tools/rate_limiter.rs`)
+### 4.14 Built-in Tool Rate Limiter (`src/tools/rate_limiter.rs`)
 
 Added in v0.10.0. Shared rate limiter for built-in tool invocations (separate from WASM tool rate limiting). Provides per-tool, per-user sliding window rate limiting checked before every built-in tool execution.
 
@@ -1574,45 +1513,3 @@ The four-layer safety pipeline:
 LeakDetector runs at two points: after tool execution (before output reaches LLM)
 and after LLM response generation (before output reaches the user). For the `http` tool
 it additionally scans the outbound request URL, headers, and body before sending.
-
----
-
-## 10. CLI Tool Management (`src/cli/tool.rs`)
-
-Added in v0.13.0 (PR #438). The `ironclaw tool` subcommand provides operators with direct CLI access to WASM tool lifecycle management, without requiring a running agent or LLM involvement.
-
-### Subcommands
-
-| Subcommand | Description |
-|------------|-------------|
-| `ironclaw tool install <path>` | Install a WASM tool from a source directory (with `Cargo.toml`) or a pre-built `.wasm` file |
-| `ironclaw tool list` | List installed WASM tools |
-| `ironclaw tool remove <name>` | Remove an installed WASM tool |
-| `ironclaw tool info <name>` | Show metadata and capabilities for an installed tool |
-| `ironclaw tool auth <name>` | Configure auth credentials for a tool interactively |
-| `ironclaw tool setup <name>` | Configure all `required_secrets` declared in the tool's `setup` block |
-
-### `ironclaw tool install` flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--name, -n` | directory/file name | Tool name override |
-| `--capabilities` | auto-detected | Path to `.capabilities.json` sidecar |
-| `--target, -t` | `~/.ironclaw/tools/` | Target installation directory |
-| `--release` | `true` | Build in release mode when compiling from source |
-| `--skip-build` | `false` | Skip compilation; use existing `.wasm` artifact |
-| `--force, -f` | `false` | Overwrite if tool already exists |
-
-**Install from source directory:** The directory must contain `Cargo.toml`. The tool name is extracted from `Cargo.toml` if `--name` is not provided. Compilation is performed via `cargo component build`. The capabilities file is auto-detected as `<name>.capabilities.json` or `capabilities.json` adjacent to `Cargo.toml`.
-
-**Install from `.wasm` file:** The tool name defaults to the file stem. The capabilities file is auto-detected as `<name>.capabilities.json` adjacent to the `.wasm` file, or in the same directory.
-
-After install, a SHA-256 hash of the WASM binary is computed and displayed for integrity verification.
-
-### `ironclaw tool setup`
-
-Reads the `setup.required_secrets` block from the tool's `.capabilities.json` file and prompts the operator interactively for each secret. Secrets are stored in the `SecretsStore` under the specified user ID (`--user`, default `"default"`). Secrets marked `optional: true` can be skipped. Secrets with `auto_generate` set generate a random value automatically if the user leaves the prompt empty.
-
-### Default directory
-
-All subcommands default to `~/.ironclaw/tools/` (resolved via `ironclaw_base_dir().join("tools")`). Override with `--target` or `--dir`.

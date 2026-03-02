@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Tunnels & Mobile Pairing
 
-> Updated: 2026-03-02 | Version: v0.13.0
+> Updated: 2026-02-26 | Version: v0.12.0
 
 ## 1. Overview
 
@@ -111,16 +111,6 @@ The token passed via `TUNNEL_CF_TOKEN` is a Cloudflare Zero Trust tunnel token o
 
 **Health check:** Checks whether the child process PID is still present (i.e., the process has not exited).
 
-**Setup wizard validation (v0.13.0, PR #424):**
-
-The interactive `ironclaw setup` wizard (`src/setup/channels.rs`) now validates the Cloudflare token before saving it:
-
-1. **Binary presence check** — calls `skills::gating::binary_exists("cloudflared")` to check whether `cloudflared` is on `PATH`. If missing, the wizard prints install instructions (Homebrew, apt, official download link) and asks whether to continue anyway.
-2. **Token format validation** — `validate_cloudflare_token_format()` base64-decodes the token (standard or URL-safe) and checks that the resulting JSON contains at least an `"a"` (account tag) and `"t"` (tunnel ID) field. If the format is invalid, the wizard warns the user and asks for confirmation before saving.
-3. **Honest startup instructions** — replaces the previous misleading "tunnel will start automatically at boot" message with explicit instructions for running `cloudflared tunnel --no-autoupdate run --token <token>` and for installing as a system service.
-
-These checks are in the setup wizard only; the runtime `CloudflareTunnel` struct is unchanged and does not re-validate token format at start time.
-
 ### 3.3 Ngrok (`ngrok.rs`)
 
 `NgrokTunnel` wraps the `ngrok` binary, which must be on `PATH`.
@@ -150,13 +140,9 @@ These checks are in the setup wizard only; the runtime `CloudflareTunnel` struct
 
 If `hostname` is not provided in config, `start()` runs `tailscale status --json` with a 10-second timeout, parses the JSON output, and extracts `Self.DNSName`. The trailing dot is stripped (Tailscale appends `.` to DNS names). The resulting hostname looks like `machine-name.tail-xxxx.ts.net`.
 
-**Subprocess lifecycle (v0.13.0, PR #430):**
+**Subprocess lifecycle:**
 
-`tailscale funnel --bg <target>` or `tailscale serve --bg <target>` is run with the `--bg` flag, which **configures the tunnel and exits** rather than running as a persistent child process. Tailscale itself manages the tunnel as a daemon. The IronClaw process holds no long-running child for Tailscale.
-
-The command is run with a 15-second timeout via `tokio::time::timeout`. On success, the `SharedProcess` slot remains empty (no child to hold). On `stop()`, `tailscale funnel off` or `tailscale serve off` removes the configuration from the Tailscale daemon.
-
-**Health check:** Because there is no child process to poll, `health_check()` runs `tailscale status --json` with a 5-second timeout and returns `true` if that command exits with success.
+`tailscale serve <target>` or `tailscale funnel <target>` is spawned as a long-running child. On `stop()`, `tailscale serve reset` or `tailscale funnel reset` is called first (to clean up the serve/funnel configuration on the Tailscale daemon), then the child is killed via `kill_shared()`.
 
 **URL format:** `https://<hostname>` where hostname is either the configured override or the auto-detected DNS name from `tailscale status`.
 

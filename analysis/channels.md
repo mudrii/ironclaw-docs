@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Channel System
 
-> Updated: 2026-03-02 | Version: v0.13.0
+> Updated: 2026-02-24 | Version: v0.12.0
 
 ---
 
@@ -743,11 +743,15 @@ activation flow. The activation call installs the WASM binary, loads it into
 wasmtime, injects credentials and webhook secrets, and adds it to the active
 `select_all` stream.
 
-**Activation persistence (v0.13.0, PR #432):** When a WASM channel is successfully activated, `ExtensionManager::persist_active_channels()` writes the channel name to the `activated_channels` settings key in the database. On the next restart, `load_persisted_active_channels()` reads that key and re-activates all listed channels automatically. This means a WASM channel activated by the user survives a restart without manual re-activation.
+Recent fix (`e8eb4ca`, PR #390) prevents duplicate activation at startup:
 
-**Host-based credential injection (v0.13.0, PR #421):** Credentials declared in the channel's `capabilities.json` under `http.credentials` are resolved from the `SecretsStore` at activation time and substituted into URL and header templates at the host boundary. The WASM module never receives raw credential values; it only receives the resolved HTTP responses. Credentials are stored in `ChannelStoreData.credentials: HashMap<String, String>` and applied by `inject_credentials()` in `src/channels/wasm/wrapper.rs`, which replaces `{PLACEHOLDER}` patterns before each outbound HTTP call. Error responses are scrubbed by the matching `redact_credentials()` method to prevent accidental leakage of injected values in error messages.
-
-**Duplicate activation prevention (PR #390):** During startup, loaded WASM channels are registered in `ExtensionManager` via `set_active_channels(...)` *before* `set_channel_runtime(...)` is wired. If a startup-loaded channel is activated again (for example when the user's setup UI re-triggers activation), `activate_wasm_channel()` detects the channel in `active_channel_names` and calls `refresh_active_channel()` instead of re-registering the module. Refresh updates credentials and webhook secrets on the already-running instance without triggering duplicate backend polling loops (for example Telegram `getUpdates`).
+- During startup, loaded WASM channels are registered in `ExtensionManager` via
+  `set_active_channels(...)` *before* `set_channel_runtime(...)` is wired.
+- If a startup-loaded channel is activated again, `activate_wasm_channel()` now
+  detects it in `active_channel_names` and calls `refresh_active_channel()` instead
+  of re-registering the module.
+- Refresh updates credentials/webhook secrets on the already-running instance, which
+  avoids triggering duplicate backend polling loops (for example Telegram `getUpdates`).
 
 ### Pairing/Permission System (v0.10.0)
 

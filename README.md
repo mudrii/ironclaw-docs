@@ -1,9 +1,9 @@
 # IronClaw Documentation
 
-> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.13.0
+> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.12.0
 > — a secure, self-hosted personal AI assistant written in Rust.
 
-**Documentation set for IronClaw v0.13.0, validated against release tag `v0.13.0`.**
+**Documentation set for IronClaw v0.12.0, validated against release tag `v0.12.0` (`1156884`).**
 
 ---
 
@@ -44,7 +44,7 @@ IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.a
 - **Multiple LLM backends**: NEAR AI, Anthropic, OpenAI, Ollama, OpenAI-compatible, Tinfoil
 - **Dual database**: libSQL (embedded, no server required) or PostgreSQL (with pgvector)
 
-### Source Module Statistics (v0.13.0)
+### Source Module Statistics (v0.12.0)
 
 | Module | Files | Description |
 |--------|------:|-------------|
@@ -57,7 +57,7 @@ IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.a
 | `tunnel/` | 6 | Tunnels: cloudflare, ngrok, tailscale, custom |
 | `secrets/` | 5 | Keychain, AES-256-GCM crypto, credential injection |
 | `worker/` | 5 | Docker worker: runtime, LLM bridge, proxy |
-| **Total (`src/`)** | **250** | ~113,000+ Rust source lines in `src/` (v0.12.0 tag snapshot; v0.13.0 adds web_fetch and tool setup) |
+| **Total (`src/`)** | **250** | ~113,000+ Rust source lines in `src/` (v0.12.0 tag snapshot) |
 | **Total (repo-wide)** | **293** | ~129,000+ Rust source lines including tests, channel/tool source trees, and helper binaries |
 
 ---
@@ -113,13 +113,6 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 
 ## What's New
 
-### v0.13.0 (2026-03-02)
-- **Slash Command Autocomplete**: Web UI and REPL now offer tab-completion for slash commands; new commands `/status` (show job status) and `/list` (list all jobs) added
-- **`web_fetch` Built-in Tool**: New `web_fetch` built-in — GET-only URL fetcher with HTML-to-Markdown conversion, SSRF/HTTPS enforcement, auto-approved, 5 MB cap, up to 3 redirects; distinct from the `http` tool which handles POST/custom headers
-- **`ironclaw tool setup`**: New CLI subcommand to configure required secrets for a WASM tool via its `setup.required_secrets` schema (distinct from `ironclaw tool auth` which handles OAuth)
-- **`IRONCLAW_BASE_DIR` Env Var**: Override the base directory (default: `~/.ironclaw`) for all IronClaw data files via the `IRONCLAW_BASE_DIR` environment variable
-- **`--help` Improvements**: `ironclaw --help` now includes an about description, inline examples for each subcommand, and auto-color support
-
 ### v0.12.0 (2026-02-26)
 - **Signal Channel**: Native Signal messaging via signal-cli HTTP daemon — first-class channel alongside Telegram with tool approval workflow, DM pairing, group support, and allowlist controls
 - **OpenRouter Preset**: Setup wizard now includes OpenRouter as a dedicated provider option (200+ models via single API key)
@@ -164,8 +157,8 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 
 ## Version
 
-Documented: IronClaw v0.13.0
-Release tag: [`v0.13.0`](https://github.com/nearai/ironclaw/releases/tag/v0.13.0) (2026-03-02)
+Documented: IronClaw v0.12.0
+Release tag: [`v0.12.0`](https://github.com/nearai/ironclaw/releases/tag/v0.12.0) (`1156884`, 2026-02-26)
 Source: [github.com/nearai/ironclaw](https://github.com/nearai/ironclaw)
 Docs repo: [github.com/mudrii/ironclaw-docs](https://github.com/mudrii/ironclaw-docs)
-Generated: 2026-03-02
+Generated: 2026-02-26

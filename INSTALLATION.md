@@ -1,6 +1,6 @@
 # IronClaw Installation & Deployment Guide
 
-> Version: v0.13.0 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel), Linux
+> Version: v0.12.0 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel), Linux
 
 Complete guide for installing, configuring, and deploying IronClaw as a personal AI assistant.
 
@@ -73,7 +73,7 @@ Access the web UI at `http://localhost:3000`
 | Requirement | When Needed |
 |-------------|-------------|
 | Rust 1.92+ | Building from source |
-| PostgreSQL 15+ with pgvector | PostgreSQL backend (default) — version and pgvector availability are validated during `ironclaw onboard` |
+| PostgreSQL 15+ with pgvector | PostgreSQL backend (default) |
 | Docker / Podman | Docker sandbox for shell tools |
 
 ---
@@ -101,7 +101,7 @@ irm https://github.com/nearai/ironclaw/releases/latest/download/ironclaw-install
 **Verify:**
 ```bash
 ironclaw --version
-# Expected: ironclaw 0.13.0
+# Expected: ironclaw 0.12.0
 ```
 
 ### 3.2 Build from Source
@@ -148,14 +148,6 @@ IronClaw loads configuration in priority order (later overrides earlier):
 5. Database settings table
 6. Compiled-in defaults
 
-**Base directory override (v0.13.0+):** By default, IronClaw stores all files under `~/.ironclaw`. Set `IRONCLAW_BASE_DIR` to an absolute path to relocate this directory:
-
-```bash
-IRONCLAW_BASE_DIR=/data/ironclaw   # must be an absolute path
-```
-
-The `.env` file, database, and logs all resolve relative to this base. An empty value or unset variable falls back to `~/.ironclaw`.
-
 ### 4.2 Minimal Configuration
 
 Create `~/.ironclaw/.env`:
@@ -185,7 +177,6 @@ CLI_ENABLED=false
 ##############################################
 DATABASE_BACKEND=libsql          # libsql (local) or postgres
 # DATABASE_URL="postgres://user:pass@host/db"  # Required if postgres
-# DATABASE_SSLMODE=prefer                      # disable | prefer (default) | require  [v0.13.0+]
 # LIBSQL_PATH="~/.ironclaw/ironclaw.db"        # Default location
 
 ##############################################
@@ -264,31 +255,6 @@ SANDBOX_MEMORY_LIMIT_MB=2048
 # CLAUDE_CODE_MAX_TURNS=50
 
 ##############################################
-# Tunnel (for public webhook endpoints — Telegram, Slack, etc.)
-##############################################
-# Static URL (you manage the tunnel externally):
-# TUNNEL_URL="https://abc123.ngrok.io"
-
-# Managed Cloudflare tunnel (v0.13.0: binary check + token format validation at setup):
-# TUNNEL_PROVIDER=cloudflare
-# TUNNEL_CF_TOKEN=<zero-trust-tunnel-token>   # from Zero Trust dashboard > Networks > Tunnels
-
-# Managed ngrok tunnel:
-# TUNNEL_PROVIDER=ngrok
-# TUNNEL_NGROK_TOKEN=<ngrok-auth-token>
-# TUNNEL_NGROK_DOMAIN=my.ngrok.dev            # optional, paid plans only
-
-# Tailscale (v0.13.0: uses --bg flag internally):
-# TUNNEL_PROVIDER=tailscale
-# TUNNEL_TS_FUNNEL=true                       # true = public internet; false = tailnet only
-# TUNNEL_TS_HOSTNAME=ironclaw                 # optional, auto-detected from tailscale status
-
-##############################################
-# Paths (v0.13.0+)
-##############################################
-# IRONCLAW_BASE_DIR=/data/ironclaw    # Override ~/.ironclaw; must be an absolute path
-
-##############################################
 # Logging
 ##############################################
 RUST_LOG=ironclaw=info,tower_http=info
@@ -351,7 +317,7 @@ LLM_MODEL=llama-3.3-70b-versatile
 # LLM_EXTRA_HEADERS="HTTP-Referer:https://myapp.com,X-Title:MyApp"
 ```
 
-**OpenRouter** is available as a dedicated preset option in the wizard (option 5), pre-configured with `https://openrouter.ai/api/v1`.
+As of v0.12.0, **OpenRouter** is available as a dedicated preset option in the wizard (option 5), pre-configured with `https://openrouter.ai/api/v1`.
 
 ---
 
@@ -580,7 +546,7 @@ ironclaw registry info github-tools
 ironclaw registry install github-tools
 ```
 
-Skills are **enabled by default** — no configuration needed to activate the skills system.
+As of v0.12.0, skills are **enabled by default** — no configuration needed to activate the skills system.
 
 ---
 
@@ -652,10 +618,6 @@ INFO Agent ironclaw ready and listening
 
 **Fix:** Use standard API keys (`sk-ant-api03-*`) from [platform.claude.com](https://platform.claude.com).
 
-### libSQL auto-detected on existing database (v0.13.0+)
-
-As of v0.13.0, if `DATABASE_BACKEND` is not set and `~/.ironclaw/ironclaw.db` already exists, IronClaw automatically defaults to `DATABASE_BACKEND=libsql`. This is a convenience for cloud or re-deployed instances that already have a local database file but no explicit configuration. If you want to use PostgreSQL on a machine that happens to have an `ironclaw.db` file, explicitly set `DATABASE_BACKEND=postgres` in your `.env`.
-
 ### libSQL memory search returns no results
 
 **Symptom:** Semantic queries return empty results.
@@ -707,17 +669,7 @@ ls -la ~/.ironclaw/
 
 # PostgreSQL: test connection
 psql "$DATABASE_URL" -c "SELECT 1"
-
-# PostgreSQL: check version (must be >= 15)
-psql "$DATABASE_URL" -c "SHOW server_version"
-
-# PostgreSQL: check pgvector availability
-psql "$DATABASE_URL" -c "SELECT * FROM pg_available_extensions WHERE name = 'vector'"
 ```
-
-**PostgreSQL TLS errors:** If you see TLS handshake failures against a local PostgreSQL instance, set `DATABASE_SSLMODE=disable` in your `.env`. The default is `prefer` (tries TLS, falls back to plaintext). Use `require` for managed cloud providers (Neon, Supabase, RDS) that mandate TLS.
-
-**PostgreSQL version / pgvector errors at onboard:** As of v0.13.0, `ironclaw onboard` pre-validates that your PostgreSQL server is version 15 or later and that the `vector` (pgvector) extension is available before running migrations. If either check fails, onboard exits with an actionable error message rather than failing mid-migration.
 
 ### LLM connection errors
 
@@ -767,4 +719,4 @@ launchctl load ~/Library/LaunchAgents/ai.ironclaw.plist
 
 ---
 
-*Source: IronClaw v0.13.0 · See also: [ARCHITECTURE.md](ARCHITECTURE.md), [AGENT_README.md](AGENT_README.md)*
+*Source: IronClaw v0.12.0 · See also: [ARCHITECTURE.md](ARCHITECTURE.md), [AGENT_README.md](AGENT_README.md)*
