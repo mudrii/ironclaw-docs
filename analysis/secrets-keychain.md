@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Secrets Management & Keychain
 
-> Updated: 2026-02-26 | Version: v0.12.0
+> Updated: 2026-03-02 | Version: v0.13.0
 
 ## 1. Overview
 
@@ -275,6 +275,19 @@ Even under a successful prompt injection attack that causes the LLM to instruct 
 `CredentialInjector` is constructed with an `allowed_secrets: Vec<String>` list. Before decrypting any secret, `is_secret_allowed` checks the requested secret name against this list (exact or prefix glob). If not present, `InjectionError::AccessDenied` is returned and no decryption occurs. This means a WASM tool that somehow learns the name of an unrelated secret cannot cause the injector to decrypt it — the allowlist is a capability boundary, not just a name filter.
 
 ## 8. Secret Naming Conventions
+
+### Lowercase Normalization (v0.13.0, PR #431)
+
+As of v0.13.0, secret name lookups are **case-insensitive**. Both `PostgresSecretsStore` and `LibSqlSecretsStore` apply `name.to_lowercase()` at the start of `get()`, `exists()`, and `delete()`. The `is_accessible()` method also lowercases both the requested name and each allowlist pattern before comparison.
+
+This means:
+- `get("OPENAI_API_KEY")` and `get("openai_api_key")` resolve to the same row.
+- `create()` is the only write path and does **not** auto-lowercase — the name is stored exactly as supplied. Callers that want consistent casing should supply lowercase names at creation time.
+- The normalization is applied in both the Postgres and libSQL backends, and in the in-memory test backend.
+
+Source confirmation: `src/secrets/store.rs` lines for `get()`, `exists()`, `delete()` on both `PostgresSecretsStore` and `LibSqlSecretsStore` all begin with `let name = name.to_lowercase();`.
+
+### Naming Patterns
 
 The secrets subsystem enforces no structural naming convention at the code level; names are arbitrary strings within the `(user_id, name)` namespace. However, the codebase and tests establish a consistent informal convention:
 

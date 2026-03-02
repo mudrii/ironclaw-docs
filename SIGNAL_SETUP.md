@@ -1,5 +1,7 @@
 # Signal Channel Setup
 
+> Version baseline: IronClaw v0.13.0 (`v0.13.0` tag snapshot)
+
 This guide covers configuring the native Signal channel for IronClaw, using the signal-cli HTTP daemon.
 
 ## Overview
@@ -13,6 +15,7 @@ It supports:
 - **Tool approval workflow**: Interactive approve/deny prompts for tool execution
 - **DM pairing**: Allowlist-based access control with optional pairing mode
 - **Allowlist controls**: Phone numbers, UUIDs, or wildcard access
+- **Attachment upload**: Agent can send files via the `message` tool (added in v0.13.0)
 
 ## Prerequisites
 
@@ -149,6 +152,50 @@ Supported responses:
 - **Approve once**: `yes`, `y`, `approve`, `ok`, `/approve`, `/yes`, `/y`
 - **Approve always**: `always`, `a`, `yes always`, `approve always`, `/always`, `/a`
 - **Deny**: `no`, `n`, `deny`, `reject`, `cancel`, `/deny`, `/no`, `/n`
+
+## Attachment Upload
+
+As of v0.13.0, the agent can send files to Signal conversations using the built-in `message` tool.
+
+### Sandbox restriction
+
+All attachment paths must be inside `~/.ironclaw/`. Paths outside this directory are rejected. Path traversal sequences (`../`, URL-encoded variants, null bytes) are also blocked.
+
+### Sending attachments
+
+The agent sends attachments via the `message` tool. When both text and attachments are provided they are combined into a single signal-cli RPC call. When only attachments are provided the RPC call carries no message text.
+
+Incoming messages that consist only of an attachment (no text body) are delivered to the agent as `[Attachment]` unless `SIGNAL_IGNORE_ATTACHMENTS=true` is set, in which case they are dropped silently.
+
+## `message` Tool
+
+IronClaw includes a built-in tool named `message` that lets the agent proactively send messages (and optionally attach files) to any connected channel, including Signal.
+
+### Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `content` | Yes | Message text to send |
+| `channel` | No | Target channel (defaults to the current conversation's channel) |
+| `target` | No | Recipient — E.164 phone number or Signal group ID (defaults to the current sender or group) |
+| `attachments` | No | Array of absolute file paths to attach; must be inside `~/.ironclaw/` |
+
+### Approval behavior
+
+The tool requires explicit approval when `channel` is specified and differs from the current conversation's channel (cross-channel send). Sending back to the current conversation uses the standard auto-approve setting.
+
+### Rate limits
+
+The tool enforces a rate limit of 10 messages per minute and 100 per hour per user.
+
+### Example (agent perspective)
+
+```json
+{
+  "content": "Here is the report you asked for.",
+  "attachments": ["/home/user/.ironclaw/reports/report.pdf"]
+}
+```
 
 ## Debug Mode
 

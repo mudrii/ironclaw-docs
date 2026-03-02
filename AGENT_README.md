@@ -3,7 +3,7 @@
 > **AI Agent Use**: Optimized for code review, bug triage, and targeted fixes.
 > Jump directly to the section relevant to the error or task — no narrative reading required.
 
-**Source**: IronClaw v0.12.0 (`v0.12.0`) · `~/src/ironclaw/`
+**Source**: IronClaw v0.13.0 (`v0.13.0`) · `~/src/ironclaw/`
 
 ---
 
@@ -61,6 +61,7 @@
 | Shell tool (env scrubbing) | `src/tools/builtin/shell.rs` |
 | HTML-to-Markdown converter (for HTTP responses) | `src/tools/builtin/html_converter.rs` |
 | HTTP tool (external requests) | `src/tools/builtin/http.rs` |
+| Web fetch tool (GET URL → Markdown) | `src/tools/builtin/web_fetch.rs` |
 | File tools (read/write/patch/list) | `src/tools/builtin/file.rs` |
 | Memory tools (search/write/read) | `src/tools/builtin/memory.rs` |
 | Job management tools | `src/tools/builtin/job.rs` |
@@ -117,7 +118,7 @@
 | Orchestrator internal API | `src/orchestrator/api.rs` |
 | Per-job bearer token store | `src/orchestrator/auth.rs` |
 | Entry point, CLI arg parsing | `src/main.rs` |
-| `ironclaw --version` (print version and exit, e.g., "ironclaw 0.12.0") | `src/main.rs` |
+| `ironclaw --version` (print version and exit, e.g., "ironclaw 0.13.0") | `src/main.rs` |
 | Library root, module declarations | `src/lib.rs` |
 
 ---
@@ -516,6 +517,7 @@ Config struct fields: `http_url`, `account`, `allow_from`, `dm_policy`, `group_p
 | Env Var | Type | Default | Notes |
 |---------|------|---------|-------|
 | `OBSERVABILITY_BACKEND` | enum | `none` | `none` (default), `noop`, `log` |
+| `IRONCLAW_BASE_DIR` | path | `~/.ironclaw` | Override base directory for all IronClaw data files (DB, tools, channels, config). Empty value falls back to default. Source: `src/bootstrap.rs` |
 
 ### 4.21 Misc Channels and Runtime Env
 
@@ -730,6 +732,7 @@ impl Tool for MyTool {
 | `time` | `builtin/time.rs` | Utility |
 | `json` | `builtin/json.rs` | Data |
 | `http` | `builtin/http.rs` | Network |
+| `web_fetch` | `builtin/web_fetch.rs` | Network |
 | `read_file`, `write_file`, `list_dir`, `apply_patch` | `builtin/file.rs` | Filesystem |
 | `shell` | `builtin/shell.rs` | Execution |
 | `message` | `builtin/message.rs` | Messaging |
@@ -751,7 +754,7 @@ The protected list is defined in `src/tools/registry.rs` (`PROTECTED_TOOL_NAMES`
 Tools are registered in three startup phases.
 
 - **Phase 1: App init (`AppBuilder::build_all`)**
-  - `register_builtin_tools()` registers orchestrator-safe built-ins (`echo`, `time`, `json`, `http`).
+  - `register_builtin_tools()` registers orchestrator-safe built-ins (`echo`, `time`, `json`, `http`, `web_fetch`).
   - `register_memory_tools()` adds memory tools when workspace is available.
   - `register_builder_tool()` registers container dev tools (`shell`, `read_file`, `write_file`, `list_dir`, `apply_patch`) and `build_software`.
   - `init_extensions()` creates WASM runtime and loads:
@@ -1242,4 +1245,4 @@ sqlite3 ~/.ironclaw/ironclaw.db "SELECT id, status, created_at FROM agent_jobs O
 
 ---
 
-*Source: IronClaw v0.12.0 (`v0.12.0`) · Docs: github.com/nearai/ironclaw-docs · Generated: 2026-03-01*
+*Source: IronClaw v0.13.0 (`v0.13.0`) · Docs: github.com/nearai/ironclaw-docs · Generated: 2026-03-02*

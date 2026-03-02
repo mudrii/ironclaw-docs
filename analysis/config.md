@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Configuration System
 
-> Updated: 2026-02-24 | Version: v0.12.0
+> Updated: 2026-03-02 | Version: v0.13.0
 
 ## 1. Overview
 
@@ -14,6 +14,14 @@ other bootstrap variables. This file is loaded by `bootstrap::load_ironclaw_env(
 using dotenvy, which never overwrites variables already present in the process
 environment. A standard `./.env` in the current working directory is loaded first
 (also via dotenvy), so it takes priority over `~/.ironclaw/.env`.
+
+The base directory (`~/.ironclaw/` by default) can be overridden with the
+`IRONCLAW_BASE_DIR` environment variable. When set to an absolute path, all derived
+paths (`.env`, `config.toml`, `ironclaw.db`, `skills/`, `tools/`, `channels/`,
+`session.json`, etc.) are rooted under the override instead of `~/.ironclaw/`. This
+is useful for running multiple isolated IronClaw instances or for CI environments
+where `~` is not writable. `IRONCLAW_BASE_DIR` must be set **before** the process
+starts — it is read at startup and cached; changing it at runtime has no effect.
 
 On top of the two `.env` files, the operator can place a TOML config file at
 `~/.ironclaw/config.toml` (or pass an explicit path via `--config`). TOML values
@@ -33,16 +41,17 @@ a `INJECTED_VARS` overlay so they are visible to `optional_env()` without unsafe
 
 Priority order (highest to lowest):
 
-1. Shell environment variables set before running IronClaw
+1. Shell environment variables set before running IronClaw (including `IRONCLAW_BASE_DIR` which determines where all paths below are rooted)
 2. `./.env` in the current working directory (loaded via dotenvy)
-3. `~/.ironclaw/.env` — IronClaw-specific bootstrap file (loaded by `bootstrap.rs`)
-4. `~/.ironclaw/config.toml` — TOML config file overlay (optional)
+3. `<base_dir>/.env` — IronClaw-specific bootstrap file (loaded by `bootstrap.rs`; default `~/.ironclaw/.env`)
+4. `<base_dir>/config.toml` — TOML config file overlay (optional; default `~/.ironclaw/config.toml`)
 5. Database settings table (key-value pairs stored per user)
-6. `~/.ironclaw/settings.json` — legacy disk fallback (read-only on existing installs)
+6. `<base_dir>/settings.json` — legacy disk fallback (read-only on existing installs)
 7. Compiled-in defaults
 
-The `~/.ironclaw/.env` file is the recommended place for operators to put stable
-secrets (database URL, API keys). Its permissions are set to `0o600` on Unix.
+The `<base_dir>/.env` file (default `~/.ironclaw/.env`) is the recommended place
+for operators to put stable secrets (database URL, API keys). Its permissions are
+set to `0o600` on Unix.
 
 ## 3. Environment Variable Reference
 
@@ -52,6 +61,8 @@ default is possible.
 
 | Env Var | Type | Default | Required | Description |
 |---------|------|---------|----------|-------------|
+| **Bootstrap** | | | | |
+| `IRONCLAW_BASE_DIR` | path | `~/.ironclaw/` | No | Override the IronClaw base directory. All paths that default to `~/.ironclaw/…` (skills, tools, channels, session file, .env, config.toml) are rooted here. Must be an absolute path; relative paths trigger a startup warning. Empty string is treated as unset and falls back to the default. Computed once at startup and cached in a `LazyLock`. Added v0.13.0 (#397). |
 | **Database** | | | | |
 | `DATABASE_BACKEND` | string | `postgres` | No | `postgres` (or `pg`, `postgresql`) or `libsql` (or `turso`, `sqlite`) |
 | `DATABASE_URL` | secret | — | If postgres | PostgreSQL connection string (e.g. `postgres://user:pass@host/db`) |

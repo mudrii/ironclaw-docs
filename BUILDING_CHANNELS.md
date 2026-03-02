@@ -1,6 +1,6 @@
 # Building WASM Channels
 
-> Version baseline: IronClaw v0.12.0 (`v0.12.0` tag snapshot)
+> Version baseline: IronClaw v0.13.0 (`v0.13.0` tag snapshot)
 
 This guide covers how to build WASM channel modules for IronClaw.
 
@@ -188,6 +188,34 @@ channel_host::http_request("POST", &url, &headers.to_string(), Some(&body));
 
 The placeholder format is `{SECRET_NAME}` where `SECRET_NAME` matches the credential name in uppercase with underscores (e.g., `whatsapp_access_token` → `{WHATSAPP_ACCESS_TOKEN}`).
 
+### Structured Credential Injection (capabilities.json)
+
+In addition to in-code placeholders, you can declare structured credential injection in your capabilities file. The host's `CredentialInjector` matches credentials by destination host and injects them before the HTTP request leaves the sandbox:
+
+```json
+{
+  "capabilities": {
+    "http": {
+      "allowlist": [
+        { "host": "discord.com" }
+      ],
+      "credentials": {
+        "my_channel_token": {
+          "host": "discord.com",
+          "location": {
+            "type": "header",
+            "name": "Authorization",
+            "prefix": "Bot "
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Supported `location` types: `bearer` (Authorization: Bearer), `basic` (Authorization: Basic), `header` (custom header — `name` field also accepts the alias `header_name`), `query_param`, `url_path`. The WASM module never receives the raw secret value; injection happens entirely on the host side.
+
 ## Capabilities File
 
 Create `my-channel.capabilities.json`:
@@ -328,6 +356,30 @@ fn on_http_request(req: IncomingHttpRequest) -> OutgoingHttpResponse {
     // ...
 }
 ```
+
+### Discord Ed25519 Signature Verification
+
+For Discord interaction webhooks, the host automatically performs Ed25519 signature verification before forwarding requests to the WASM channel. No code in the WASM module is required — declare `signature_key_secret_name` in the capabilities file's `webhook` config:
+
+```json
+{
+  "capabilities": {
+    "channel": {
+      "allowed_paths": ["/webhook/discord"],
+      "webhook": {
+        "signature_key_secret_name": "discord_public_key"
+      }
+    },
+    "secrets": {
+      "allowed_names": ["discord_public_key", "discord_*"]
+    }
+  }
+}
+```
+
+The host reads the Ed25519 public key from the named secret, then validates `X-Signature-Ed25519` and `X-Signature-Timestamp` headers on every incoming request. Requests with missing or invalid signatures receive a 401 before the WASM module's `on_http_request` is ever called. The host also enforces a 5-second staleness window on the timestamp.
+
+By the time `on_http_request` fires, signature verification has already passed. The channel code can focus entirely on parsing the Discord payload.
 
 ### Polling with Offset Tracking
 

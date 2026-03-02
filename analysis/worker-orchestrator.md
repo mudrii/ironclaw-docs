@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Worker & Orchestrator (Docker Sandbox)
 
-> Updated: 2026-02-26 | Version: v0.12.0
+> Updated: 2026-03-02 | Version: v0.13.0
 
 ## 1. Overview
 
@@ -167,6 +167,35 @@ Job events received via `/event` are:
 - Converted to `SseEvent` variants and broadcast on the web gateway SSE channel
 
 This gives the browser UI real-time visibility into container activity.
+
+---
+
+## 3.5 Job Dispatcher (`agent/scheduler.rs`)
+
+Source: `src/agent/scheduler.rs`
+
+**PR #436** adds `Scheduler::dispatch_job()` as the preferred single-call entry point for creating and scheduling a job. Prior to this change, callers had to create a job context and call `schedule()` separately, which could leave an un-persisted job context if the caller crashed between the two steps.
+
+```rust
+pub async fn dispatch_job(
+    &self,
+    user_id: &str,
+    title: &str,
+    description: &str,
+    metadata: Option<serde_json::Value>,
+) -> Result<Uuid, JobError>
+```
+
+`dispatch_job()` performs four steps atomically from the caller's perspective:
+
+1. Creates the `JobContext` via `ContextManager::create_job_for_user()`.
+2. Optionally merges the supplied metadata into the context.
+3. **Persists the job to the database** (`store.save_job(&ctx)`) before calling `schedule()`. This ensures the job row exists in the DB before any `job_actions` or `llm_calls` rows attempt to reference it via foreign key.
+4. Calls `schedule(job_id)` to spawn the worker tokio task.
+
+The step-3 persistence is the key change in PR #436. Previously a job could be scheduled and begin producing `job_actions` rows before the parent `jobs` row was written, causing FK constraint failures in the database. With `dispatch_job()`, the parent row is committed first.
+
+The `store` field on `Scheduler` is `Option<Arc<dyn Database>>`; if no database is configured (in-memory / test mode), the persist step is silently skipped and scheduling proceeds normally.
 
 ---
 
@@ -483,3 +512,38 @@ via `/workspace/.claude/settings.json` rather than
 auto-approved and would require interactive confirmation, which times out
 harmlessly in a non-interactive container. The Docker container boundary is
 still the primary security mechanism; the settings file adds a second layer.
+
+---
+
+## 11. Routine Notifications and Channel Broadcasting
+
+Source: `src/agent/routine.rs`, `src/channels/manager.rs`
+
+**PR #398** extends the routines system so that when a routine has findings to report, it can broadcast to **all installed channels** instead of requiring a specific channel to be named.
+
+### NotifyConfig
+
+Each `Routine` carries a `NotifyConfig` struct:
+
+```rust
+pub struct NotifyConfig {
+    /// Channel to notify on (None = default/broadcast all).
+    pub channel: Option<String>,
+    /// User to notify.
+    pub user: String,
+    pub on_attention: bool,
+    pub on_failure: bool,
+    pub on_success: bool,
+}
+```
+
+The key field is `channel: Option<String>`:
+
+- `Some("telegram")` — notify only the named channel.
+- `None` (default) — broadcast to all installed channels via `ChannelManager::broadcast_all()`.
+
+### broadcast_all()
+
+`ChannelManager::broadcast_all(user_id, response)` iterates every registered channel and calls `channel.broadcast(user_id, response.clone())` on each. It returns a `Vec<(String, Result<(), ChannelError>)>` so the routine engine can log per-channel failures without aborting the rest. Channels that do not support proactive push (REPL, HttpChannel) return `Ok(())` from the default `broadcast()` stub and are silently skipped.
+
+This means a routine with `notify.channel = None` will deliver findings to Telegram, Slack, the web gateway SSE stream, and any other active channel simultaneously — without listing each one explicitly in the routine configuration.

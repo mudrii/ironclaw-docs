@@ -1,6 +1,6 @@
 # IronClaw — Master Architecture Document
 
-> Updated: 2026-02-26 (v0.12.0) | Comprehensive reference for contributors
+> Updated: 2026-03-02 (v0.13.0) | Comprehensive reference for contributors
 
 ---
 
@@ -74,6 +74,7 @@ The channel abstraction is the core extensibility point for message ingestion. A
 │  Background tasks (tokio::spawn):                                               │
 │  ┌──────────────────────────────────────────────────────────────────────────┐  │
 │  │  HeartbeatRunner │ RoutineEngine (cron + events) │ SelfRepair │ Pruning  │  │
+│  │  Routine notifications: targeted channel first, broadcast_all() fallback │  │
 │  └──────────────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────┬──────────────────────────────────────────┘
                                        │ CompletionRequest
@@ -114,7 +115,8 @@ The channel abstraction is the core extensibility point for message ingestion. A
 │  │  │  Built-in    │  │  WASM Tools  │  │  MCP Client  │  │  Builder   │  │  │
 │  │  │  (echo, http │  │  (wasmtime,  │  │  (JSON-RPC   │  │  Tool      │  │  │
 │  │  │  shell, file,│  │  component   │  │  over HTTP)  │  │  (LLM-     │  │  │
-│  │  │  memory, job)│  │  model)      │  │              │  │  driven)   │  │  │
+│  │  │  memory, job,│  │  model)      │  │              │  │  driven)   │  │  │
+│  │  │  web_fetch)  │  │              │  │              │  │            │  │  │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘  └────────────┘  │  │
 │  └──────────────────────────────────────────────────────────────────────────┘  │
 │                                                                                 │
@@ -181,7 +183,7 @@ The following table lists every source module directory and the key top-level fi
 | `secrets` | `src/secrets/` | Encrypted credential storage: AES-256-GCM encryption, HKDF-SHA256 per-secret key derivation, PostgreSQL or libSQL backend (both support encrypted store), OS keychain integration (macOS: security-framework, Linux: secret-service/KWallet) |
 | `setup` | `src/setup/` | 7-step interactive onboarding wizard: database backend selection, NEAR AI authentication, secrets master key setup, channel configuration |
 | `skills` | `src/skills/` | SKILL.md prompt extension system: `SkillRegistry` (discover, install, remove), deterministic scorer (keywords/tags/regex), `SkillTrust` model (Trusted vs Installed), tool attenuation (trust-based ceiling), gating requirements (bins/env/config), `SkillCatalog` (ClawHub HTTP client) |
-| `tools` | `src/tools/` | Extensible tool system: `Tool` trait, `ToolRegistry` (shadowing protection for built-in names; shared `Arc<RateLimiter>` for per-tool per-user sliding window rate limiting via **RateLimiter** (`tools/rate_limiter.rs`) — per-minute and per-hour windows), built-in tools (echo, time, json, http, shell, file ops, memory, job mgmt, routines, extensions, skills, `HtmlConverter` (**HTML-to-Markdown** built-in conversion — two-stage: readability extraction + markdown conversion; feature-gated `html-to-markdown`)), WASM sandbox (wasmtime component model, fuel metering, memory limits), MCP client (JSON-RPC over HTTP), dynamic software builder |
+| `tools` | `src/tools/` | Extensible tool system: `Tool` trait, `ToolRegistry` (shadowing protection for built-in names; shared `Arc<RateLimiter>` for per-tool per-user sliding window rate limiting via **RateLimiter** (`tools/rate_limiter.rs`) — per-minute and per-hour windows), built-in tools (echo, time, json, http, shell, file ops, memory, job mgmt, routines, extensions, skills, `HtmlConverter` (**HTML-to-Markdown** built-in conversion — two-stage: readability extraction + markdown conversion; feature-gated `html-to-markdown`), **`web_fetch`** (`tools/builtin/web_fetch.rs`) — GET-only URL fetcher that converts HTML responses to clean Markdown via Readability; auto-approved, SSRF-protected, follows up to 3 redirects with per-hop SSRF re-validation, 5 MB response cap; returns `{url, final_url, status, title, content, word_count}`; distinct from `http` which handles API calls with full method/header/body control), WASM sandbox (wasmtime component model, fuel metering, memory limits), MCP client (JSON-RPC over HTTP), dynamic software builder |
 | `tunnel` | `src/tunnel/` | Tunnel/ngrok-style public URL provisioning for webhook channels |
 | `worker` | `src/worker/` | Runs inside Docker containers: `Worker` execution loop, tool calls via LLM reasoning, Claude Code bridge (spawns `claude` CLI), orchestrator HTTP client, proxy LLM provider that forwards requests through orchestrator |
 | `workspace` | `src/workspace/` | Persistent memory (OpenClaw-inspired): path-based document store, content chunking (800 tokens, 15% overlap), `EmbeddingProvider` trait (OpenAI, NEAR AI, Ollama), hybrid FTS+vector search via Reciprocal Rank Fusion, identity file injection into system prompt, heartbeat checklist |
@@ -232,7 +234,7 @@ src/main.rs
     │        │       └──▶ safety::credential_detect (HTTP param credential detection)
     │        │
     │        ├──▶ tools (ToolRegistry)
-    │        │       ├──▶ tools::builtin     (echo, time, json, http, shell, file, memory, job, html_converter)
+    │        │       ├──▶ tools::builtin     (echo, time, json, http, web_fetch, shell, file, memory, job, html_converter)
     │        │       ├──▶ tools::wasm        (wasmtime, WasmToolRuntime, WasmToolWrapper)
     │        │       │       ├──▶ secrets    (credential injection at host boundary)
     │        │       │       └──▶ safety     (leak detection on WASM output)
@@ -534,7 +536,7 @@ The "chicken-and-egg" bootstrap problem — needing the database URL before conn
 | `config::secrets` | `SECRETS_MASTER_KEY` (or OS keychain) |
 | `config::heartbeat` | `HEARTBEAT_ENABLED`, `HEARTBEAT_INTERVAL_SECS`, `HEARTBEAT_NOTIFY_CHANNEL` |
 | `config::skills` | `SKILLS_ENABLED`, `SKILLS_MAX_CONTEXT_TOKENS`, `SKILLS_MAX_ACTIVE`, `SKILLS_DIR`, `SKILLS_INSTALLED_DIR` |
-| `config::routines` | `ROUTINES_ENABLED`, `ROUTINES_MAX_CONCURRENT`, `ROUTINES_CRON_INTERVAL` |
+| `config::routines` | `ROUTINES_ENABLED`, `ROUTINES_MAX_CONCURRENT`, `ROUTINES_CRON_INTERVAL` (notifications: if `NotifyConfig.channel` is set the engine targets that channel; if unset or delivery fails, `broadcast_all()` delivers to all installed channels) |
 | `config::embeddings` | `EMBEDDING_ENABLED`, `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, `OPENAI_API_KEY` |
 | `config::tunnel` | `TUNNEL_URL`, `TUNNEL_PROVIDER`, `TUNNEL_CF_TOKEN`, `TUNNEL_NGROK_TOKEN`, `TUNNEL_TS_FUNNEL`, `TUNNEL_TS_HOSTNAME`, `TUNNEL_CUSTOM_COMMAND` |
 
@@ -659,7 +661,7 @@ IronClaw supports two database backends, selected at compile time via Cargo feat
 `src/db/mod.rs` defines the `Database` trait with approximately sixty async methods covering all persistence needs:
 
 - Conversations and messages
-- Agent jobs, job actions, LLM calls, estimation snapshots
+- Agent jobs, job actions, LLM calls, estimation snapshots (`JobStore::save_job`, `JobStore::update_job_status`)
 - Sandbox jobs and job events
 - Routines and routine run history
 - Tool failures (for self-repair tracking)
@@ -667,6 +669,18 @@ IronClaw supports two database backends, selected at compile time via Cargo feat
 - Workspace: memory documents, memory chunks, hybrid search, heartbeat state
 - WASM tools and tool capabilities
 - Secrets (encrypted credential storage)
+
+**DB-backed job dispatch (v0.13.0):**
+
+Jobs are now persisted to the database as part of the dispatch sequence. `Scheduler::dispatch_job()` creates the job context, then calls `store.save_job(&ctx)` before scheduling the worker — ensuring that FK references from `job_actions` and `llm_calls` tables are valid from the moment the job starts. Job cancellations are also persisted via `store.update_job_status()`. Previously, in-memory job state could be lost on unexpected shutdown before the job completed its first DB write.
+
+**Tool call persistence and approval restoration (v0.13.0):**
+
+`PendingApproval` is a `#[derive(Serialize, Deserialize)]` struct stored in the `Thread` struct. When the LLM issues multiple tool calls in one assistant message and one requires approval, the remaining tool calls are captured in `deferred_tool_calls: Vec<ToolCall>` within the `PendingApproval`. After the user approves, these deferred calls are replayed in order, ensuring every `tool_use` ID from that assistant turn gets a matching `tool_result` before the next LLM call. Thread state (including the pending approval) is persisted across the DB, so approval requests survive thread switches.
+
+**Channel activation state persistence (v0.13.0):**
+
+WASM channel activation state is persisted across restarts. When a channel is activated via `ExtensionManager::activate()`, the channel name is written to the settings store under key `activated_channels` via `persist_active_channels()`. On startup (`main.rs`), `load_persisted_active_channels()` reads this list and calls `activate()` for any channel that was active in the previous session but not already loaded at startup. Channel deactivation (via `remove()`) also updates the persisted set.
 
 **Workspace storage:**
 
@@ -840,9 +854,9 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | `workspace` | `src/workspace/` | 7 |
 | **Top-level files** | `src/*.rs` | 11 (`main.rs`, `lib.rs`, `app.rs`, `bootstrap.rs`, `service.rs`, `error.rs`, `settings.rs`, `util.rs`, `boot_screen.rs`, `testing.rs`, `tracing_fmt.rs`) |
 
-> **Note**: File counts are pinned to the `v0.12.0` release tag snapshot. The tools module includes 13 files in `builtin/`, 13 files in `wasm/`, plus builder/mcp support modules.
+> **Note**: File counts are pinned to the `v0.13.0` release tag snapshot. The tools module includes 14 files in `builtin/` (including `web_fetch.rs` added in v0.13.0), 13 files in `wasm/`, plus builder/mcp support modules.
 
-The `tools` module is one of the largest modules, reflecting the breadth of the tool system: built-ins, a full WASM runtime, an MCP client, a software builder, and the registry/trait definitions. The `channels` module includes REPL, web gateway, HTTP, Signal (added v0.12.0), and WASM channel runtime implementations.
+The `tools` module is one of the largest modules, reflecting the breadth of the tool system: built-ins, a full WASM runtime, an MCP client, a software builder, and the registry/trait definitions. The `channels` module includes REPL, web gateway, HTTP, Signal (added v0.12.0), and WASM channel runtime implementations with activation state persistence (added v0.13.0).
 
 **Key third-party crate dependencies:**
 
@@ -874,4 +888,4 @@ The `tools` module is one of the largest modules, reflecting the breadth of the 
 
 ---
 
-*Document generated from source code inspection of IronClaw v0.12.0 (`src/` directory). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*
+*Document generated from source code inspection of IronClaw v0.13.0 (`src/` directory). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*

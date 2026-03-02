@@ -1,6 +1,6 @@
 # LLM Provider Configuration
 
-> Version baseline: IronClaw v0.12.0 (`v0.12.0` tag snapshot)
+> Version baseline: IronClaw v0.13.0 (`v0.13.0` tag snapshot)
 
 IronClaw defaults to NEAR AI for model access, but supports any OpenAI-compatible
 endpoint as well as Anthropic and Ollama directly. This guide covers the most common
@@ -19,6 +19,7 @@ configurations.
 | Fireworks AI | `openai_compatible` | `LLM_API_KEY` | Fast inference |
 | vLLM / LiteLLM | `openai_compatible` | Optional | Self-hosted |
 | LM Studio | `openai_compatible` | No | Local GUI |
+| Tinfoil | `tinfoil` | `TINFOIL_API_KEY` | Private TEE inference |
 
 ---
 
@@ -171,8 +172,17 @@ Instead of editing `.env` manually, run the onboarding wizard:
 ironclaw onboard
 ```
 
-As of v0.12.0, select **OpenRouter** directly from the wizard for a one-step setup that
-automatically sets the base URL to `https://openrouter.ai/api/v1`. For other providers,
-select **"OpenAI-compatible"** (Together AI, Fireworks, vLLM, LiteLLM, or LM Studio).
+Select **OpenRouter** directly from the wizard for a one-step setup that automatically
+sets the base URL to `https://openrouter.ai/api/v1`. For other providers, select
+**"OpenAI-compatible"** (Together AI, Fireworks, vLLM, LiteLLM, or LM Studio).
 You will be prompted for the base URL and (optionally) an API key.
 The model name is configured in the following step.
+
+As of v0.13.0 (PR #426), the selected model name is written to the backend-specific
+environment variable in `~/.ironclaw/.env` during setup (e.g., `LLM_MODEL` for
+`openai_compatible`, `OPENAI_MODEL` for `openai`, `ANTHROPIC_MODEL` for `anthropic`).
+This ensures model names containing dots (such as `gpt-4.1` or `llama3.2`) survive
+process restarts, because `~/.ironclaw/.env` is loaded on every startup before
+`Config::from_env()` resolves the model. The env var takes precedence over the
+database-stored `selected_model` setting, so the dot-separated name is used exactly
+as entered.
