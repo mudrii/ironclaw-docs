@@ -12,20 +12,20 @@
 | Document | Lines | Description |
 |----------|------:|-------------|
 | [INSTALLATION.md](INSTALLATION.md) | ~715 | Installation, configuration, service setup, troubleshooting |
-| [LLM_PROVIDERS.md](LLM_PROVIDERS.md) | ~174 | LLM backend configuration quick guide (NEAR AI, OpenAI, Anthropic, Ollama, OpenAI-compatible) |
+| [LLM_PROVIDERS.md](LLM_PROVIDERS.md) | ~178 | LLM backend configuration quick guide (NEAR AI, OpenAI, Anthropic, Ollama, OpenAI-compatible) |
 | [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md) | ~137 | Telegram channel setup with DM pairing flow and webhook/polling modes |
-| [SIGNAL_SETUP.md](SIGNAL_SETUP.md) | ~120 | Signal channel setup via signal-cli HTTP daemon |
+| [SIGNAL_SETUP.md](SIGNAL_SETUP.md) | ~200 | Signal channel setup via signal-cli HTTP daemon |
 | [BUILDING_CHANNELS.md](BUILDING_CHANNELS.md) | ~442 | WASM channel authoring and build/deploy workflow |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | ~876 | Master architecture: modules, data flows, diagrams |
-| [AGENT_README.md](AGENT_README.md) | ~1072 | Agent reference: errors, config, code review patterns |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | ~877 | Master architecture: modules, data flows, diagrams |
+| [AGENT_README.md](AGENT_README.md) | ~1245 | Agent reference: errors, config, code review patterns |
 | [analysis/agent.md](analysis/agent.md) | ~930 | Agent loop, sessions, jobs, routines, heartbeat, cost guard |
-| [analysis/channels.md](analysis/channels.md) | ~906 | REPL, web gateway, HTTP, WASM, webhook channels + full API routes |
-| [analysis/cli.md](analysis/cli.md) | ~504 | CLI subcommands, doctor, service manager, MCP, registry |
-| [analysis/config.md](analysis/config.md) | ~928 | Configuration system — exhaustive env var reference |
+| [analysis/channels.md](analysis/channels.md) | ~1017 | REPL, web gateway, HTTP, WASM, webhook channels + full API routes |
+| [analysis/cli.md](analysis/cli.md) | ~505 | CLI subcommands, doctor, service manager, MCP, registry |
+| [analysis/config.md](analysis/config.md) | ~1034 | Configuration system — exhaustive env var reference |
 | [analysis/llm.md](analysis/llm.md) | ~803 | LLM backends, multi-provider, retry, cost guard, schema fix |
 | [analysis/safety-sandbox.md](analysis/safety-sandbox.md) | ~520 | Safety layer, WASM sandbox, Docker orchestrator, SSRF proxy |
-| [analysis/skills-extensions.md](analysis/skills-extensions.md) | ~729 | Skills system, WASM channels, extensions, hooks |
-| [analysis/tools.md](analysis/tools.md) | ~1465 | Tool system, all built-in tools, MCP client, WASM tools, builder |
+| [analysis/skills-extensions.md](analysis/skills-extensions.md) | ~736 | Skills system, WASM channels, extensions, hooks |
+| [analysis/tools.md](analysis/tools.md) | ~1515 | Tool system, all built-in tools, MCP client, WASM tools, builder |
 | [analysis/tunnels-pairing.md](analysis/tunnels-pairing.md) | ~347 | Tunnels (cloudflare/ngrok/tailscale/custom), mobile pairing |
 | [analysis/worker-orchestrator.md](analysis/worker-orchestrator.md) | ~485 | Worker runtime, Claude bridge, proxy LLM, Docker sandbox |
 | [analysis/workspace-memory.md](analysis/workspace-memory.md) | ~730 | Workspace FS, semantic memory, embeddings, hybrid search |
