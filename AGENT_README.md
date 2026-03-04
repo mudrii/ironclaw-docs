@@ -1314,4 +1314,4 @@ sqlite3 ~/.ironclaw/ironclaw.db "SELECT id, status, created_at FROM agent_jobs O
 
 ---
 
-*Source: IronClaw v0.13.0 (`v0.13.0`) · Docs: github.com/nearai/ironclaw-docs · Generated: 2026-03-02*
+*Source: IronClaw v0.14.0 (`v0.14.0`) · Docs: github.com/nearai/ironclaw-docs · Generated: 2026-03-05*
