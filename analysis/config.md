@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Configuration System
 
-> Updated: 2026-02-24 | Version: v0.12.0
+> Updated: 2026-02-24 | Version: v0.13.0
 
 ## 1. Overview
 
@@ -52,6 +52,8 @@ default is possible.
 
 | Env Var | Type | Default | Required | Description |
 |---------|------|---------|----------|-------------|
+| **Bootstrap** | | | | |
+| `IRONCLAW_BASE_DIR` | path | `~/.ironclaw` | No | Overrides the base directory for all ironclaw data files (sessions, database, tools, channels, skills). Value is cached via `LazyLock` for the process lifetime. Relative paths work but emit a warning. Added in v0.13.0 (PR #397). |
 | **Database** | | | | |
 | `DATABASE_BACKEND` | string | `postgres` | No | `postgres` (or `pg`, `postgresql`) or `libsql` (or `turso`, `sqlite`) |
 | `DATABASE_URL` | secret | — | If postgres | PostgreSQL connection string (e.g. `postgres://user:pass@host/db`) |

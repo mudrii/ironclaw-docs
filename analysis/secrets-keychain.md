@@ -86,6 +86,8 @@ The encrypted store holds application secrets that cannot or should not live in 
 
 ### Storage Layout
 
+> **Case normalization (v0.13.0, PR #413/#431):** Secret names are normalized to lowercase at storage and retrieval time. Lookups are case-insensitive — `MY_SECRET` and `my_secret` refer to the same stored value.
+
 Secrets are stored in a `secrets` table (both PostgreSQL and libSQL backends). The relevant columns per row are:
 
 | Column | Type | Content |

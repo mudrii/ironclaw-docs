@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Channel System
 
-> Updated: 2026-02-24 | Version: v0.12.0
+> Updated: 2026-02-24 | Version: v0.13.0
 
 ---
 

@@ -63,6 +63,7 @@
 | Shell tool (env scrubbing) | `src/tools/builtin/shell.rs` |
 | HTML-to-Markdown converter (for HTTP responses) | `src/tools/builtin/html_converter.rs` |
 | HTTP tool (external requests) | `src/tools/builtin/http.rs` |
+| Web page fetch tool | `src/tools/builtin/web_fetch.rs` |
 | File tools (read/write/patch/list) | `src/tools/builtin/file.rs` |
 | Memory tools (search/write/read) | `src/tools/builtin/memory.rs` |
 | Job management tools | `src/tools/builtin/job.rs` |
@@ -283,6 +284,12 @@ Config loading is two-stage by function, then `resolve()`-level precedence is ap
 
 Config struct: `src/config/mod.rs` · `INJECTED_VARS: OnceLock<HashMap<String,String>>` for secret overlay
 
+### 4.0 Core
+
+| Env Var | Type | Default | Notes |
+|---------|------|---------|-------|
+| `IRONCLAW_BASE_DIR` | path | `~/.ironclaw` | Override base data directory for all ironclaw files (new in v0.13.0) |
+
 ### 4.1 Database
 
 | Env Var | Type | Default | Required | Notes |
@@ -469,7 +476,7 @@ Config struct fields: `http_url`, `account`, `allow_from`, `dm_policy`, `group_p
 | `EMBEDDING_DIMENSION` | usize | model-derived | Explicit vector size override |
 | `HEARTBEAT_ENABLED` | bool | `false` | Enable proactive execution |
 | `HEARTBEAT_INTERVAL_SECS` | u64 | `1800` | 30 minutes default |
-| `HEARTBEAT_NOTIFY_CHANNEL` | string | unset | Channel to send findings |
+| `HEARTBEAT_NOTIFY_CHANNEL` | string | unset | Primary channel for heartbeat findings; falls back to all installed channels if unset or if targeted delivery fails. |
 | `HEARTBEAT_NOTIFY_USER` | string | unset | User to notify |
 | `MEMORY_HYGIENE_ENABLED` | bool | `true` | Enable automatic workspace hygiene |
 | `MEMORY_HYGIENE_RETENTION_DAYS` | u32 | `30` | Daily document retention window |
@@ -732,6 +739,7 @@ impl Tool for MyTool {
 | `time` | `builtin/time.rs` | Utility |
 | `json` | `builtin/json.rs` | Data |
 | `http` | `builtin/http.rs` | Network |
+| `web_fetch` | `builtin/web_fetch.rs` | Network |
 | `read_file`, `write_file`, `list_dir`, `apply_patch` | `builtin/file.rs` | Filesystem |
 | `shell` | `builtin/shell.rs` | Execution |
 | `message` | `builtin/message.rs` | Messaging |
@@ -839,6 +847,32 @@ LLM context (sanitized)
 **Credential detect** (`src/safety/credential_detect.rs`): Used by the HTTP tool specifically to detect manually-provided credentials in request parameters (headers, URL query params, URL userinfo). Checks for auth header names (Authorization, X-Api-Key, etc.), auth value prefixes (Bearer, Basic, Token), credential query params (api_key, access_token, etc.), and embedded URL userinfo. Triggers approval prompt before executing the HTTP request.
 
 **Shell tool** (`src/tools/builtin/shell.rs`): scrubs sensitive env vars before command execution to prevent `env` / `printenv` / `$VAR` leakage.
+
+---
+
+## 9.1 Slash Commands / Control Messages
+
+The following slash commands can be sent in any channel (REPL, web gateway, Telegram, Signal):
+
+| Command | Description |
+|---------|-------------|
+| `/status [job_id]` | Show status of running jobs; optional job ID for specific job |
+| `/list` | List all active and recent jobs (alias for `/status`) |
+| `/progress [job_id]` | Show progress of a job (alias for `/status`) |
+| `/undo` | Undo the last agent action |
+| `/redo` | Redo the last undone action |
+| `/compact` | Manually trigger conversation compaction |
+| `/clear` | Clear the current conversation thread |
+
+**Tool Approval Commands** (sent in response to approval prompts):
+
+| Response | Effect |
+|----------|--------|
+| `yes`, `y`, `approve`, `ok` | Approve this specific tool call |
+| `always`, `a` | Approve and auto-approve future calls to this tool |
+| `no`, `n`, `deny`, `reject` | Deny this tool call |
+
+Source: `src/agent/submission.rs`
 
 ---
 

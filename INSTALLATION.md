@@ -179,6 +179,7 @@ CLI_ENABLED=false
 DATABASE_BACKEND=libsql          # libsql (local) or postgres
 # DATABASE_URL="postgres://user:pass@host/db"  # Required if postgres
 # LIBSQL_PATH="~/.ironclaw/ironclaw.db"        # Default location
+# IRONCLAW_BASE_DIR=~/.ironclaw               # Override base dir (new in v0.13.0, default: ~/.ironclaw)
 
 ##############################################
 # LLM Backend

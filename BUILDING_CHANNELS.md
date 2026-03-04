@@ -66,7 +66,7 @@ use serde::{Deserialize, Serialize};
 // Re-export generated types
 use exports::near::agent::channel::{
     AgentResponse, ChannelConfig, Guest, HttpEndpointConfig, IncomingHttpRequest,
-    OutgoingHttpResponse, PollConfig,
+    OutgoingHttpResponse, PollConfig, StatusType, StatusUpdate,
 };
 use near::agent::channel_host::{self, EmittedMessage};
 ```
@@ -119,6 +119,16 @@ impl Guest for MyChannel {
     /// Called when channel is shutting down.
     fn on_shutdown() {
         channel_host::log(channel_host::LogLevel::Info, "Channel shutting down");
+    }
+
+    /// Called when the agent changes state (thinking, processing tools, done, etc.)
+    /// Use to send typing indicators or status messages back to the platform.
+    /// update.status contains StatusType: Thinking, Running, Done, Error, etc.
+    fn on_status(update: StatusUpdate) {
+        // Called when the agent changes state (thinking, processing tools, done, etc.)
+        // Use to send typing indicators or status messages back to the platform.
+        // update.status contains StatusType: Thinking, Running, Done, Error, etc.
+        let _ = update; // Implement as needed for your platform
     }
 }
 
@@ -187,6 +197,22 @@ channel_host::http_request("POST", &url, &headers.to_string(), Some(&body));
 ```
 
 The placeholder format is `{SECRET_NAME}` where `SECRET_NAME` matches the credential name in uppercase with underscores (e.g., `whatsapp_access_token` → `{WHATSAPP_ACCESS_TOKEN}`).
+
+### Host-Based Credential Injection (v0.13.0)
+
+As of v0.13.0, credentials can also be injected automatically at the host boundary without requiring placeholder syntax in WASM code. Declare credentials in the capabilities file under `capabilities.http.credentials`:
+
+```json
+"credentials": {
+  "my_service_token": {
+    "secret_name": "my_api_key",
+    "location": { "type": "bearer" },
+    "host_patterns": ["api.myservice.com"]
+  }
+}
+```
+
+When the WASM channel makes an HTTP request to a matching host, the ironclaw runtime automatically injects the credential as a Bearer token header. The WASM code never sees the raw secret value.
 
 ## Capabilities File
 
@@ -311,6 +337,9 @@ let response = channel_host::http_request("POST", &url, &headers, Some(&body))?;
 
 // Emit message to agent
 channel_host::emit_message(&EmittedMessage { ... });
+
+// Check if a secret exists (without reading its value)
+let exists = channel_host::secret_exists("my_api_key");
 ```
 
 ## Common Patterns

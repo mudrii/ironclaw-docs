@@ -140,7 +140,8 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 - use `tailscale funnel --bg` for proper tunnel setup ([#430](https://github.com/nearai/ironclaw/pull/430))
 - normalize secret names to lowercase for case-insensitive matching ([#413](https://github.com/nearai/ironclaw/pull/413), [#431](https://github.com/nearai/ironclaw/pull/431))
 - persist model name to `.env` so dotted names survive restart ([#426](https://github.com/nearai/ironclaw/pull/426))
-- setup flow validates cloudflared binary and token ([#424](https://github.com/nearai/ironclaw/pull/424), [#423](https://github.com/nearai/ironclaw/pull/423))
+- setup flow validates cloudflared binary and tunnel token ([#424](https://github.com/nearai/ironclaw/pull/424))
+- setup flow validates PostgreSQL version and pgvector availability before migrations ([#423](https://github.com/nearai/ironclaw/pull/423))
 - guard `zsh compdef` call to prevent pre-compinit errors ([#422](https://github.com/nearai/ironclaw/pull/422))
 - Telegram: remove restart button and validate token on setup ([#434](https://github.com/nearai/ironclaw/pull/434))
 - web UI routines tab shows all routines regardless of creating channel ([#391](https://github.com/nearai/ironclaw/pull/391))
@@ -164,6 +165,7 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 - **MCP Registry URL Fixes**: Corrected 6 MCP endpoint URLs, removed non-existent Google Drive and Google Calendar entries
 - **Docker Build Fix**: Dockerfile now correctly copies `migrations/`, `registry/`, `channels-src/`, `wit/` directories
 - **Extension Name Collision Fix**: Telegram and Slack tool registry names renamed to avoid conflicts with channel entries
+- **Homebrew Install**: `brew install ironclaw` now available via `brew install ironclaw`
 
 ### v0.11.1 (2026-02-23)
 - **CI/CD Fix**: Resolved release pipeline issue allowing custom `release.yml` jobs
@@ -184,7 +186,6 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 - **HTML-to-Markdown Conversion**: New built-in tool for converting HTML content
 - **FullJob Routine Mode**: Scheduler dispatch for routine jobs
 - **Startup Optimization**: Startup time reduced from ~15s to ~2s
-- **Homebrew Install**: `brew install ironclaw` now available
 - **Web UI Refresh**: Agent-market design language, dashboard favicon, Chrome extension test skill
 
 ### v0.9.0 (2026-02-21)

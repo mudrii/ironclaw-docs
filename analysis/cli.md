@@ -54,6 +54,7 @@ The full command tree derived from `src/cli/mod.rs` and `src/app.rs`:
 | `ironclaw tool remove <NAME>` | Remove an installed WASM tool |
 | `ironclaw tool info <NAME>` | Show details and capabilities for a specific tool |
 | `ironclaw tool auth <NAME>` | Configure authentication for a WASM tool (OAuth or manual) |
+| `ironclaw tool setup <NAME>` | Configure required secrets for a tool interactively |
 | `ironclaw registry list` | List available extensions in the local registry |
 | `ironclaw registry list --kind <tool\|channel>` | Filter by extension kind |
 | `ironclaw registry list --tag <TAG>` | Filter by tag (e.g., `default`, `google`) |
