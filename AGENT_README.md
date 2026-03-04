@@ -482,6 +482,62 @@ Config struct fields: `http_url`, `account`, `allow_from`, `dm_policy`, `group_p
 | `MEMORY_HYGIENE_RETENTION_DAYS` | u32 | `30` | Daily document retention window |
 | `MEMORY_HYGIENE_CADENCE_HOURS` | u32 | `12` | Minimum hours between hygiene passes |
 
+#### Workspace Initialization Files
+
+IronClaw seeds well-known workspace files on first run. Existing files are never overwritten.
+
+| File | Injected As | Agent-Writable | Description |
+|------|-------------|----------------|-------------|
+| `AGENTS.md` | `## Agent Instructions` | No (protected) | Behavioral guidelines and tool usage rules |
+| `SOUL.md` | `## Core Values` | No (protected) | Core values and principles |
+| `USER.md` | `## User Context` | No (protected) | User name, timezone, preferences |
+| `IDENTITY.md` | `## Identity` | No (protected) | Agent name, personality, identity |
+| `TOOLS.md` | `## Tool Notes` | **Yes** | Environment-specific tool guidance (agent-maintained) |
+| `MEMORY.md` | `## Long-Term Memory` | **Yes** | Curated long-term facts and decisions |
+| `HEARTBEAT.md` | — | **Yes** | Periodic task checklist |
+| `BOOTSTRAP.md` | `## First-Run Bootstrap` | **Yes** | First-run setup ritual (fresh workspaces only) |
+
+**Write-protected files** (`AGENTS.md`, `SOUL.md`, `USER.md`, `IDENTITY.md`) cannot be modified by the agent for security. Edit them directly in `~/.ironclaw/workspace/`.
+
+#### TOOLS.md — Environment-Specific Guidance
+
+`TOOLS.md` is agent-maintained guidance about your specific environment. It does **not** control which tools are available — it provides context the agent uses to operate more effectively.
+
+Default seed content:
+```markdown
+<!-- TOOLS.md — Environment-specific tool notes.
+     This file does not control which tools are available; it is guidance only.
+     The agent can update this file as it learns your setup.
+
+     Examples:
+     - SSH hosts: dev-box (Ubuntu 22.04, username: alice)
+     - Camera: Canon R6 mounted at /Volumes/EOS_R
+     - Default shell on remote: bash, no zsh
+
+     Add your environment notes below (outside the comment block).
+-->
+```
+
+Add your own notes below the comment block. The agent will refine and append as it discovers more about your environment.
+
+#### BOOTSTRAP.md — First-Run Onboarding
+
+`BOOTSTRAP.md` triggers a one-time onboarding ritual when IronClaw starts for the first time on a fresh workspace.
+
+**Behavior:**
+- Seeded **only on fresh workspaces** (not on upgrades — existing workspaces keep their memory)
+- The agent reads it at session start, follows the steps inside, then **automatically deletes it** so the ritual never repeats
+- Detection: fresh workspace means none of `AGENTS.md`, `SOUL.md`, `USER.md` exist yet
+
+**Default onboarding steps the agent follows:**
+1. Greet the user and introduce itself
+2. Ask questions to understand who you are, what you work on, and what you want from an AI assistant
+3. Save environment-specific tool details to `TOOLS.md`
+4. Save a summary of the conversation to `MEMORY.md`
+5. Delete `BOOTSTRAP.md` to complete the ritual
+
+**Custom BOOTSTRAP.md:** You can create your own `BOOTSTRAP.md` before first run to inject custom setup instructions. The agent will execute them on first boot then delete the file.
+
 ### 4.16 Tunnel
 
 | Env Var | Type | Default | Notes |

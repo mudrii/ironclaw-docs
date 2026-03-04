@@ -208,7 +208,20 @@ The registry assembles built-in tools in these groups during startup:
 
 > **v0.12.0 note (#346):** As of v0.12.0, the Telegram MTPRoto API tool is registered as `telegram-mtproto` and the Slack API tool as `slack-tool` (renamed to avoid name collisions with the WASM channel entries).
 
-> **v0.13.1 note:** The Brave Web Search WASM tool (`web-search`) was added in v0.13.1. It provides web search via the Brave Search API and requires manual auth (`brave_api_key` secret). Display name: "Web Search". Auth: manual (`brave_api_key` secret). Provider: Brave Search API.
+> **v0.13.1 (#474):** Brave Web Search WASM tool added to the registry.
+>
+> **Setup:**
+> 1. Get a Brave Search API key at https://brave.com/search/api/ (free tier: 2,000 queries/month)
+> 2. Install from the extension registry in the web UI, or run: `ironclaw tool auth web-search`
+> 3. Enter your API key when prompted — stored as `brave_api_key` secret
+>
+> **Tool invocation:** `web_search` with parameters:
+> - `query` (string, required): search terms
+> - `count` (number, optional): results to return
+> - `offset` (number, optional): pagination offset
+>
+> **Rate limits:** 30 requests/minute, 500 requests/hour
+> **Auth:** Manual — Bearer token injected as `X-Subscription-Token` header to `api.search.brave.com`
 
 ---
 

@@ -240,6 +240,12 @@ GATEWAY_ENABLED=true
 GATEWAY_HOST=127.0.0.1
 GATEWAY_PORT=3000
 GATEWAY_AUTH_TOKEN=<your-32-byte-hex-token>
+# IRONCLAW_OAUTH_CALLBACK_URL=https://your-server.com/oauth/callback
+                              # Override OAuth callback URL for remote/VPS deployments
+                              # Default: http://127.0.0.1:9876/oauth/callback
+                              # Required when users access the gateway from a different machine
+# OAUTH_CALLBACK_HOST=127.0.0.1  # Interface to bind OAuth callback listener
+                              # Set to 0.0.0.0 for LAN access or SSH port forwarding
 
 ##############################################
 # Docker Sandbox
@@ -261,6 +267,8 @@ SANDBOX_MEMORY_LIMIT_MB=2048
 ##############################################
 RUST_LOG=ironclaw=info,tower_http=info
 ```
+
+> **v0.14.0 (#491):** The **Jobs** tab in the web gateway now shows both sandbox jobs (Docker container tasks) and regular agent jobs (long-running LLM reasoning tasks). Both job types display with unified status tracking, progress, and logs.
 
 ---
 
@@ -514,6 +522,8 @@ systemctl --user status ironclaw
 
 Direct workspace operations without starting the agent:
 
+**Workspace initialization files:** On first run, IronClaw seeds your workspace with well-known files including `MEMORY.md`, `IDENTITY.md`, `SOUL.md`, `TOOLS.md`, and `BOOTSTRAP.md`. The `BOOTSTRAP.md` triggers a one-time onboarding ritual (fresh workspaces only) after which it is automatically deleted. See [AGENT_README.md](AGENT_README.md) for details on workspace files.
+
 ```bash
 # Search workspace (hybrid FTS + semantic with PostgreSQL; hybrid FTS + vector with libSQL when embeddings are enabled; FTS-only when embeddings are disabled)
 ironclaw memory search "deployment notes"
@@ -718,6 +728,17 @@ install -m 755 target/release/ironclaw ~/.local/bin/ironclaw
 launchctl unload ~/Library/LaunchAgents/ai.ironclaw.plist
 launchctl load ~/Library/LaunchAgents/ai.ironclaw.plist
 ```
+
+### Upgrading from v0.13.x
+
+**Okta WASM tool removed (v0.14.0):** If upgrading from v0.13.x and you had the Okta tool installed, remove the leftover files:
+
+```bash
+rm -f ~/.ironclaw/tools/okta.wasm
+rm -f ~/.ironclaw/tools/okta.capabilities.json
+```
+
+If you need Okta integration, build a custom WASM tool using [BUILDING_CHANNELS.md](BUILDING_CHANNELS.md).
 
 ---
 

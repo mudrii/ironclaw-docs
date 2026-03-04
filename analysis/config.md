@@ -179,6 +179,8 @@ default is possible.
 | `WASM_DEFAULT_FUEL_LIMIT` | u64 | `10000000` | No | Default fuel (CPU instruction budget) per WASM call |
 | `WASM_CACHE_COMPILED` | bool | `true` | No | Cache compiled WASM modules to disk |
 | `WASM_CACHE_DIR` | path | — | No | Directory for compiled module cache. Defaults to a system temp path |
+| `IRONCLAW_OAUTH_CALLBACK_URL` | string | `http://127.0.0.1:9876/oauth/callback` | No | Override OAuth callback URL for remote server deployments. Set this when users access the gateway from a different machine than where ironclaw runs. |
+| `OAUTH_CALLBACK_HOST` | string | `127.0.0.1` | No | Network interface for the OAuth callback listener. Set to `0.0.0.0` for LAN access or SSH port forwarding scenarios. |
 
 ### OAuth for WASM Tools (v0.14.0)
 

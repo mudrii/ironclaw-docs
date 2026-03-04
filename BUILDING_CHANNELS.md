@@ -214,6 +214,16 @@ As of v0.13.0, credentials can also be injected automatically at the host bounda
 
 When the WASM channel makes an HTTP request to a matching host, the ironclaw runtime automatically injects the credential as a Bearer token header. The WASM code never sees the raw secret value.
 
+**Credential injection location types:**
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `bearer` | `Authorization: Bearer {token}` | `{"type": "bearer"}` |
+| `header` | Custom header with optional prefix | `{"type": "header", "name": "X-API-Key"}` or `{"type": "header", "name": "Authorization", "prefix": "Token "}` |
+| `basic` | HTTP Basic auth (token as password) | `{"type": "basic", "username": "myapp"}` |
+| `query_param` | URL query parameter | `{"type": "query_param", "name": "api_key"}` |
+| `url_path` | URL path placeholder replacement | `{"type": "url_path", "placeholder": "USER_ID"}` |
+
 ### OAuth Credential Injection (v0.14.0)
 
 WASM tools can declare OAuth 2.0 flows in the capabilities file under the `auth.oauth` section:
@@ -225,17 +235,44 @@ WASM tools can declare OAuth 2.0 flows in the capabilities file under the `auth.
   "oauth": {
     "authorization_url": "https://api.myservice.com/oauth/authorize",
     "token_url": "https://api.myservice.com/oauth/token",
-    "client_id": "...",
-    "client_secret": "...",
-    "scopes": ["read:data", "write:data"]
-  },
-  "instructions": "Complete OAuth login in the browser"
+    "scopes": ["read:data", "write:data"],
+    "use_pkce": true,
+    "extra_params": {
+      "access_type": "offline"
+    },
+    "client_id_env": "MY_SERVICE_CLIENT_ID",
+    "client_secret_env": "MY_SERVICE_CLIENT_SECRET",
+    "access_token_field": "access_token",
+    "validation_endpoint": {
+      "url": "https://api.myservice.com/v1/me",
+      "method": "GET",
+      "success_status": 200,
+      "headers": {}
+    }
+  }
 }
 ```
 
-When configured, the ironclaw runtime handles the full OAuth 2.0 flow (authorization, token exchange, scope merging for shared providers) without the WASM code implementing it. The resulting access token is stored in the secrets store and injected via the declared credential injection mechanism.
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `authorization_url` | string | required | OAuth 2.0 authorization endpoint |
+| `token_url` | string | required | Token exchange endpoint |
+| `scopes` | string[] | `[]` | OAuth scopes to request |
+| `use_pkce` | bool | `true` | Enable PKCE (recommended for CLI) |
+| `extra_params` | object | `{}` | Additional auth URL parameters (e.g., `access_type`, `approval_prompt`) |
+| `client_id_env` | string | — | Env var for client ID override |
+| `client_secret_env` | string | — | Env var for client secret override |
+| `access_token_field` | string | `"access_token"` | Field name in token response |
+| `validation_endpoint.url` | string | — | URL to verify token is valid for correct account |
+| `validation_endpoint.method` | string | `"GET"` | HTTP method for validation |
+| `validation_endpoint.success_status` | number | `200` | Expected HTTP status for valid token |
+| `validation_endpoint.headers` | object | `{}` | Custom headers (e.g., `{"Notion-Version": "2022-06-28"}`) |
 
-Built-in OAuth defaults exist for Google OAuth (`google_oauth_token` secret name), allowing tools to use Google authentication without requiring users to register their own OAuth apps.
+**Google OAuth built-in defaults:** Tools using `secret_name: "google_oauth_token"` get built-in Google OAuth credentials automatically — no need to register your own OAuth app. Override at runtime with `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` env vars.
+
+**OAuth callback server:** The callback listens on `127.0.0.1:9876` by default. For remote server deployments, set `IRONCLAW_OAUTH_CALLBACK_URL` to your server's accessible callback URL and optionally `OAUTH_CALLBACK_HOST` to change the bind interface.
+
+When configured, the ironclaw runtime handles the full OAuth 2.0 flow (authorization, token exchange, scope merging for shared providers) without the WASM code implementing it. The resulting access token is stored in the secrets store and injected via the declared credential injection mechanism.
 
 Tools sharing the same OAuth provider (e.g., two Google-based tools) have their scopes merged automatically, triggering a single re-authorization with consolidated permissions.
 
@@ -253,16 +290,14 @@ Create `my-channel.capabilities.json`:
       {
         "name": "my_channel_api_token",
         "prompt": "Enter your API token",
-        "validation": "^[A-Za-z0-9_-]+$"
+        "optional": false
       },
       {
         "name": "my_channel_webhook_secret",
-        "prompt": "Webhook secret (leave empty to auto-generate)",
-        "optional": true,
-        "auto_generate": { "length": 32 }
+        "prompt": "Webhook secret",
+        "optional": true
       }
-    ],
-    "validation_endpoint": "https://api.my-platform.com/verify?token={my_channel_api_token}"
+    ]
   },
   "capabilities": {
     "http": {
@@ -365,7 +400,11 @@ channel_host::emit_message(&EmittedMessage { ... });
 
 // Check if a secret exists (without reading its value)
 let exists = channel_host::secret_exists("my_api_key");
+```
 
+> **v0.14.0 (#479):** Secrets are now available throughout the WASM tool lifecycle, including during `on_start()` initialization. You can safely call `channel_host::secret_exists(name)` during startup to check credential availability before registering tools.
+
+```rust
 // DM Pairing — check and manage which users are allowed to interact
 let result = channel_host::pairing_upsert_request(channel, id, &meta_json)?;
 // result.code: String (display to user for confirmation), result.created: bool
