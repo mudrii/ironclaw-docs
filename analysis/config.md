@@ -58,12 +58,13 @@ default is possible.
 | `DATABASE_BACKEND` | string | `postgres` | No | `postgres` (or `pg`, `postgresql`) or `libsql` (or `turso`, `sqlite`) |
 | `DATABASE_URL` | secret | — | If postgres | PostgreSQL connection string (e.g. `postgres://user:pass@host/db`) |
 | `DATABASE_POOL_SIZE` | u32 | `10` | No | PostgreSQL connection pool size |
+| `DATABASE_SSLMODE` | string | `prefer` | No | PostgreSQL TLS mode; one of `disable`, `prefer`, `require`. Applies during `DATABASE_URL` pool setup |
 | `LIBSQL_PATH` | path | `~/.ironclaw/ironclaw.db` | No | Path to local libSQL/SQLite database file |
 | `LIBSQL_URL` | string | — | No | Turso cloud URL for remote sync (e.g. `libsql://xxx.turso.io`) |
 | `LIBSQL_AUTH_TOKEN` | secret | — | If `LIBSQL_URL` is set | Turso authentication token |
 | **LLM Backend** | | | | |
 | `LLM_BACKEND` | string | `nearai` | No | `nearai`, `openai`, `anthropic`, `ollama`, `openai_compatible`, or `tinfoil` |
-| `NEARAI_MODEL` | string | `fireworks::accounts/fireworks/models/llama4-maverick-instruct-basic` | No | Model name for NEAR AI |
+| `NEARAI_MODEL` | string | `zai-org/GLM-latest` | No | Model name for NEAR AI |
 | `NEARAI_CHEAP_MODEL` | string | — | No | Optional model name for SmartRoutingProvider cheap-model path (e.g., `claude-haiku-4-20250514`). Added v0.10.0. |
 | `NEARAI_BASE_URL` | string | `https://private.near.ai` (Responses) or `https://cloud-api.near.ai` (Chat) | No | NEAR AI API base URL |
 | `NEARAI_AUTH_URL` | string | `https://private.near.ai` | No | NEAR AI auth/refresh endpoint base URL |
@@ -771,7 +772,7 @@ OPENAI_MODEL="gpt-4o"
 
 # NEAR AI Chat (Responses API — session token auth, default mode)
 # LLM_BACKEND="nearai"
-# NEARAI_MODEL="fireworks::accounts/fireworks/models/llama4-maverick-instruct-basic"
+# NEARAI_MODEL="zai-org/GLM-latest"
 # NEARAI_SESSION_PATH="~/.ironclaw/session.json"
 # NEARAI_BASE_URL="https://private.near.ai"
 # NEARAI_AUTH_URL="https://private.near.ai"

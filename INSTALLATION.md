@@ -198,7 +198,7 @@ OPENAI_MODEL=gpt-4o              # or gpt-4-turbo, gpt-4o-mini, o1, o3-mini
 # NEAR AI (alternative)
 # LLM_BACKEND=nearai
 # NEARAI_API_KEY=your-nearai-key
-# NEARAI_MODEL=fireworks::accounts/fireworks/models/llama4-maverick-instruct-basic
+# NEARAI_MODEL=zai-org/GLM-latest
 # NEARAI_CHEAP_MODEL=claude-haiku-4-20250514  # For smart routing (v0.10.0+)
 
 # Smart Routing (v0.10.0+)

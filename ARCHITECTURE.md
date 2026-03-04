@@ -874,4 +874,4 @@ The `tools` module is one of the largest modules, reflecting the breadth of the 
 
 ---
 
-*Document generated from source code inspection of IronClaw v0.12.0 (`src/` directory). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*
+*Document generated from source code inspection of IronClaw v0.13.0 (`src/` directory). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*
