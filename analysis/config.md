@@ -57,7 +57,7 @@ default is possible.
 | **Database** | | | | |
 | `DATABASE_BACKEND` | string | `postgres` | No | `postgres` (or `pg`, `postgresql`) or `libsql` (or `turso`, `sqlite`) |
 | `DATABASE_URL` | secret | — | If postgres | PostgreSQL connection string (e.g. `postgres://user:pass@host/db`) |
-| `DATABASE_POOL_SIZE` | u32 | `10` | No | PostgreSQL connection pool size |
+| `DATABASE_POOL_SIZE` | usize | `10` | No | PostgreSQL connection pool size |
 | `DATABASE_SSLMODE` | string | `prefer` | No | PostgreSQL TLS mode; one of `disable`, `prefer`, `require`. Applies during `DATABASE_URL` pool setup |
 | `LIBSQL_PATH` | path | `~/.ironclaw/ironclaw.db` | No | Path to local libSQL/SQLite database file |
 | `LIBSQL_URL` | string | — | No | Turso cloud URL for remote sync (e.g. `libsql://xxx.turso.io`) |
@@ -259,6 +259,8 @@ pub struct AgentConfig {
     pub allow_local_tools: bool,             // ALLOW_LOCAL_TOOLS
     pub max_cost_per_day_cents: Option<u64>, // MAX_COST_PER_DAY_CENTS
     pub max_actions_per_hour: Option<u64>,   // MAX_ACTIONS_PER_HOUR
+    pub max_tool_iterations: usize,          // AGENT_MAX_TOOL_ITERATIONS (default: 50)
+    pub auto_approve_tools: bool,            // AGENT_AUTO_APPROVE_TOOLS (default: false)
 }
 ```
 
@@ -277,18 +279,12 @@ pub enum LlmBackend {
     Tinfoil,          // "tinfoil"
 }
 
-pub enum NearAiApiMode {
-    Responses,        // NEAR AI Chat (Responses API, session token auth) — default
-    ChatCompletions,  // NEAR AI Cloud (Chat Completions API, API key auth)
-}
-
 pub struct NearAiConfig {
     pub model: String,
     pub cheap_model: Option<String>,
     pub base_url: String,
     pub auth_base_url: String,
     pub session_path: PathBuf,
-    pub api_mode: NearAiApiMode,
     pub api_key: Option<SecretString>,
     pub fallback_model: Option<String>,
     pub max_retries: u32,
@@ -299,6 +295,7 @@ pub struct NearAiConfig {
     pub response_cache_max_entries: usize,
     pub failover_cooldown_secs: u64,
     pub failover_cooldown_threshold: u32,
+    pub smart_routing_cascade: bool,    // SMART_ROUTING_CASCADE (default: true)
 }
 
 pub struct LlmConfig {
@@ -352,6 +349,7 @@ pub struct DatabaseConfig {
     pub backend: DatabaseBackend,      // DATABASE_BACKEND
     pub url: SecretString,             // DATABASE_URL (required for postgres)
     pub pool_size: usize,              // DATABASE_POOL_SIZE (default: 10)
+    pub ssl_mode: SslMode,             // DATABASE_SSLMODE (default: prefer)
     pub libsql_path: Option<PathBuf>, // LIBSQL_PATH (default: ~/.ironclaw/ironclaw.db)
     pub libsql_url: Option<String>,   // LIBSQL_URL (Turso cloud, optional)
     pub libsql_auth_token: Option<SecretString>, // LIBSQL_AUTH_TOKEN (required with libsql_url)

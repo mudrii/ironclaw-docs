@@ -854,6 +854,8 @@ LLM context (sanitized)
 
 The following slash commands can be sent in any channel (REPL, web gateway, Telegram, Signal):
 
+**Control commands:**
+
 | Command | Description |
 |---------|-------------|
 | `/status [job_id]` | Show status of running jobs; optional job ID for specific job |
@@ -863,14 +865,46 @@ The following slash commands can be sent in any channel (REPL, web gateway, Tele
 | `/redo` | Redo the last undone action |
 | `/compact` | Manually trigger conversation compaction |
 | `/clear` | Clear the current conversation thread |
+| `/interrupt`, `/stop` | Interrupt the currently running agent turn |
+| `/heartbeat` | Manually trigger a heartbeat check |
+| `/summarize`, `/summary` | Generate a summary of the current thread |
+| `/suggest` | Suggest next steps based on the current thread state |
+
+**Thread management:**
+
+| Command | Description |
+|---------|-------------|
+| `/thread new`, `/new` | Create a new conversation thread |
+| `/thread <uuid>` | Switch to an existing thread by UUID |
+| `/resume <uuid>` | Resume from a specific checkpoint by UUID |
+| `/cancel <job_id>` | Cancel a specific running job by ID or ID prefix |
+
+**System commands:**
+
+| Command | Description |
+|---------|-------------|
+| `/help`, `/?` | Show available commands and help text |
+| `/version` | Show the current ironclaw version |
+| `/tools` | List available tools |
+| `/skills [args]` | List or search loaded skills |
+| `/ping` | Ping the agent (connectivity check) |
+| `/debug` | Toggle debug mode |
+| `/model` | Show the current LLM model |
+| `/model <name>` | Switch to a different LLM model |
+
+**Session control:**
+
+| Command | Description |
+|---------|-------------|
+| `/quit`, `/exit`, `/shutdown` | Exit/shutdown the agent |
 
 **Tool Approval Commands** (sent in response to approval prompts):
 
 | Response | Effect |
 |----------|--------|
-| `yes`, `y`, `approve`, `ok` | Approve this specific tool call |
-| `always`, `a` | Approve and auto-approve future calls to this tool |
-| `no`, `n`, `deny`, `reject` | Deny this tool call |
+| `yes`, `y`, `approve`, `ok`, `/approve`, `/yes`, `/y` | Approve this specific tool call |
+| `always`, `a`, `yes always`, `approve always`, `/always`, `/a` | Approve and auto-approve future calls to this tool |
+| `no`, `n`, `deny`, `reject`, `cancel`, `/deny`, `/no`, `/n` | Deny this tool call |
 
 Source: `src/agent/submission.rs`
 

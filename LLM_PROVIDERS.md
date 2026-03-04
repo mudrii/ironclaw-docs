@@ -29,7 +29,8 @@ No additional configuration required. On first run, `ironclaw onboard` opens a b
 for OAuth authentication. Credentials are saved to `~/.ironclaw/session.json`.
 
 ```env
-NEARAI_MODEL=claude-3-5-sonnet-20241022
+NEARAI_MODEL=zai-org/GLM-latest        # Default if unset: zai-org/GLM-latest
+# Override example: NEARAI_MODEL=claude-3-5-sonnet-20241022
 NEARAI_BASE_URL=https://private.near.ai
 ```
 
@@ -63,7 +64,7 @@ Install Ollama from [ollama.com](https://ollama.com), pull a model, then:
 
 ```env
 LLM_BACKEND=ollama
-OLLAMA_MODEL=llama3.2
+OLLAMA_MODEL=llama3.2                  # Default if unset: llama3
 # OLLAMA_BASE_URL=http://localhost:11434   # default
 ```
 

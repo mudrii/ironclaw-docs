@@ -33,7 +33,7 @@ The full command tree derived from `src/cli/mod.rs` and `src/app.rs`:
 |---------|-------------|
 | `ironclaw` | Start agent in REPL/TUI mode (interactive, default) |
 | `ironclaw run` | Explicitly start the agent (same as no subcommand) |
-| `ironclaw onboard` | Run the interactive 7-step onboarding wizard |
+| `ironclaw onboard` | Run the interactive 9-step onboarding wizard |
 | `ironclaw onboard --skip-auth` | Onboard without re-authenticating (use existing session) |
 | `ironclaw onboard --channels-only` | Reconfigure channels only, skip other wizard steps |
 | `ironclaw config init` | Generate a default `config.toml` file |

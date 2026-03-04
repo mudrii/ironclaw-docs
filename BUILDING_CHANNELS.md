@@ -123,11 +123,11 @@ impl Guest for MyChannel {
 
     /// Called when the agent changes state (thinking, processing tools, done, etc.)
     /// Use to send typing indicators or status messages back to the platform.
-    /// update.status contains StatusType: Thinking, Running, Done, Error, etc.
     fn on_status(update: StatusUpdate) {
         // Called when the agent changes state (thinking, processing tools, done, etc.)
         // Use to send typing indicators or status messages back to the platform.
-        // update.status contains StatusType: Thinking, Running, Done, Error, etc.
+        // update.status is one of: Thinking, Done, Interrupted, ToolStarted, ToolCompleted,
+        // ToolResult, ApprovalNeeded, Status, JobStarted, AuthRequired, AuthCompleted
         let _ = update; // Implement as needed for your platform
     }
 }
@@ -182,7 +182,7 @@ fn on_respond(response: AgentResponse) -> Result<(), String> {
 ```rust
 // The host replaces {TELEGRAM_BOT_TOKEN} with the actual token
 let url = "https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage";
-channel_host::http_request("POST", url, &headers_json, Some(&body));
+channel_host::http_request("POST", url, &headers_json, Some(body.into_bytes()), None)?;
 ```
 
 ### Header Placeholders (WhatsApp-style)
@@ -193,7 +193,7 @@ let headers = serde_json::json!({
     "Content-Type": "application/json",
     "Authorization": "Bearer {WHATSAPP_ACCESS_TOKEN}"
 });
-channel_host::http_request("POST", &url, &headers.to_string(), Some(&body));
+channel_host::http_request("POST", &url, &headers.to_string(), Some(body.into_bytes()), None)?;
 ```
 
 The placeholder format is `{SECRET_NAME}` where `SECRET_NAME` matches the credential name in uppercase with underscores (e.g., `whatsapp_access_token` → `{WHATSAPP_ACCESS_TOKEN}`).
@@ -333,14 +333,22 @@ let data = channel_host::workspace_read("state/offset");
 channel_host::workspace_write("state/offset", "12345")?;
 
 // HTTP requests (credentials auto-injected)
-let response = channel_host::http_request("POST", &url, &headers, Some(&body))?;
+let response = channel_host::http_request("POST", &url, &headers, Some(body.into_bytes()), None)?;
 
 // Emit message to agent
 channel_host::emit_message(&EmittedMessage { ... });
 
 // Check if a secret exists (without reading its value)
 let exists = channel_host::secret_exists("my_api_key");
+
+// DM Pairing — check and manage which users are allowed to interact
+let result = channel_host::pairing_upsert_request(channel, id, &meta_json)?;
+// result.code: String (display to user for confirmation), result.created: bool
+let allowed = channel_host::pairing_is_allowed(channel, id, Some(username))?;
+let allow_list = channel_host::pairing_read_allow_from(channel)?;
 ```
+
+Used to implement allow-list-based access control. Call `pairing_is_allowed` at message receipt to gate access. Call `pairing_upsert_request` to create a pairing code for users to confirm.
 
 ## Common Patterns
 

@@ -488,7 +488,7 @@ Static routes (`/`, `/style.css`, `/app.js`, `/favicon.ico`) and `/api/health` a
 | POST | `/api/chat/approval` | Yes | `{"request_id":"string","action":"approve\|always\|deny","thread_id":"string?"}` | `ActionResponse` | Approve/deny tool execution |
 | POST | `/api/chat/auth-token` | Yes | `{"extension_name":"string","token":"string"}` | `ActionResponse` | Submit extension auth token |
 | POST | `/api/chat/auth-cancel` | Yes | `{"extension_name":"string"}` | `ActionResponse` | Cancel extension auth flow |
-| GET | `/api/chat/events` | Yes | `?token=xxx` (query) | SSE stream | Live agent event stream |
+| GET | `/api/chat/events` | Yes | — | SSE stream | Live agent event stream |
 | GET | `/api/chat/ws` | Yes | — | WebSocket upgrade | Bidirectional WebSocket |
 | GET | `/api/chat/history` | Yes | `?limit=N&before=timestamp` | `{thread_id,turns:[...],has_more}` | Conversation history |
 | GET | `/api/chat/threads` | Yes | — | `{assistant_thread,threads:[...],active_thread}` | List threads |
@@ -501,15 +501,15 @@ Static routes (`/`, `/style.css`, `/app.js`, `/favicon.ico`) and `/api/health` a
 | GET | `/api/jobs` | Yes | — | `{jobs:[...]}` | List all jobs |
 | GET | `/api/jobs/summary` | Yes | — | `{total,pending,in_progress,completed,failed,stuck}` | Job counts |
 | GET | `/api/jobs/{id}` | Yes | — | Full job detail | Get job details |
-| POST | `/api/jobs/{id}/cancel` | Yes | — | `ActionResponse` | Cancel a job |
-| POST | `/api/jobs/{id}/restart` | Yes | — | `ActionResponse` | Restart a failed job |
-| POST | `/api/jobs/{id}/prompt` | Yes | `{"prompt":"string"}` | `ActionResponse` | Send follow-up prompt to Claude Code job |
-| GET | `/api/jobs/{id}/events` | Yes | — | SSE stream | Job-scoped event stream |
+| POST | `/api/jobs/{id}/cancel` | Yes | — | `{"status":"cancelled","job_id":"uuid"}` | Cancel a job |
+| POST | `/api/jobs/{id}/restart` | Yes | — | `{"status":"restarted","old_job_id":"uuid","new_job_id":"uuid"}` | Restart a failed job |
+| POST | `/api/jobs/{id}/prompt` | Yes | `{"content":"string","done":bool?}` | `ActionResponse` | Send follow-up prompt to Claude Code job |
+| GET | `/api/jobs/{id}/events` | Yes | — | `{"job_id":"uuid","events":[...]}` | Retrieve stored job events (JSON snapshot, not SSE) |
 | GET | `/api/jobs/{id}/files/list` | Yes | `?path=string` | `{entries:[...]}` | List job project files |
 | GET | `/api/jobs/{id}/files/read` | Yes | `?path=string` | `{path,content}` | Read job project file |
 | GET | `/api/logs/events` | Yes | — | SSE stream | Live tracing log stream |
-| GET | `/api/logs/level` | Yes | — | `LevelFilter` string | Read effective global log level |
-| PUT | `/api/logs/level` | Yes | `"error" \| "warn" \| "info" \| "debug" \| "trace"` | `ActionResponse` | Set global log level |
+| GET | `/api/logs/level` | Yes | — | `{"level":"string"}` | Read effective global log level |
+| PUT | `/api/logs/level` | Yes | `{"level":"error"\|"warn"\|"info"\|"debug"\|"trace"}` | `{"level":"string"}` | Set global log level |
 | GET | `/api/extensions` | Yes | — | `{extensions:[...]}` | List extensions |
 | GET | `/api/extensions/tools` | Yes | — | `{tools:[...]}` | List extension tools |
 | GET | `/api/extensions/registry` | Yes | — | `{entries:[... ]}` | Query extension registry metadata |
@@ -531,13 +531,13 @@ Static routes (`/`, `/style.css`, `/app.js`, `/favicon.ico`) and `/api/health` a
 | DELETE | `/api/skills/{name}` | Yes | — | `ActionResponse` | Remove skill |
 | GET | `/api/settings` | Yes | — | `{settings:[...]}` | List all settings |
 | GET | `/api/settings/export` | Yes | — | `{settings:{key:value,...}}` | Export settings as map |
-| POST | `/api/settings/import` | Yes | `{"settings":{key:value,...}}` | `ActionResponse` | Bulk import settings |
+| POST | `/api/settings/import` | Yes | `{"settings":{key:value,...}}` | `204 No Content` | Bulk import settings |
 | GET | `/api/settings/{key}` | Yes | — | `{key,value,updated_at}` | Get single setting |
-| PUT | `/api/settings/{key}` | Yes | `{"value":any}` | `ActionResponse` | Set single setting |
-| DELETE | `/api/settings/{key}` | Yes | — | `ActionResponse` | Delete setting |
+| PUT | `/api/settings/{key}` | Yes | `{"value":any}` | `204 No Content` | Set single setting |
+| DELETE | `/api/settings/{key}` | Yes | — | `204 No Content` | Delete setting |
 | POST | `/api/gateway/restart` | Yes | — | `ActionResponse` | Request controlled gateway restart |
-| GET | `/api/pairing/{channel}` | Yes | — | `{pending:[...],recent:[...]}` | List pairing requests for a channel |
-| POST | `/api/pairing/{channel}/approve` | Yes | `{"request_id":"string","code":"string","approve":true\|false}` | `ActionResponse` | Approve or deny pairing request |
+| GET | `/api/pairing/{channel}` | Yes | — | `{"channel":"string","requests":[...]}` | List pairing requests for a channel |
+| POST | `/api/pairing/{channel}/approve` | Yes | `{"code":"string"}` | `ActionResponse` | Approve or deny pairing request |
 | GET | `/api/gateway/status` | Yes | — | Status info | Gateway health + connection counts; v0.10.0 adds a token usage and cost tracker displayed in this popover, updated in real time as the agent processes messages |
 | POST | `/v1/chat/completions` | Yes | OpenAI format | OpenAI format | OpenAI-compatible completions |
 | GET | `/v1/models` | Yes | — | OpenAI models list | List available models |
