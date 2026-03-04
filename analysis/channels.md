@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Channel System
 
-> Updated: 2026-02-24 | Version: v0.13.0
+> Updated: 2026-03-05 | Version: v0.14.0
 
 ---
 
@@ -507,6 +507,9 @@ Static routes (`/`, `/style.css`, `/app.js`, `/favicon.ico`) and `/api/health` a
 | GET | `/api/jobs/{id}/events` | Yes | — | `{"job_id":"uuid","events":[...]}` | Retrieve stored job events (JSON snapshot, not SSE) |
 | GET | `/api/jobs/{id}/files/list` | Yes | `?path=string` | `{entries:[...]}` | List job project files |
 | GET | `/api/jobs/{id}/files/read` | Yes | `?path=string` | `{path,content}` | Read job project file |
+
+> **v0.14.0 (#491):** Job endpoints now list both sandbox jobs (spawned by `ContainerJobManager`) and agent jobs (long-running LLM tasks tracked in the DB). Both types appear in list/summary/detail views with unified status normalization.
+
 | GET | `/api/logs/events` | Yes | — | SSE stream | Live tracing log stream |
 | GET | `/api/logs/level` | Yes | — | `{"level":"string"}` | Read effective global log level |
 | PUT | `/api/logs/level` | Yes | `{"level":"error"\|"warn"\|"info"\|"debug"\|"trace"}` | `{"level":"string"}` | Set global log level |
@@ -535,7 +538,6 @@ Static routes (`/`, `/style.css`, `/app.js`, `/favicon.ico`) and `/api/health` a
 | GET | `/api/settings/{key}` | Yes | — | `{key,value,updated_at}` | Get single setting |
 | PUT | `/api/settings/{key}` | Yes | `{"value":any}` | `204 No Content` | Set single setting |
 | DELETE | `/api/settings/{key}` | Yes | — | `204 No Content` | Delete setting |
-| POST | `/api/gateway/restart` | Yes | — | `ActionResponse` | Request controlled gateway restart |
 | GET | `/api/pairing/{channel}` | Yes | — | `{"channel":"string","requests":[...]}` | List pairing requests for a channel |
 | POST | `/api/pairing/{channel}/approve` | Yes | `{"code":"string"}` | `ActionResponse` | Approve or deny pairing request |
 | GET | `/api/gateway/status` | Yes | — | Status info | Gateway health + connection counts; v0.10.0 adds a token usage and cost tracker displayed in this popover, updated in real time as the agent processes messages |

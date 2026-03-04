@@ -1,6 +1,6 @@
 # Building WASM Channels
 
-> Version baseline: IronClaw v0.13.0 (`v0.13.0` tag snapshot)
+> Version baseline: IronClaw v0.14.0 (`v0.14.0` tag snapshot)
 
 This guide covers how to build WASM channel modules for IronClaw.
 
@@ -213,6 +213,31 @@ As of v0.13.0, credentials can also be injected automatically at the host bounda
 ```
 
 When the WASM channel makes an HTTP request to a matching host, the ironclaw runtime automatically injects the credential as a Bearer token header. The WASM code never sees the raw secret value.
+
+### OAuth Credential Injection (v0.14.0)
+
+WASM tools can declare OAuth 2.0 flows in the capabilities file under the `auth.oauth` section:
+
+```json
+"auth": {
+  "secret_name": "my_service_token",
+  "display_name": "My Service",
+  "oauth": {
+    "authorization_url": "https://api.myservice.com/oauth/authorize",
+    "token_url": "https://api.myservice.com/oauth/token",
+    "client_id": "...",
+    "client_secret": "...",
+    "scopes": ["read:data", "write:data"]
+  },
+  "instructions": "Complete OAuth login in the browser"
+}
+```
+
+When configured, the ironclaw runtime handles the full OAuth 2.0 flow (authorization, token exchange, scope merging for shared providers) without the WASM code implementing it. The resulting access token is stored in the secrets store and injected via the declared credential injection mechanism.
+
+Built-in OAuth defaults exist for Google OAuth (`google_oauth_token` secret name), allowing tools to use Google authentication without requiring users to register their own OAuth apps.
+
+Tools sharing the same OAuth provider (e.g., two Google-based tools) have their scopes merged automatically, triggering a single re-authorization with consolidated permissions.
 
 ## Capabilities File
 

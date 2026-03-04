@@ -3,9 +3,9 @@
 > **AI Agent Use**: Optimized for code review, bug triage, and targeted fixes.
 > Jump directly to the section relevant to the error or task — no narrative reading required.
 
-> Version baseline: IronClaw v0.13.0 (`v0.13.0` tag snapshot)
+> Version baseline: IronClaw v0.14.0 (`v0.14.0` tag snapshot)
 
-**Source**: IronClaw v0.13.0 (`v0.13.0`) · `~/src/ironclaw/`
+**Source**: IronClaw v0.14.0 (`v0.14.0`) · `~/src/ironclaw/`
 
 ---
 
@@ -791,6 +791,8 @@ Source: `src/tools/wasm/`
 | Rate limit | Capability-driven per-tool limits (`capabilities.json`) |
 | Module cache | `WASM_CACHE_DIR` (compiled `.cwasm` files) |
 | Component model | wasmtime component model (WASM P2) |
+
+**WASM Tool OAuth (v0.14.0):** WASM tools can declare OAuth flows in `capabilities.json` (`auth.oauth`). The web gateway handles the full flow — token exchange, validation, and scope merging for shared providers. Built-in defaults provided for Google OAuth.
 
 ### 8.6 MCP Client
 

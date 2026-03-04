@@ -1,9 +1,9 @@
 # IronClaw Documentation
 
-> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.13.0
+> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.14.0
 > — a secure, self-hosted personal AI assistant written in Rust.
 
-**Documentation set for IronClaw v0.13.0, validated against release tag `v0.13.0` (`291913338`).**
+**Documentation set for IronClaw v0.14.0, validated against release tag `v0.14.0` (2026-03-04).**
 
 ---
 
@@ -44,7 +44,7 @@ IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.a
 - **Multiple LLM backends**: NEAR AI, Anthropic, OpenAI, Ollama, OpenAI-compatible, Tinfoil
 - **Dual database**: libSQL (embedded, no server required) or PostgreSQL (with pgvector)
 
-### Source Module Statistics (v0.13.0)
+### Source Module Statistics (v0.14.0)
 
 | Module | Files | Description |
 |--------|------:|-------------|
@@ -112,6 +112,42 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 ---
 
 ## What's New
+
+### v0.14.0 (2026-03-04)
+
+#### Added
+
+- remove the Okta WASM tool ([#506](https://github.com/nearai/ironclaw/pull/506))
+- add OAuth support for WASM tools in web gateway ([#489](https://github.com/nearai/ironclaw/pull/489))
+- *(web)* jobs UI parity for non-sandbox mode ([#491](https://github.com/nearai/ironclaw/pull/491))
+- *(workspace)* add TOOLS.md, BOOTSTRAP.md, and disk-to-DB import ([#477](https://github.com/nearai/ironclaw/pull/477))
+
+#### Fixed
+
+- *(web)* mobile browser bar obscures chat input ([#508](https://github.com/nearai/ironclaw/pull/508))
+- *(web)* assign unique thread_id to manual routine triggers ([#500](https://github.com/nearai/ironclaw/pull/500))
+- *(web)* refresh routine UI after Run Now trigger ([#501](https://github.com/nearai/ironclaw/pull/501))
+- *(skills)* use slug for skill download URL from ClawHub ([#502](https://github.com/nearai/ironclaw/pull/502))
+- *(workspace)* thread document path through search results ([#503](https://github.com/nearai/ironclaw/pull/503))
+- *(workspace)* import custom templates before seeding defaults ([#505](https://github.com/nearai/ironclaw/pull/505))
+- use std::sync::RwLock in MessageTool to avoid runtime panic ([#411](https://github.com/nearai/ironclaw/pull/411))
+- wire secrets store into all WASM runtime activation paths ([#479](https://github.com/nearai/ironclaw/pull/479))
+
+#### Other
+
+- Remove restart infrastructure, generalize WASM channel setup ([#493](https://github.com/nearai/ironclaw/pull/493))
+- add code coverage with cargo-llvm-cov and Codecov ([#511](https://github.com/nearai/ironclaw/pull/511))
+
+### v0.13.1 (2026-03-02)
+
+#### Added
+
+- add Brave Web Search WASM tool ([#474](https://github.com/nearai/ironclaw/pull/474))
+
+#### Fixed
+
+- *(web)* auto-scroll and Enter key completion for slash command autocomplete ([#475](https://github.com/nearai/ironclaw/pull/475))
+- correct download URLs for telegram-mtproto and slack-tool extensions ([#470](https://github.com/nearai/ironclaw/pull/470))
 
 ### v0.13.0 (2026-03-02)
 
@@ -198,8 +234,8 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 
 ## Version
 
-Documented: IronClaw v0.13.0
-Release tag: [`v0.13.0`](https://github.com/nearai/ironclaw/releases/tag/v0.13.0) (`291913338`, 2026-03-02)
+Documented: IronClaw v0.14.0
+Release tag: [`v0.14.0`](https://github.com/nearai/ironclaw/releases/tag/v0.14.0) (2026-03-04)
 Source: [github.com/nearai/ironclaw](https://github.com/nearai/ironclaw)
 Docs repo: [github.com/mudrii/ironclaw-docs](https://github.com/mudrii/ironclaw-docs)
-Generated: 2026-03-02
+Generated: 2026-03-05

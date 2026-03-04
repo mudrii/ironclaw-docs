@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Configuration System
 
-> Updated: 2026-02-24 | Version: v0.13.0
+> Updated: 2026-03-05 | Version: v0.14.0
 
 ## 1. Overview
 
@@ -133,6 +133,7 @@ default is possible.
 | `WASM_CHANNELS_DIR` | path | `~/.ironclaw/channels/` | No | Directory containing WASM channel modules (Telegram, Slack, etc.) |
 | `WASM_CHANNELS_ENABLED` | bool | `true` | No | Enable WASM channel modules |
 | `TELEGRAM_OWNER_ID` | i64 | — | No | Telegram user ID. When set, bot only responds to this user |
+| `WASM_CHANNEL_OWNER_IDS` | string | — | No | Per-WASM-channel owner user IDs; format: comma-separated `channel_name:user_id` pairs. Controls which user can trigger each channel. Example: `WASM_CHANNEL_OWNER_IDS=telegram:123456,slack:789012`. Added v0.14.0. |
 | **Channels: Signal** | | | | |
 | `SIGNAL_HTTP_URL` | string | — | If Signal enabled | Base URL of signal-cli HTTP daemon (e.g. `http://127.0.0.1:8080`). Setting this and `SIGNAL_ACCOUNT` enables the Signal channel |
 | `SIGNAL_ACCOUNT` | string | — | If Signal enabled | Bot's E.164 phone number (e.g. `+1234567890`) |
@@ -178,6 +179,16 @@ default is possible.
 | `WASM_DEFAULT_FUEL_LIMIT` | u64 | `10000000` | No | Default fuel (CPU instruction budget) per WASM call |
 | `WASM_CACHE_COMPILED` | bool | `true` | No | Cache compiled WASM modules to disk |
 | `WASM_CACHE_DIR` | path | — | No | Directory for compiled module cache. Defaults to a system temp path |
+
+### OAuth for WASM Tools (v0.14.0)
+
+WASM tools can declare OAuth 2.0 flows in their `capabilities.json`. No new env vars are required — OAuth is configured per-tool via:
+- `setup_secrets`: client_id and client_secret pairs collected from the user via the web UI
+- `validation_endpoint`: (optional) POST endpoint to verify the token is for the correct account
+- `custom_headers`: (optional) custom HTTP headers for validation requests (e.g., `Notion-Version`)
+
+The runtime handles token exchange, scope merging for shared providers (e.g., two Google tools share one auth session), and secure storage in the encrypted secrets store. Built-in Google OAuth defaults are provided so tools using Google APIs do not require users to register their own OAuth app.
+
 | **Heartbeat** | | | | |
 | `HEARTBEAT_ENABLED` | bool | `false` | No | Enable proactive periodic heartbeat execution |
 | `HEARTBEAT_INTERVAL_SECS` | u64 | `1800` (30 min) | No | Interval between heartbeat checks |

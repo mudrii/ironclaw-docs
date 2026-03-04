@@ -1,6 +1,6 @@
 # IronClaw Tool System — Developer Reference
 
-Version: v0.13.0
+Version: v0.14.0
 Source: `src/tools/`
 
 ---
@@ -207,6 +207,8 @@ The registry assembles built-in tools in these groups during startup:
 | `register_wasm_from_storage()` | WASM tools persisted in database |
 
 > **v0.12.0 note (#346):** As of v0.12.0, the Telegram MTPRoto API tool is registered as `telegram-mtproto` and the Slack API tool as `slack-tool` (renamed to avoid name collisions with the WASM channel entries).
+
+> **v0.13.1 note:** The Brave Web Search WASM tool (`web-search`) was added in v0.13.1. It provides web search via the Brave Search API and requires manual auth (`brave_api_key` secret). Display name: "Web Search". Auth: manual (`brave_api_key` secret). Provider: Brave Search API.
 
 ---
 
@@ -578,7 +580,7 @@ memory documents. Call before answering questions about prior work.
   "type": "object",
   "properties": {
     "content": { "type": "string" },
-    "target":  { "type": "string", "description": "Path: memory, daily_log, heartbeat, or custom" },
+    "target":  { "type": "string", "description": "Path: memory, daily_log, heartbeat, bootstrap, or custom" },
     "append":  { "type": "boolean" }
   },
   "required": ["content"]

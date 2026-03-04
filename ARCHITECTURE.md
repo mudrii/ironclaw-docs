@@ -1,6 +1,6 @@
 # IronClaw — Master Architecture Document
 
-> Updated: 2026-03-02 (v0.13.0) | Comprehensive reference for contributors
+> Updated: 2026-03-05 (v0.14.0) | Comprehensive reference for contributors
 
 ---
 
@@ -184,7 +184,7 @@ The following table lists every source module directory and the key top-level fi
 | `tools` | `src/tools/` | Extensible tool system: `Tool` trait, `ToolRegistry` (shadowing protection for built-in names; shared `Arc<RateLimiter>` for per-tool per-user sliding window rate limiting via **RateLimiter** (`tools/rate_limiter.rs`) — per-minute and per-hour windows), built-in tools (echo, time, json, http, web_fetch, shell, file ops, memory, job mgmt, routines, extensions, skills, `HtmlConverter` (**HTML-to-Markdown** built-in conversion — two-stage: readability extraction + markdown conversion; feature-gated `html-to-markdown`)), WASM sandbox (wasmtime component model, fuel metering, memory limits), MCP client (JSON-RPC over HTTP), dynamic software builder |
 | `tunnel` | `src/tunnel/` | Tunnel/ngrok-style public URL provisioning for webhook channels |
 | `worker` | `src/worker/` | Runs inside Docker containers: `Worker` execution loop, tool calls via LLM reasoning, Claude Code bridge (spawns `claude` CLI), orchestrator HTTP client, proxy LLM provider that forwards requests through orchestrator |
-| `workspace` | `src/workspace/` | Persistent memory (OpenClaw-inspired): path-based document store, content chunking (800 tokens, 15% overlap), `EmbeddingProvider` trait (OpenAI, NEAR AI, Ollama), hybrid FTS+vector search via Reciprocal Rank Fusion, identity file injection into system prompt, heartbeat checklist |
+| `workspace` | `src/workspace/` | Persistent memory (OpenClaw-inspired): path-based document store, content chunking (800 tokens, 15% overlap), `EmbeddingProvider` trait (OpenAI, NEAR AI, Ollama), hybrid FTS+vector search via Reciprocal Rank Fusion, identity file injection into system prompt, heartbeat checklist, disk-to-DB migration (via `bootstrap::migrate_disk_to_db()` and `Workspace::import_from_directory()`) |
 | `app.rs` | `src/app.rs` | `AppBuilder`: five-phase initialization sequence producing `AppComponents` (all shared state for channel wiring and agent construction) |
 | `bootstrap.rs` | `src/bootstrap.rs` | Chicken-and-egg bootstrap: loads `~/.ironclaw/.env` before database connects, one-time migration from legacy `settings.json` and `bootstrap.json` formats, auto-detects libsql backend when `~/.ironclaw/ironclaw.db` exists (v0.13.0) |
 | `service.rs` | `src/service.rs` | OS service management: generates launchd plist (macOS) or systemd user unit (Linux), handles install/start/stop/status/uninstall lifecycle |
