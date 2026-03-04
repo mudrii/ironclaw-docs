@@ -133,7 +133,7 @@ default is possible.
 | `WASM_CHANNELS_DIR` | path | `~/.ironclaw/channels/` | No | Directory containing WASM channel modules (Telegram, Slack, etc.) |
 | `WASM_CHANNELS_ENABLED` | bool | `true` | No | Enable WASM channel modules |
 | `TELEGRAM_OWNER_ID` | i64 | — | No | Telegram user ID. When set, bot only responds to this user |
-| `WASM_CHANNEL_OWNER_IDS` | string | — | No | Per-WASM-channel owner user IDs; format: comma-separated `channel_name:user_id` pairs. Controls which user can trigger each channel. Example: `WASM_CHANNEL_OWNER_IDS=telegram:123456,slack:789012`. Added v0.14.0. |
+| `WASM_CHANNEL_OWNER_IDS` | setting key (not env var) | — | No | Per-WASM-channel owner user IDs live in `config.toml` / settings (`channels.wasm_channel_owner_ids` map). Environment fallback exists only for `TELEGRAM_OWNER_ID` (backward compatibility). |
 | **Channels: Signal** | | | | |
 | `SIGNAL_HTTP_URL` | string | — | If Signal enabled | Base URL of signal-cli HTTP daemon (e.g. `http://127.0.0.1:8080`). Setting this and `SIGNAL_ACCOUNT` enables the Signal channel |
 | `SIGNAL_ACCOUNT` | string | — | If Signal enabled | Bot's E.164 phone number (e.g. `+1234567890`) |

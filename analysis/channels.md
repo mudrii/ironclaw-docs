@@ -852,18 +852,15 @@ or populate `allow_from` with an allowlist of phone numbers.
 | Env Var | Default | Description |
 |---------|---------|-------------|
 | `CLI_ENABLED` | `true` | Enable the REPL channel. **Set `false` for service mode** to prevent immediate EOF shutdown when stdin is `/dev/null`. |
-| `HTTP_ENABLED` | `false` | Enable HTTP webhook channel |
-| `HTTP_HOST` | `127.0.0.1` | Webhook listen address |
-| `HTTP_PORT` | `3000` | Webhook listen port |
+| `HTTP_HOST` | `0.0.0.0` | Webhook listen address. Setting `HTTP_HOST` or `HTTP_PORT` enables the HTTP channel |
+| `HTTP_PORT` | `8080` | Webhook listen port |
 | `HTTP_WEBHOOK_SECRET` | — | Required shared secret for webhook authentication (constant-time checked) |
 | `HTTP_USER_ID` | `http` | User identity assigned to webhook messages |
-| `GATEWAY_ENABLED` | `false` | Enable web gateway channel |
+| `GATEWAY_ENABLED` | `true` | Enable web gateway channel |
 | `GATEWAY_HOST` | `127.0.0.1` | Gateway listen address |
 | `GATEWAY_PORT` | `3000` | Gateway listen port |
 | `GATEWAY_AUTH_TOKEN` | auto-generated | Bearer token for all protected API endpoints. If unset, a random 32-char token is generated and logged at startup. Strongly recommended to set explicitly for repeatable deployments. |
 | `GATEWAY_USER_ID` | `default` | User identity for messages sent through the gateway |
-| `WHATSAPP_ACCESS_TOKEN` | — | WhatsApp Cloud API access token (Meta Developer Portal). Required to enable the WhatsApp WASM channel. |
-| `WHATSAPP_VERIFY_TOKEN` | auto-generated | Webhook verify token used during Meta endpoint registration. Auto-generated (32 chars) if unset. |
 
 ### Service Mode Example
 
@@ -881,8 +878,9 @@ GATEWAY_PORT=3000
 GATEWAY_AUTH_TOKEN=change-me-to-a-strong-random-token
 
 # Enable HTTP webhook for external integrations (optional)
-HTTP_ENABLED=true
-HTTP_PORT=3000
+# HTTP channel is enabled by setting HTTP_HOST or HTTP_PORT.
+HTTP_HOST=0.0.0.0
+HTTP_PORT=8080
 HTTP_WEBHOOK_SECRET=change-me-to-a-webhook-secret
 ```
 
