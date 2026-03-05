@@ -14,7 +14,7 @@ ironclaw [OPTIONS] [SUBCOMMAND]
 
 | Flag | Description |
 |------|-------------|
-| `--version` | Print the version and exit. As of v0.14.0, `ironclaw --version` is officially supported and outputs `ironclaw 0.14.0` (version from Cargo.toml). |
+| `--version` | Print the version and exit. Added in v0.12.0; it outputs the installed package version (for this baseline: `ironclaw 0.15.0`, from Cargo.toml). |
 | `--cli-only` | Run in interactive CLI mode only, disabling other channels (HTTP, WASM) |
 | `--no-db` | Skip database connection (useful for testing or offline use) |
 | `-m, --message <MSG>` | Single-message mode: send one message and exit |

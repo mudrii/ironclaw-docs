@@ -447,9 +447,9 @@ pub struct SignalConfig {
 - `open`: all DMs accepted, ignoring `SIGNAL_ALLOW_FROM`
 
 **Group Policy (`SIGNAL_GROUP_POLICY`):**
-- `allowlist` (default): only groups in `SIGNAL_ALLOW_FROM_GROUPS` accepted
+- `allowlist` (default): only groups in `SIGNAL_ALLOW_FROM_GROUPS` accepted, and senders must pass `SIGNAL_GROUP_ALLOW_FROM` (or inherited `SIGNAL_ALLOW_FROM`)
 - `disabled`: all group messages ignored
-- `open`: all groups accepted (respects `SIGNAL_ALLOW_FROM_GROUPS` if set)
+- `open`: sender allowlist checks are skipped, but group IDs are still filtered by `SIGNAL_ALLOW_FROM_GROUPS` (`*` allows all groups)
 
 #### Example Configuration
 

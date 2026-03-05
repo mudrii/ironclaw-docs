@@ -11,7 +11,7 @@ The Signal channel connects IronClaw to Signal messaging via a running **signal-
 It supports:
 
 - **DM conversations**: Direct messages to the bot's Signal account
-- **Group conversations**: Mentions in Signal groups
+- **Group conversations**: Group messages gated by `SIGNAL_GROUP_POLICY`, `SIGNAL_ALLOW_FROM_GROUPS`, and sender allowlists
 - **Tool approval workflow**: Interactive approve/deny prompts for tool execution
 - **DM pairing**: Allowlist-based access control with optional pairing mode
 - **Allowlist controls**: Phone numbers, UUIDs, or wildcard access
@@ -112,7 +112,7 @@ Each entry in `SIGNAL_ALLOW_FROM` is one of:
 | E.164 phone number | `+1234567890` | Allow by phone number |
 | Bare UUID | `a1b2c3d4-e5f6-7890-abcd-ef1234567890` | Allow by Signal UUID |
 | UUID with prefix | `uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890` | Allow by Signal UUID (alternate form) |
-| Wildcard | `*` | Allow everyone (pairing requests still sent in `pairing` mode) |
+| Wildcard | `*` | Allow everyone immediately (including when `SIGNAL_DM_POLICY=pairing`) |
 
 ### DM Policy Modes
 
@@ -127,8 +127,8 @@ Each entry in `SIGNAL_ALLOW_FROM` is one of:
 | Mode | Behavior |
 |------|----------|
 | `disabled` | All group messages ignored |
-| `allowlist` | Only groups in `SIGNAL_ALLOW_FROM_GROUPS` accepted |
-| `open` | All groups accepted (respects `SIGNAL_ALLOW_FROM_GROUPS` if set) |
+| `allowlist` | Only groups in `SIGNAL_ALLOW_FROM_GROUPS` accepted, and senders must pass `SIGNAL_GROUP_ALLOW_FROM` (or inherited `SIGNAL_ALLOW_FROM`) |
+| `open` | Sender allowlist is bypassed, but group IDs are still filtered by `SIGNAL_ALLOW_FROM_GROUPS` (`*` allows all groups) |
 
 ## Tool Approval Workflow
 
@@ -194,7 +194,7 @@ ironclaw pairing approve signal ABC12345
 
 ### Groups not working
 
-Set `SIGNAL_ALLOW_FROM_GROUPS=*` to allow all groups, or specify group IDs. Set `SIGNAL_GROUP_POLICY=open` to accept messages from all group members.
+Set `SIGNAL_ALLOW_FROM_GROUPS=*` to allow all groups, or specify group IDs. `SIGNAL_GROUP_POLICY=open` skips sender allowlist checks, but group ID filtering still applies.
 
 ## Architecture Notes
 

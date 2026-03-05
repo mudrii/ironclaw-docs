@@ -363,7 +363,7 @@ mkdir -p ~/.ironclaw/channels
 cp channels-src/telegram/telegram.wasm channels-src/telegram/telegram.capabilities.json ~/.ironclaw/channels/
 ```
 
-**Note**: The main IronClaw binary bundles `telegram.wasm` via `include_bytes!`. When modifying the Telegram channel source, run `./channels-src/telegram/build.sh` **before** building the main crate, so the updated WASM is included.
+**Note**: The main IronClaw build compiles Telegram channel artifacts via `build.rs`, but does not embed `telegram.wasm` with `include_bytes!`. Manual `./channels-src/telegram/build.sh` is optional (useful for direct channel-only iteration).
 
 ### Other Channels
 
