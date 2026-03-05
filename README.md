@@ -1,9 +1,9 @@
 # IronClaw Documentation
 
-> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.14.0
+> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.15.0
 > — a secure, self-hosted personal AI assistant written in Rust.
 
-**Documentation set for IronClaw v0.14.0, validated against release tag `v0.14.0` (2026-03-04).**
+**Documentation set for IronClaw v0.15.0, validated against release tag `v0.15.0` (2026-03-05).**
 
 ---
 
@@ -57,7 +57,7 @@ IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.a
 | `tunnel/` | 6 | Tunnels: cloudflare, ngrok, tailscale, custom |
 | `secrets/` | 5 | Keychain, AES-256-GCM crypto, credential injection |
 | `worker/` | 5 | Docker worker: runtime, LLM bridge, proxy |
-| **Total (`src/`)** | **250** | ~113,000+ Rust source lines in `src/` (v0.14.0 tag snapshot) |
+| **Total (`src/`)** | **250** | ~113,000+ Rust source lines in `src/` (v0.15.0 tag snapshot) |
 | **Total (repo-wide)** | **293** | ~129,000+ Rust source lines including tests, channel/tool source trees, and helper binaries |
 
 ---
@@ -112,6 +112,23 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 ---
 
 ## What's New
+
+### v0.15.0 (2026-03-05)
+
+#### Added
+
+- *(oauth)* route callbacks through web gateway for hosted instances ([#555](https://github.com/nearai/ironclaw/pull/555))
+- *(web)* show error details for failed tool calls ([#490](https://github.com/nearai/ironclaw/pull/490))
+- *(extensions)* improve auth UX and add load-time validation ([#536](https://github.com/nearai/ironclaw/pull/536))
+- add local-test skill and Dockerfile.test for web gateway testing ([#524](https://github.com/nearai/ironclaw/pull/524))
+
+#### Fixed
+
+- *(security)* restrict query-token auth to SSE endpoints only ([#528](https://github.com/nearai/ironclaw/pull/528))
+- *(wasm)* coerce string parameters to schema-declared types ([#498](https://github.com/nearai/ironclaw/pull/498))
+- *(agent)* strip leaked [Called tool ...] text from responses ([#497](https://github.com/nearai/ironclaw/pull/497))
+- *(web)* reset job list UI on restart failure ([#499](https://github.com/nearai/ironclaw/pull/499))
+- *(security)* replace .unwrap() panics in pairing store with proper error handling ([#515](https://github.com/nearai/ironclaw/pull/515))
 
 ### v0.14.0 (2026-03-04)
 
@@ -234,8 +251,8 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 
 ## Version
 
-Documented: IronClaw v0.14.0
-Release tag: [`v0.14.0`](https://github.com/nearai/ironclaw/releases/tag/v0.14.0) (2026-03-04)
+Documented: IronClaw v0.15.0
+Release tag: [v0.15.0](https://github.com/nearai/ironclaw/releases/tag/v0.15.0) (2026-03-05)
 Source: [github.com/nearai/ironclaw](https://github.com/nearai/ironclaw)
 Docs repo: [github.com/mudrii/ironclaw-docs](https://github.com/mudrii/ironclaw-docs)
 Generated: 2026-03-05

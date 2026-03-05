@@ -1,6 +1,6 @@
 # IronClaw — Master Architecture Document
 
-> Updated: 2026-03-05 (v0.14.0) | Comprehensive reference for contributors
+> Updated: 2026-03-05 (v0.15.0) | Comprehensive reference for contributors
 
 ---
 

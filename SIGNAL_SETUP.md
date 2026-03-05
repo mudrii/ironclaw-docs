@@ -1,6 +1,6 @@
 # Signal Channel Setup
 
-> Version baseline: IronClaw v0.14.0 (`v0.14.0` tag snapshot)
+> Version baseline: IronClaw v0.15.0 (`v0.15.0` tag snapshot)
 
 This guide covers configuring the native Signal channel for IronClaw, using the signal-cli HTTP daemon.
 

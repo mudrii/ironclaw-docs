@@ -111,7 +111,13 @@ pub struct OutgoingResponse {
 pub enum StatusUpdate {
     Thinking(String),
     ToolStarted { name: String },
-    ToolCompleted { name: String, success: bool, error: Option<String> },
+    ToolCompleted {
+        name: String,
+        success: bool,
+        error: Option<String>,       // populated on failure; omitted when null
+        parameters: Option<String>,  // serialized params; omitted when null
+        thread_id: Option<String>,   // omitted when null
+    },
     ToolResult { name: String, preview: String },
     StreamChunk(String),
     Status(String),
@@ -512,6 +518,8 @@ Static routes (`/`, `/style.css`, `/app.js`, `/favicon.ico`) and `/api/health` a
 | GET | `/api/jobs/{id}/files/read` | Yes | `?path=string` | `{path,content}` | Read job project file |
 
 > **v0.14.0 (#491):** Job endpoints now list both sandbox jobs (spawned by `ContainerJobManager`) and agent jobs (long-running LLM tasks tracked in the DB). Both types appear in list/summary/detail views with unified status normalization.
+>
+> **v0.15.0 (#499):** The web UI job list now resets correctly when a restart operation fails. Previously, a failed restart call could leave the UI in an inconsistent state (still showing the old job as pending restart). The handler now returns an error response that the UI uses to revert the optimistic update.
 
 | GET | `/api/logs/events` | Yes | — | SSE stream | Live tracing log stream |
 | GET | `/api/logs/level` | Yes | — | `{"level":"string"}` | Read effective global log level |
@@ -978,6 +986,22 @@ Status updates (debug-gated):
 | `AuthRequired` | Always sent — extension name + auth URL |
 | `AuthCompleted` | Always sent — auth success/failure |
 | `ToolResult` | Debug mode only — output preview (≤500 chars) |
+
+**Sandbox job streaming events** (emitted by the worker/Claude Code bridge inside Docker containers; forwarded to all web gateway clients via the same SSE broadcast):
+
+| SSE Event type | Fields | Description |
+|---|---|---|
+| `job_message` | `job_id`, `role`, `content` | An assistant or user message from inside a sandbox job |
+| `job_tool_use` | `job_id`, `tool_name`, `input` | A tool invocation made by the in-container worker |
+| `job_tool_result` | `job_id`, `tool_name`, `output` | Result of an in-container tool call |
+| `job_status` | `job_id`, `message` | Status/progress update from a running sandbox job |
+| `job_result` | `job_id`, `status`, `session_id?` | Final outcome of a sandbox job; `session_id` omitted when null |
+
+**Extension status event:**
+
+| SSE Event type | Fields | Description |
+|---|---|---|
+| `extension_status` | `extension_name`, `status`, `message?` | WASM channel activation status change; `message` omitted when null |
 
 ### 9.4 Safety Limits
 
