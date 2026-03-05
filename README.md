@@ -140,10 +140,13 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 
 #### Added
 
-- remove the Okta WASM tool ([#506](https://github.com/nearai/ironclaw/pull/506))
 - add OAuth support for WASM tools in web gateway ([#489](https://github.com/nearai/ironclaw/pull/489))
 - *(web)* jobs UI parity for non-sandbox mode ([#491](https://github.com/nearai/ironclaw/pull/491))
 - *(workspace)* add TOOLS.md, BOOTSTRAP.md, and disk-to-DB import ([#477](https://github.com/nearai/ironclaw/pull/477))
+
+#### Removed
+
+- Okta WASM tool ([#506](https://github.com/nearai/ironclaw/pull/506))
 
 #### Fixed
 

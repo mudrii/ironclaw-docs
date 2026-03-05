@@ -219,9 +219,10 @@ The model name is configured in the following step.
 Smart routing uses a configured cheap model (`NEARAI_CHEAP_MODEL`) plus heuristic complexity checks to route simple prompts to cheap-model inference and complex prompts to the primary model.
 
 ```env
-LLM_BACKEND=openai                 # Primary (capable) provider
-NEARAI_CHEAP_MODEL=gpt-4o-mini    # Or any cheap model identifier
-SMART_ROUTING_CASCADE=true         # Retry with primary if cheap model is uncertain
+LLM_BACKEND=nearai                         # Smart routing applies to NearAI backend
+NEARAI_MODEL=zai-org/GLM-latest           # Primary (capable) model
+NEARAI_CHEAP_MODEL=zai-org/GLM-latest     # Set to a cheaper model when available
+SMART_ROUTING_CASCADE=true                # Retry with primary if cheap model is uncertain
 ```
 
 Simple queries (greetings, yes/no questions) are routed to the configured cheap model. Complex queries (code, reasoning, multi-step) use the primary model. With `SMART_ROUTING_CASCADE=true`, uncertain cheap-model responses are escalated to the primary model automatically.
