@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Configuration System
 
-> Updated: 2026-03-05 | Version: v0.14.0
+> Updated: 2026-03-05 | Version: v0.15.0
 
 ## 1. Overview
 
@@ -179,10 +179,11 @@ default is possible.
 | `WASM_DEFAULT_FUEL_LIMIT` | u64 | `10000000` | No | Default fuel (CPU instruction budget) per WASM call |
 | `WASM_CACHE_COMPILED` | bool | `true` | No | Cache compiled WASM modules to disk |
 | `WASM_CACHE_DIR` | path | — | No | Directory for compiled module cache. Defaults to a system temp path |
-| `IRONCLAW_OAUTH_CALLBACK_URL` | string | `http://127.0.0.1:9876/oauth/callback` | No | Override OAuth callback URL for remote server deployments. Set this when users access the gateway from a different machine than where ironclaw runs. |
+| `IRONCLAW_OAUTH_CALLBACK_URL` | string | `http://127.0.0.1:9876/oauth/callback` | No | Override OAuth callback URL for remote server deployments. Set this when users access the gateway from a different machine than where ironclaw runs. In v0.15.0 hosted deployments, set to the gateway's public `/oauth/callback` URL so providers redirect through the web gateway instead of a local listener (#555). |
 | `OAUTH_CALLBACK_HOST` | string | `127.0.0.1` | No | Network interface for the OAuth callback listener. Set to `0.0.0.0` for LAN access or SSH port forwarding scenarios. |
+| `IRONCLAW_OAUTH_EXCHANGE_URL` | string | — | No | When set, enables a server-side token exchange proxy. OAuth authorization codes are POSTed to this URL instead of being exchanged directly by the client; used in hosted environments where client credentials must remain server-side (#555). |
 
-### OAuth for WASM Tools (v0.14.0)
+### OAuth for WASM Tools (v0.14.0+)
 
 WASM tools can declare OAuth 2.0 flows in their `capabilities.json`. No new env vars are required — OAuth is configured per-tool via:
 - `setup_secrets`: client_id and client_secret pairs collected from the user via the web UI

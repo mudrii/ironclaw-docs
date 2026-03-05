@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Channel System
 
-> Updated: 2026-03-05 | Version: v0.14.0
+> Updated: 2026-03-05 | Version: v0.15.0
 
 ---
 
@@ -111,7 +111,7 @@ pub struct OutgoingResponse {
 pub enum StatusUpdate {
     Thinking(String),
     ToolStarted { name: String },
-    ToolCompleted { name: String, success: bool },
+    ToolCompleted { name: String, success: bool, error: Option<String> },
     ToolResult { name: String, preview: String },
     StreamChunk(String),
     Status(String),
@@ -468,9 +468,12 @@ pub async fn auth_middleware(
 
 Key points:
 
-- Both `Authorization: Bearer <token>` header and `?token=<token>` query parameter
-  are accepted. The query-param fallback exists because the browser `EventSource`
-  API cannot set custom headers.
+- `Authorization: Bearer <token>` header is accepted on all protected endpoints.
+- `?token=<token>` query-parameter auth is **restricted to SSE and WebSocket
+  endpoints only** (`/api/chat/events`, `/api/logs/events`, `/api/chat/ws`) and
+  only on GET requests (`auth.rs:allows_query_token_auth`). The query-param
+  fallback exists because the browser `EventSource` API cannot set custom headers;
+  all other endpoints (e.g. POST `/api/chat/send`) reject query-token auth with 401.
 - All comparisons use `subtle::ConstantTimeEq` to prevent timing attacks.
 - If `GATEWAY_AUTH_TOKEN` is not set in the environment, `GatewayChannel::new()`
   generates a random 32-character alphanumeric token and prints it to the console
@@ -543,6 +546,7 @@ Static routes (`/`, `/style.css`, `/app.js`, `/favicon.ico`) and `/api/health` a
 | GET | `/api/gateway/status` | Yes | — | Status info | Gateway health + connection counts; v0.10.0 adds a token usage and cost tracker displayed in this popover, updated in real time as the agent processes messages |
 | POST | `/v1/chat/completions` | Yes | OpenAI format | OpenAI format | OpenAI-compatible completions |
 | GET | `/v1/models` | Yes | — | OpenAI models list | List available models |
+| GET | `/oauth/callback` | No | `?state=…&code=…` | Redirect | OAuth provider redirect target; routes callbacks through web gateway for hosted instances (#555) |
 | GET | `/` | No | — | HTML | Browser UI entry point |
 | GET | `/style.css` | No | — | CSS | Stylesheet |
 | GET | `/app.js` | No | — | JavaScript | SPA bundle |
@@ -969,7 +973,7 @@ Status updates (debug-gated):
 |---|---|
 | `ApprovalNeeded` | Always sent — formatted prompt |
 | `ToolStarted` | Debug mode only — "○ Running tool: {name}" |
-| `ToolCompleted` | Debug mode only — "✓/✗ Tool '{name}' completed" |
+| `ToolCompleted` | Debug mode only — "✓/✗ Tool '{name}' completed". The `error` field is populated (non-null) when the tool execution failed; omitted when `null` (`skip_serializing_if = "Option::is_none"`). The same `error` string is stored in `TurnToolCall.error` (persisted in the session turn history) and exposed in `/api/chat/history` as `ToolCallInfo.error` (#490). |
 | `JobStarted` | Always sent — job ID + browse URL |
 | `AuthRequired` | Always sent — extension name + auth URL |
 | `AuthCompleted` | Always sent — auth success/failure |
