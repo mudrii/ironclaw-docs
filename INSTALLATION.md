@@ -72,7 +72,7 @@ Access the web UI at `http://localhost:3000`
 
 | Requirement | When Needed |
 |-------------|-------------|
-| Rust 1.92+ | Building from source |
+| Rust 1.92+ | Building from source (`rust-version = "1.92"` in `Cargo.toml`; uses Rust 2024 edition features) |
 | PostgreSQL 15+ with pgvector | PostgreSQL backend (default) |
 | Docker / Podman | Docker sandbox for shell tools |
 
