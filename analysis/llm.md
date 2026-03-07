@@ -174,6 +174,62 @@ The four reliability wrappers in `src/llm/` all implement `LlmProvider` and
 accept `Arc<dyn LlmProvider>` as their inner provider. They compose cleanly:
 
 ```
+SmartRoutingProvider(
+  RecordingLlm(          ← trace capture layer (when IRONCLAW_RECORD_TRACE=1)
+    RetryProvider(
+      CircuitBreakerProvider(
+        CachedProvider(
+          FailoverProvider([primary, fallback])
+        )
+      )
+    )
+  )
+)
+```
+
+The `RecordingLlm` wrapper is **only** present when `IRONCLAW_RECORD_TRACE` is set; otherwise the chain collapses back to the four-layer form.
+
+### 4.0 Trace Recording — `recording.rs` (v0.16.0)
+
+`RecordingLlm` wraps any `LlmProvider` and captures every interaction into the JSON
+trace fixture format used by `TraceLlm` for deterministic E2E testing. Enable at
+runtime by setting `IRONCLAW_RECORD_TRACE=<output-path>`.
+
+**What is recorded:**
+
+| Component | Detail |
+|-----------|--------|
+| `memory_snapshot` | Workspace documents captured before the first LLM call |
+| `http_exchanges` | All outgoing HTTP request/response pairs from tools (via `HttpInterceptor`) |
+| `steps` | User inputs, LLM responses (text + tool_calls), expected tool results |
+
+**Trace file format** (`TraceFile`):
+
+```json
+{
+  "model_name": "gpt-4o",
+  "memory_snapshot": [
+    { "path": "identity/MEMORY.md", "content": "..." }
+  ],
+  "http_exchanges": [
+    {
+      "request":  { "method": "GET", "url": "...", "headers": [], "body": null },
+      "response": { "status": 200, "headers": [], "body": "..." }
+    }
+  ],
+  "steps": [
+    { "input": "What is the weather?", "expected": { "type": "tool_calls", "calls": [...] } }
+  ]
+}
+```
+
+Recorded traces are written to the path specified in `IRONCLAW_RECORD_TRACE` (must end with `.json`). They can be replayed via `TraceLlm` in tests without network access — `HttpInterceptor` returns pre-recorded responses instead of making real HTTP requests.
+
+**HTTP interception** is wired into `JobContext.http_interceptor`. The `http` built-in tool checks this interceptor before sending real requests; during replay it returns the pre-recorded response.
+
+```env
+IRONCLAW_RECORD_TRACE=/tmp/my-trace.json  # Set to any .json path to enable recording
+```
 RetryProvider(
   CircuitBreakerProvider(
     CachedProvider(
@@ -244,6 +300,15 @@ stop_sequences)`. Any change to any field produces a different key.
 **Eviction policy:** LRU by `last_accessed` timestamp. On each write, expired
 entries (TTL exceeded) are pruned first, then the oldest entry is evicted if
 at capacity.
+
+**v0.16.0 changes (PR #290):**
+
+| Change | Detail |
+|--------|--------|
+| `tokio::sync::Mutex` → `std::sync::Mutex` | Cache lock is never held across `.await` points, so a blocking mutex is safe and keeps `set_model()` synchronous (no `async` needed) |
+| `set_model()` now invalidates cache | Calling `set_model()` clears all cached entries — prevents stale responses after a model switch |
+| Periodic stats logging | Every 100 requests, a `tracing::info!` line reports hit count, request count, and hit-rate percentage |
+| `len()` / `is_empty()` are now sync | Previously `async`; now sync because the mutex is `std::sync::Mutex` |
 
 **Default parameters:**
 
@@ -433,6 +498,23 @@ Note: retries on other errors are handled by the outer `RetryProvider` wrapper, 
 ### 6.5 Usage Parsing Resilience
 
 Some providers omit `completion_tokens` from the usage block. The `parse_usage()` function handles this by computing `completion_tokens = total_tokens - prompt_tokens` when `completion_tokens` is missing.
+
+### 6.6 Reasoning Content Handling (v0.16.0, PR #580)
+
+Some reasoning models (e.g. GLM-5) return their answer in `reasoning_content` rather than `content` — with `content: null`. The provider handles this with a guarded fallback:
+
+- For **text responses** (no tool calls): use `content`, fall back to `reasoning_content` if `content` is null.
+- For **tool-call responses**: always use `content`; **never** fall back to `reasoning_content`.
+
+This prevents chain-of-thought reasoning tokens from leaking into conversation history during tool calls, which would inflate the context window and confuse subsequent turns.
+
+```rust
+let content = if tool_calls.is_empty() {
+    choice.message.content.or(choice.message.reasoning_content)
+} else {
+    choice.message.content  // reasoning_content intentionally ignored
+};
+```
 
 ---
 

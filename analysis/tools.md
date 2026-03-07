@@ -233,7 +233,7 @@ The registry assembles built-in tools in these groups during startup:
 |------|------------------------|--------|----------|
 | `echo` | message* | Orchestrator | No |
 | `time` | operation* | Orchestrator | No |
-| `json` | operation*, data* | Orchestrator | No |
+| `json` | operation*; data or source_tool_call_id | Orchestrator | No |
 | `http` | method*, url* | Orchestrator | Conditional (see §4.4) |
 | `restart` | delay_secs | Orchestrator | No (gate is at `/restart` command level) |
 | `read_file` | path* | Container | No |
@@ -262,6 +262,7 @@ The registry assembles built-in tools in these groups during startup:
 | `tool_activate` | name* | Orchestrator | No |
 | `tool_list` | — | Orchestrator | No |
 | `tool_remove` | name* | Orchestrator | Yes |
+| `extension_info` | name* | Orchestrator | No |
 | `skill_list` | — | Orchestrator | No |
 | `skill_search` | query* | Orchestrator | No |
 | `skill_install` | name* | Orchestrator | Yes |
@@ -333,20 +334,45 @@ JSON manipulation. Fixed for OpenAI API compatibility (see Section 8).
       "type": "string",
       "enum": ["parse", "query", "stringify", "validate"]
     },
-    "data":      { "description": "JSON data to process (any value)" },
-    "path":      { "type": "string", "description": "JSONPath query for 'query' operation" }
+    "data": {
+      "description": "JSON input data. Pass a string for parse, or any JSON value otherwise. Not required when source_tool_call_id is provided."
+    },
+    "source_tool_call_id": {
+      "type": "string",
+      "description": "Reference a previous tool call's full output by its ID (e.g., 'call_abc123'). Use this instead of data when the previous tool output was large and may have been truncated."
+    },
+    "path": { "type": "string", "description": "JSONPath query for 'query' operation" }
   },
-  "required": ["operation", "data"]
+  "required": ["operation"]
 }
 ```
 
 Note: `data` has no `"type"` field — this means "accept any JSON value". An OpenAI API
 bug rejects `"type": ["string", "null"]` union arrays; omitting `"type"` is the fix.
 
+**`source_tool_call_id` (v0.16.0, PR #578):** Because the dispatcher may truncate large
+tool outputs before they enter the LLM context window, `json` provides a bypass via
+`source_tool_call_id`. When this parameter is set, the tool reads the *full* untruncated
+output of the referenced tool call from an in-memory stash (`JobContext.tool_output_stash`)
+rather than from the truncated message in the conversation. This avoids partial-parse errors
+on large HTTP or file outputs.
+
+```
+LLM calls: http { url: "https://..." }
+  → dispatcher stashes full output at tool_output_stash["call_http_01"]
+  → LLM context receives truncated summary
+
+LLM calls: json { operation: "query", source_tool_call_id: "call_http_01", path: "body.results[0]" }
+  → json tool reads full output from stash (not the truncated version)
+```
+
+`data` becomes optional when `source_tool_call_id` is provided. If both are given,
+`source_tool_call_id` takes precedence.
+
 Operations:
 
 - `parse` — parses a JSON string into a structured value
-- `query` — runs a JSONPath expression against `data`
+- `query` — runs a JSONPath expression against `data` or the stashed output
 - `stringify` — serializes a value to a JSON string
 - `validate` — checks whether a string is valid JSON
 
@@ -791,6 +817,22 @@ Manage WASM and MCP tool extensions.
 | `tool_activate` | `name` | No | Auto-triggers auth if 401 is returned |
 | `tool_list` | — | No | Optional `kind` filter |
 | `tool_remove` | `name` | Yes | Permanently unregisters the tool |
+| `extension_info` | `name` | No | Returns `version`, `wit_version`, `host_wit_version` for a named extension (v0.16.0) |
+
+**`extension_info` (v0.16.0):** Reports version metadata for an installed extension so operators can detect WIT version mismatches before runtime failures occur:
+
+```json
+{
+  "name": "my-channel",
+  "kind": "wasm_channel",
+  "installed": true,
+  "version": "0.1.0",
+  "wit_version": "0.2.0",
+  "host_wit_version": "0.2.0"
+}
+```
+
+If `wit_version` ≠ `host_wit_version`, the extension needs to be recompiled against the current WIT interface.
 
 ---
 

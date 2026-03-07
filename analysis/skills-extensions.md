@@ -714,10 +714,16 @@ The host reads `wit_version` at load time and exposes it via `extension_info` to
 
 ```json
 {
+  "name": "my-channel",
+  "kind": "wasm_channel",
+  "installed": true,
+  "version": "0.1.0",
   "wit_version": "0.2.0",
   "host_wit_version": "0.2.0"
 }
 ```
+
+**`extension_info` tool** (added in v0.16.0, `builtin/extension_tools.rs`): Call `extension_info { "name": "my-channel" }` to get this output for any installed extension. Works for both WASM tools and WASM channels.
 
 A mismatch between `wit_version` and `host_wit_version` indicates a stale binary that may fail at runtime. Operators should recompile and reinstall the WASM extension. The `scripts/build-wasm-extensions.sh` script rebuilds all bundled extensions with the current WIT interface.
 

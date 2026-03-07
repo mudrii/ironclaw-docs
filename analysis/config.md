@@ -221,6 +221,8 @@ The runtime handles token exchange, scope merging for shared providers (e.g., tw
 | `IRONCLAW_RESTART_DELAY` | u64 | `5` | No | Seconds the Docker entrypoint waits before restarting `ironclaw run` after a clean exit (exit code 0). |
 | `IRONCLAW_MAX_FAILURES` | u32 | `10` | No | Maximum consecutive non-zero exits before the container entrypoint gives up and exits. |
 | `IRONCLAW_DISABLE_RESTART` | bool | `false` | No | Set `1` or `true` to prevent `std::process::exit(0)` from firing. Used in tests to validate restart logic without terminating. |
+| **Trace Recording** (v0.16.0) | | | | |
+| `IRONCLAW_RECORD_TRACE` | path | — | No | Set to a `.json` file path to enable live trace recording. Every LLM interaction (memory snapshot, HTTP exchanges, steps) is written to this file for later deterministic replay via `TraceLlm`. Unset = recording disabled. |
 | **Secrets** | | | | |
 | `SECRETS_MASTER_KEY` | secret | — | No | AES-256-GCM master key for encrypting stored secrets. Minimum 32 bytes. Falls back to OS keychain if unset |
 | **Builder** | | | | |
@@ -1027,6 +1029,11 @@ GATEWAY_AUTH_TOKEN="replace-with-random-hex-token"
 # Observability
 ##############################################
 # OBSERVABILITY_BACKEND="none"
+
+##############################################
+# Trace Recording (v0.16.0 — dev/testing only)
+##############################################
+# IRONCLAW_RECORD_TRACE=/tmp/my-session.json   # Set to capture a live session trace
 
 ##############################################
 # Logging
