@@ -2,6 +2,14 @@
 
 > Updated: 2026-03-06 | Version: v0.16.1
 
+## Security Changelog
+
+### v0.16.0 - CSPRNG Security Hardening
+- **OsRng Migration**: All security-critical key and token generation now uses `aes_gcm::aead::OsRng` (Cryptographically Secure Pseudorandom Number Generator) instead of `rand::thread_rng()`. This ensures compliance with cryptographic security standards for master key generation, salt generation, and all credential-related random values. (PR #519)
+
+### v0.15.0 - SSE Authentication Restriction
+- **Query-Token Auth Restriction**: Query-token authentication is now restricted to SSE endpoints only. This prevents potential authentication bypass vulnerabilities by ensuring query parameters containing tokens are only accepted on streaming endpoints where they are necessary for browser EventSource compatibility. (PR #528)
+
 ## 1. Overview
 
 IronClaw implements a defense-in-depth security model across multiple independent layers. Each layer is designed to contain a distinct class of threat, so that a bypass of one layer does not compromise the whole system.

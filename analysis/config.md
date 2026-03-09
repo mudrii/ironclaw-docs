@@ -54,6 +54,8 @@ default is possible.
 |---------|------|---------|----------|-------------|
 | **Bootstrap** | | | | |
 | `IRONCLAW_BASE_DIR` | path | `~/.ironclaw` | No | Overrides the base directory for all ironclaw data files (sessions, database, tools, channels, skills). Value is cached via `LazyLock` for the process lifetime. Relative paths work but emit a warning. Added in v0.13.0 (PR #397). |
+| `WORKSPACE_IMPORT_DIR` | path | — | No | Directory to import workspace files from on startup. If set, files from this directory are imported into the workspace database on boot. |
+| `ONBOARD_COMPLETED` | bool | `false` | No | Set to `true` to skip the onboarding wizard. Useful for automated deployments where configuration is provided via environment variables. |
 | **Database** | | | | |
 | `DATABASE_BACKEND` | string | `postgres` | No | `postgres` (or `pg`, `postgresql`) or `libsql` (or `turso`, `sqlite`) |
 | `DATABASE_URL` | secret | — | If postgres | PostgreSQL connection string (e.g. `postgres://user:pass@host/db`) |

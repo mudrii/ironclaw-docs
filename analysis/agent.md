@@ -879,16 +879,23 @@ All configuration is read from environment variables at startup. Relevant
 | Variable | Default | Subsystem | Description |
 |----------|---------|-----------|-------------|
 | `MAX_PARALLEL_JOBS` | `5` | Scheduler | Maximum concurrent jobs |
-| `HEARTBEAT_ENABLED` | `true` | Heartbeat | Enable periodic LLM checks |
+| `HEARTBEAT_ENABLED` | `false` | Heartbeat | Enable periodic LLM checks |
 | `HEARTBEAT_INTERVAL_SECS` | `1800` | Heartbeat | Seconds between heartbeat ticks |
 | `HEARTBEAT_NOTIFY_CHANNEL` | `tui` | Heartbeat | Channel for attention alerts |
 | `HEARTBEAT_NOTIFY_USER` | `default` | Heartbeat | User ID for notifications |
 | `ROUTINES_ENABLED` | `true` | Routine Engine | Enable routine execution |
-| `ROUTINES_CRON_INTERVAL` | `60` | Routine Engine | Cron tick interval in seconds |
-| `ROUTINES_MAX_CONCURRENT` | `3` | Routine Engine | Max concurrent routine runs |
+| `ROUTINES_CRON_INTERVAL` | `15` | Routine Engine | Cron tick interval in seconds |
+| `ROUTINES_MAX_CONCURRENT` | `10` | Routine Engine | Max concurrent routine runs |
 | `AGENT_NAME` | `ironclaw` | Agent Loop | Agent identity for prompts |
 
-**Cost Guard** (no dedicated env vars; configured programmatically via `CostGuard::new()`):
+**Cost Guard**:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MAX_COST_PER_DAY_CENTS` | unlimited | Maximum daily LLM spend in cents (e.g. `10000` = $100). Unset = no limit |
+| `MAX_ACTIONS_PER_HOUR` | unlimited | Maximum LLM/tool actions per hour. Unset = no limit |
+
+**Cost Guard Parameters** (configured via env vars above):
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
