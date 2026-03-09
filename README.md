@@ -11,11 +11,14 @@
 
 | Document | Lines | Description |
 |----------|------:|-------------|
+| [CHANGELOG.md](CHANGELOG.md) | ~120 | Mirrored release changelog for the latest released versions in scope |
 | [INSTALLATION.md](INSTALLATION.md) | ~715 | Installation, configuration, service setup, troubleshooting |
 | [LLM_PROVIDERS.md](LLM_PROVIDERS.md) | ~178 | LLM backend configuration quick guide (NEAR AI, OpenAI, Anthropic, Ollama, OpenAI-compatible) |
 | [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md) | ~137 | Telegram channel setup with DM pairing flow and webhook/polling modes |
 | [SIGNAL_SETUP.md](SIGNAL_SETUP.md) | ~200 | Signal channel setup via signal-cli HTTP daemon |
 | [BUILDING_CHANNELS.md](BUILDING_CHANNELS.md) | ~442 | WASM channel authoring and build/deploy workflow |
+| [NETWORK_SECURITY.md](NETWORK_SECURITY.md) | ~190 | Network-facing surfaces, auth boundaries, egress controls, deployment caveats |
+| [smart-routing-spec.md](smart-routing-spec.md) | ~180 | Smart routing design spec and tiered model-selection rationale |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | ~877 | Master architecture: modules, data flows, diagrams |
 | [AGENT_README.md](AGENT_README.md) | ~1245 | Agent reference: errors, config, code review patterns |
 | [analysis/agent.md](analysis/agent.md) | ~930 | Agent loop, sessions, jobs, routines, heartbeat, cost guard |
@@ -106,7 +109,7 @@ ironclaw --no-onboard
 curl http://127.0.0.1:3000/api/health
 ```
 
-See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_PROVIDERS.md](LLM_PROVIDERS.md) for backend-specific examples, [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md) or [SIGNAL_SETUP.md](SIGNAL_SETUP.md) for messaging channel setup, and [BUILDING_CHANNELS.md](BUILDING_CHANNELS.md) for custom WASM channels.
+See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_PROVIDERS.md](LLM_PROVIDERS.md) for backend-specific examples, [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md) or [SIGNAL_SETUP.md](SIGNAL_SETUP.md) for messaging channel setup, [BUILDING_CHANNELS.md](BUILDING_CHANNELS.md) for custom WASM channels, [NETWORK_SECURITY.md](NETWORK_SECURITY.md) for network threat-surface review, and [smart-routing-spec.md](smart-routing-spec.md) for the released smart-routing design.
 
 ---
 
