@@ -814,7 +814,7 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | Module | Directory | `.rs` Files |
 |--------|-----------|------------|
 | `agent` | `src/agent/` | 21 |
-| `channels` | `src/channels/` | 36 |
+| `channels` | `src/channels/` | 37 |
 | `cli` | `src/cli/` | 12 |
 | `config` | `src/config/` | 17 |
 | `context` | `src/context/` | 4 |
@@ -824,7 +824,7 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | `extensions` | `src/extensions/` | 4 |
 | `history` | `src/history/` | 3 |
 | `hooks` | `src/hooks/` | 5 |
-| `llm` | `src/llm/` | 12 |
+| `llm` | `src/llm/` | 13 |
 | `observability` | `src/observability/` | 5 |
 | `orchestrator` | `src/orchestrator/` | 4 |
 | `pairing` | `src/pairing/` | 2 |

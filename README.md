@@ -49,15 +49,15 @@ IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.a
 | Module | Files | Description |
 |--------|------:|-------------|
 | `tools/` | 47 | Tool system: built-in (incl. unified `http` + new `restart`), MCP, WASM, dynamic builder, rate limiter, HTML-to-Markdown |
-| `channels/` | 38 | Channels: REPL, web gateway, HTTP, native Signal, WASM plugins (with HMAC-SHA256 Slack signing, WIT versioning, DB-stored channel binaries) |
+| `channels/` | 41 | Channels: REPL, web gateway, HTTP, native Signal, WASM plugins (with HMAC-SHA256 Slack signing, WIT versioning, DB-stored channel binaries) |
 | `agent/` | 21 | Agent runtime: loop, sessions, jobs, routines, heartbeat, context compaction |
 | `config/` | 17 | Configuration: all env vars and structs |
-| `workspace/` | 7 | Memory, embeddings, hybrid FTS+vector search |
+| `workspace/` | 8 | Memory, embeddings, hybrid FTS+vector search |
 | `llm/` | 13 | LLM backends, redesigned 13-dim smart routing, reliability wrappers, trace recording |
 | `tunnel/` | 6 | Tunnels: cloudflare, ngrok, tailscale, custom |
 | `secrets/` | 5 | Keychain, AES-256-GCM crypto, credential injection (OsRng throughout) |
 | `worker/` | 5 | Docker worker: runtime, LLM bridge, proxy |
-| **Total (`src/`)** | **265+** | Rust source files in `src/` (`v0.16.1` tag snapshot) |
+| **Total (`src/`)** | **270** | All files under `src/` at `v0.16.1` (including 260 Rust source files) |
 
 ---
 
@@ -145,7 +145,7 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 
 ---
 
-### v0.15.0 (2026-03-05)
+### v0.15.0 (2026-03-04)
 
 #### Added
 
@@ -297,4 +297,4 @@ Documented: IronClaw v0.16.1
 Release tag: [v0.16.1](https://github.com/nearai/ironclaw/releases/tag/v0.16.1) (2026-03-06)
 Source: [github.com/nearai/ironclaw](https://github.com/nearai/ironclaw)
 Docs repo: [github.com/mudrii/ironclaw-docs](https://github.com/mudrii/ironclaw-docs)
-Generated: 2026-03-05
+Generated: 2026-03-09
