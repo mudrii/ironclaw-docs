@@ -1,8 +1,8 @@
 # IronClaw Agent Runtime System — Deep Dive
 
-**Version:** v0.16.1
+**Version:** v0.18.0
 **Source tree:** `src/agent/` (21 files)
-**Last updated:** 2026-03-05
+**Last updated:** 2026-03-12
 
 ---
 
@@ -969,3 +969,15 @@ Added in v0.16.0. The `/restart` system command triggers a graceful process rest
 ### Deterministic Tool Ordering (PR #582)
 
 `tool_definitions()` now sorts all tool definitions alphabetically before sending to the LLM. This ensures deterministic ordering across restarts and is required for reproducible trace-based E2E tests.
+
+---
+
+## 15. v0.17.0 Agent Changes
+
+### Routines Approval Context (PR #577)
+
+Routine execution now passes an approval context alongside the routine action. When a routine triggers a tool call that requires user approval, the approval request includes the routine name and trigger type so the user can see which scheduled task is requesting permission. Previously, approval requests from routines were indistinguishable from interactive requests.
+
+### Memory Hygiene Retention Policy Wired into Heartbeat
+
+The memory hygiene pass that runs on each heartbeat tick now respects a configurable retention policy. Old workspace documents beyond the configured retention window (default: 90 days) are pruned automatically. The policy is enforced inside `heartbeat.rs` as part of the existing background hygiene task, so no separate cron routine is required. This prevents unbounded workspace growth in long-running daemon deployments.

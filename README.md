@@ -1,9 +1,9 @@
 # IronClaw Documentation
 
-> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.16.1
+> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.18.0
 > — a secure, self-hosted personal AI assistant written in Rust.
 
-**Documentation set for IronClaw v0.16.1, validated against release tag `v0.16.1` (2026-03-06).**
+**Documentation set for IronClaw v0.18.0, validated against release tag `v0.18.0` (2026-03-11).**
 
 ---
 
@@ -44,10 +44,10 @@ IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.a
 - **Security-first**: WASM sandbox (wasmtime), Docker isolation (bollard), credential injection, SSRF proxy
 - **Self-expanding**: Dynamic WASM tool builder, MCP protocol client, plugin architecture
 - **Persistent memory**: Hybrid FTS+vector search (RRF), workspace filesystem, identity files
-- **Multiple LLM backends**: NEAR AI, Anthropic, OpenAI, Ollama, OpenAI-compatible, Tinfoil
+- **Multiple LLM backends**: NEAR AI, Anthropic (with prompt caching), OpenAI, Google Gemini, AWS Bedrock, Ollama, OpenAI-compatible, Tinfoil
 - **Dual database**: libSQL (embedded, no server required) or PostgreSQL (with pgvector)
 
-### Source Module Statistics (v0.16.1)
+### Source Module Statistics (v0.18.0)
 
 | Module | Files | Description |
 |--------|------:|-------------|
@@ -56,7 +56,7 @@ IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.a
 | `agent/` | 21 | Agent runtime: loop, sessions, jobs, routines, heartbeat, context compaction |
 | `config/` | 17 | Configuration: all env vars and structs |
 | `workspace/` | 8 | Memory, embeddings, hybrid FTS+vector search |
-| `llm/` | 13 | LLM backends, redesigned 13-dim smart routing, reliability wrappers, trace recording |
+| `llm/` | 13 | LLM backends (Gemini, Bedrock, io.net, Mistral, Yandex, Cloudflare WS AI added), declarative provider registry, 13-dim smart routing, Anthropic prompt caching |
 | `tunnel/` | 6 | Tunnels: cloudflare, ngrok, tailscale, custom |
 | `secrets/` | 5 | Keychain, AES-256-GCM crypto, credential injection (OsRng throughout) |
 | `worker/` | 5 | Docker worker: runtime, LLM bridge, proxy |
@@ -114,6 +114,48 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 ---
 
 ## What's New
+
+### v0.18.0 (2026-03-11)
+
+#### Other
+
+- promote staging to main (2026-03-10 15:19 UTC) ([#865](https://github.com/nearai/ironclaw/pull/865))
+- update WASM artifact SHA256 checksums ([#876](https://github.com/nearai/ironclaw/pull/876))
+
+---
+
+### v0.17.0 (2026-03-10)
+
+#### Added
+
+- **New LLM providers**: Google Gemini, AWS Bedrock (native Converse API, feature-gated `--features bedrock`), io.net, Mistral, Yandex, and Cloudflare WS AI ([#676](https://github.com/nearai/ironclaw/pull/676), [#713](https://github.com/nearai/ironclaw/pull/713))
+- **Anthropic OAuth onboarding** with setup-token support — `ironclaw onboard` now supports Anthropic OAuth flow ([#384](https://github.com/nearai/ironclaw/pull/384))
+- **Anthropic prompt caching** — automatic `cache_control` injection for eligible messages ([#660](https://github.com/nearai/ironclaw/pull/660))
+- **Configurable LLM request timeout** via `LLM_REQUEST_TIMEOUT_SECS` ([#630](https://github.com/nearai/ironclaw/pull/630))
+- **Full image support across all channels** — WASM channel attachments with LLM pipeline integration ([#725](https://github.com/nearai/ironclaw/pull/725), [#596](https://github.com/nearai/ironclaw/pull/596))
+- **PID-based gateway lock** — prevents multiple IronClaw instances from running simultaneously ([#717](https://github.com/nearai/ironclaw/pull/717))
+- **Background sandbox reaper** for orphaned Docker containers ([#634](https://github.com/nearai/ironclaw/pull/634))
+- **Unified thread model** for web gateway ([#607](https://github.com/nearai/ironclaw/pull/607))
+- **Timezone-aware session context** ([#671](https://github.com/nearai/ironclaw/pull/671))
+- **MCP improvements**: transport abstraction, stdio/UDS transports, OAuth fixes, JSON-RPC spec compliance ([#721](https://github.com/nearai/ironclaw/pull/721), [#685](https://github.com/nearai/ironclaw/pull/685))
+- *(skills)* `exclude_keywords` veto in skill activation scoring ([#688](https://github.com/nearai/ironclaw/pull/688))
+- *(routines)* approval context for autonomous job execution ([#577](https://github.com/nearai/ironclaw/pull/577))
+- *(llm)* declarative provider registry ([#618](https://github.com/nearai/ironclaw/pull/618))
+- *(llm)* per-provider unsupported parameter filtering ([#809](https://github.com/nearai/ironclaw/pull/809))
+- memory hygiene retention policy wired into heartbeat loop ([#629](https://github.com/nearai/ironclaw/pull/629))
+
+#### Fixed
+
+- prevent irreversible context loss when compaction archive write fails ([#754](https://github.com/nearai/ironclaw/pull/754))
+- persist /model selection across restarts ([#707](https://github.com/nearai/ironclaw/pull/707))
+- *(setup)* preserve model name when re-running onboarding with same provider ([#694](https://github.com/nearai/ironclaw/pull/694))
+- *(libsql)* support flexible embedding dimensions ([#534](https://github.com/nearai/ironclaw/pull/534))
+- *(docker)* bind postgres to localhost only ([#686](https://github.com/nearai/ironclaw/pull/686))
+- standardize libSQL timestamps as RFC 3339 UTC ([#683](https://github.com/nearai/ironclaw/pull/683))
+- enable libsql remote + tls features for Turso cloud sync ([#587](https://github.com/nearai/ironclaw/pull/587))
+- sanitize HTML error bodies from MCP servers to prevent web UI white screen ([#656](https://github.com/nearai/ironclaw/pull/656))
+
+---
 
 ### v0.16.1 (2026-03-06)
 
@@ -296,8 +338,8 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 
 ## Version
 
-Documented: IronClaw v0.16.1
-Release tag: [v0.16.1](https://github.com/nearai/ironclaw/releases/tag/v0.16.1) (2026-03-06)
+Documented: IronClaw v0.18.0
+Release tag: [v0.18.0](https://github.com/nearai/ironclaw/releases/tag/v0.18.0) (2026-03-11)
 Source: [github.com/nearai/ironclaw](https://github.com/nearai/ironclaw)
 Docs repo: [github.com/mudrii/ironclaw-docs](https://github.com/mudrii/ironclaw-docs)
 Generated: 2026-03-09

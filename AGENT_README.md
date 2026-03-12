@@ -3,9 +3,9 @@
 > **AI Agent Use**: Optimized for code review, bug triage, and targeted fixes.
 > Jump directly to the section relevant to the error or task — no narrative reading required.
 
-> Version baseline: IronClaw v0.16.1 (`v0.16.1` tag snapshot)
+> Version baseline: IronClaw v0.18.0 (`v0.18.0` tag snapshot)
 
-**Source**: IronClaw v0.16.1 (`v0.16.1`) · `~/src/ironclaw/`
+**Source**: IronClaw v0.18.0 (`v0.18.0`) · `~/src/ironclaw/`
 
 ---
 
@@ -347,6 +347,7 @@ Config struct: `src/config/mod.rs` · `INJECTED_VARS: OnceLock<HashMap<String,St
 | `LLM_FAILOVER_COOLDOWN_SECS` | u64 | `300` | Provider cooldown after repeated failures |
 | `LLM_FAILOVER_THRESHOLD` | u32 | `3` | Failures before provider cooldown |
 | `SMART_ROUTING_CASCADE` | bool | `true` | `true` (default) to escalate uncertain cheap-model responses to primary. Added v0.10.0. |
+| `LLM_REQUEST_TIMEOUT_SECS` | u64 | `120` | Per-request timeout for LLM API calls. Added v0.17.0. |
 
 ### 4.4 Agent
 
@@ -612,6 +613,12 @@ Add your own notes below the comment block. The agent will refine and append as 
 | Ollama | `ollama` | `OLLAMA_BASE_URL` | Chat Completions | Native |
 | OpenAI-compatible | `openai_compatible` | `LLM_BASE_URL`, `LLM_MODEL` | Chat Completions | Native |
 | Tinfoil (TEE) | `tinfoil` | `TINFOIL_API_KEY` | Chat Completions (adapted) | Chat-format |
+| Google Gemini | `gemini` | `GEMINI_API_KEY` | Gemini API | Native |
+| AWS Bedrock (native) | `bedrock` | `BEDROCK_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Bedrock Converse API | Native |
+| Mistral AI | `mistral` | `MISTRAL_API_KEY` | Chat Completions | Native |
+| io.net | `ionet` | `IONET_API_KEY` | Chat Completions | Native |
+| Yandex | `yandex` | `YANDEX_API_KEY` | Chat Completions | Native |
+| Cloudflare Workers AI | `cloudflare` | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_KEY` | Chat Completions | Native |
 
 **NEAR AI auth mode selection** (`src/llm/nearai_chat.rs`):
 - If `NEARAI_API_KEY` set → Bearer API key auth (base URL defaults to `https://cloud-api.near.ai`)

@@ -1,4 +1,4 @@
-# IronClaw v0.16.1 — LLM Backend System Deep Dive
+# IronClaw v0.18.0 — LLM Backend System Deep Dive
 
 > **Scope:** `src/llm/`, `src/config/llm.rs`, `src/agent/cost_guard.rs`,
 > `src/agent/context_monitor.rs`, `src/agent/compaction.rs`,
@@ -132,6 +132,13 @@ pub enum LlmBackend {
     Ollama,           // Local Ollama instance
     OpenAiCompatible, // vLLM, LiteLLM, Together, OpenRouter, etc.
     Tinfoil,          // Private inference in hardware-attested TEEs
+    // Added v0.17.0:
+    Gemini,           // Google Gemini API
+    Bedrock,          // AWS Bedrock native (Converse API)
+    Mistral,          // Mistral AI API
+    IoNet,            // io.net distributed inference
+    Yandex,           // Yandex Cloud AI
+    Cloudflare,       // Cloudflare Workers AI
 }
 ```
 
@@ -165,6 +172,12 @@ Notable factory quirks:
 | Ollama | None | Chat Completions | Native | Zero cost (local) |
 | OpenAiCompatible | Optional key | Chat Completions | Native | Via cost table |
 | Tinfoil | API key | Chat Completions | Chat-format | Via cost table |
+| Gemini *(v0.17.0)* | API key (`GEMINI_API_KEY`) | Gemini API | Native | Via cost table |
+| Bedrock *(v0.17.0)* | AWS credentials + `BEDROCK_REGION` | Bedrock Converse API | Native | Via cost table |
+| Mistral *(v0.17.0)* | API key (`MISTRAL_API_KEY`) | Chat Completions | Native | Via cost table |
+| io.net *(v0.17.0)* | API key (`IONET_API_KEY`) | Chat Completions | Native | Via cost table |
+| Yandex *(v0.17.0)* | API key (`YANDEX_API_KEY`) | Chat Completions | Native | Via cost table |
+| Cloudflare *(v0.17.0)* | Account ID + API key | Chat Completions | Native | Via cost table |
 
 ---
 
@@ -637,6 +650,20 @@ This is implemented in `LlmConfig::resolve(settings: &Settings)`.
 | `LLM_EXTRA_HEADERS` | OpenAiCompatible | Comma-separated `Key:Value` pairs injected into every HTTP request (added v0.10.0). Example: `"HTTP-Referer:https://myapp.com,X-Title:MyApp"` |
 | `TINFOIL_API_KEY` | Tinfoil | Required |
 | `TINFOIL_MODEL` | Tinfoil | Default: kimi-k2-5 |
+| `GEMINI_API_KEY` | Gemini | Required (v0.17.0) |
+| `GEMINI_MODEL` | Gemini | Default: gemini-2.0-flash (v0.17.0) |
+| `BEDROCK_REGION` | Bedrock | Required; AWS region (e.g. `us-east-1`) (v0.17.0) |
+| `BEDROCK_MODEL` | Bedrock | Required; Bedrock model ID (v0.17.0) |
+| `MISTRAL_API_KEY` | Mistral | Required (v0.17.0) |
+| `MISTRAL_MODEL` | Mistral | Default: mistral-large-latest (v0.17.0) |
+| `IONET_API_KEY` | IoNet | Required (v0.17.0) |
+| `IONET_MODEL` | IoNet | Default set by io.net cluster (v0.17.0) |
+| `YANDEX_API_KEY` | Yandex | Required (v0.17.0) |
+| `YANDEX_MODEL` | Yandex | Default: yandexgpt-lite (v0.17.0) |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare | Required (v0.17.0) |
+| `CLOUDFLARE_API_KEY` | Cloudflare | Required (v0.17.0) |
+| `CLOUDFLARE_MODEL` | Cloudflare | Default: @cf/meta/llama-3.1-8b-instruct (v0.17.0) |
+| `LLM_REQUEST_TIMEOUT_SECS` | All | Per-request timeout in seconds (default: 120). Added v0.17.0. |
 
 ### 9.3 Cheap Model for Lightweight Tasks
 
@@ -918,7 +945,29 @@ async fn evaluate(
 
 ---
 
-*Generated from IronClaw v0.16.1 source — `src/llm/`, `src/config/llm.rs`,
+---
+
+## 14. v0.17.0 LLM Changes
+
+### Declarative Provider Registry (PR #618)
+
+Providers are now registered via a declarative macro/table rather than requiring manual match arms in `create_llm_provider()`. Adding a new backend only requires defining the provider struct and a config block — the factory wires itself automatically. This enabled the six new providers shipped in v0.17.0 (Gemini, Bedrock, Mistral, io.net, Yandex, Cloudflare) without expanding `mod.rs`.
+
+### Per-Provider Unsupported Parameter Filtering (PR #809)
+
+`ToolCompletionRequest` and `CompletionRequest` now carry a provider capability mask. Before each request is sent, parameters not supported by the target provider (e.g., `top_p` on Bedrock, `stop_sequences` on certain Gemini models) are silently stripped rather than forwarded, preventing HTTP 400 errors from strict provider validation.
+
+### Anthropic Prompt Caching (PR #660)
+
+The Anthropic backend now sets `cache_control: {"type": "ephemeral"}` on eligible message blocks (system prompt and the first large user turn) when prompt caching is available. Cache hits are tracked in `TokenUsage::cache_read_tokens` and reflected in cost calculations (cached input tokens are billed at a lower rate). No configuration required — enabled automatically when the `anthropic` backend is selected and the model supports it.
+
+### `LLM_REQUEST_TIMEOUT_SECS` (v0.17.0)
+
+A global per-request timeout is now applied to all outbound LLM API calls. Set via `LLM_REQUEST_TIMEOUT_SECS` (default: `120` seconds). On timeout, the call returns `LlmError::RequestFailed` with a timeout message, which is retryable by `RetryProvider`. This prevents stuck agent workers when a provider hangs without returning an error.
+
+---
+
+*Generated from IronClaw v0.18.0 source — `src/llm/`, `src/config/llm.rs`,
 `src/agent/cost_guard.rs`, `src/agent/context_monitor.rs`,
 `src/agent/compaction.rs`, `src/estimation/`, `src/evaluation/`,
 `src/observability/`.*

@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Configuration System
 
-> Updated: 2026-03-06 | Version: v0.16.1
+> Updated: 2026-03-12 | Version: v0.18.0
 
 ## 1. Overview
 
@@ -89,6 +89,16 @@ default is possible.
 | `LLM_EXTRA_HEADERS` | string | — | No | Comma-separated `Key:Value` HTTP headers injected into OpenAI-compatible provider requests. Example: `"HTTP-Referer:https://myapp.com,X-Title:MyApp"`. Added v0.10.0. |
 | `TINFOIL_API_KEY` | secret | — | If `LLM_BACKEND=tinfoil` | Tinfoil private inference API key |
 | `TINFOIL_MODEL` | string | `kimi-k2-5` | No | Tinfoil model name |
+| `GEMINI_API_KEY` | secret | — | If `LLM_BACKEND=gemini` | Google Gemini API key (v0.17.0) |
+| `GEMINI_MODEL` | string | `gemini-2.0-flash` | No | Gemini model name (v0.17.0) |
+| `BEDROCK_REGION` | string | — | If `LLM_BACKEND=bedrock` | AWS region for Bedrock (e.g. `us-east-1`) (v0.17.0) |
+| `BEDROCK_MODEL` | string | — | If `LLM_BACKEND=bedrock` | Bedrock model ID (e.g. `anthropic.claude-3-5-sonnet-20241022-v2:0`) (v0.17.0) |
+| `MISTRAL_API_KEY` | secret | — | If `LLM_BACKEND=mistral` | Mistral AI API key (v0.17.0) |
+| `MISTRAL_MODEL` | string | `mistral-large-latest` | No | Mistral model name (v0.17.0) |
+| `IONET_API_KEY` | secret | — | If `LLM_BACKEND=ionet` | io.net API key (v0.17.0) |
+| `YANDEX_API_KEY` | secret | — | If `LLM_BACKEND=yandex` | Yandex Cloud AI API key (v0.17.0) |
+| `CLOUDFLARE_ACCOUNT_ID` | string | — | If `LLM_BACKEND=cloudflare` | Cloudflare account ID (v0.17.0) |
+| `CLOUDFLARE_API_KEY` | secret | — | If `LLM_BACKEND=cloudflare` | Cloudflare API key (v0.17.0) |
 | **LLM Resilience** | | | | |
 | `CIRCUIT_BREAKER_THRESHOLD` | u32 | disabled | No | Consecutive failures before circuit breaker opens. Omit to disable |
 | `CIRCUIT_BREAKER_RECOVERY_SECS` | u64 | `30` | No | Seconds before circuit allows a probe after opening |
@@ -97,6 +107,7 @@ default is possible.
 | `RESPONSE_CACHE_MAX_ENTRIES` | usize | `1000` | No | Max cached responses before LRU eviction |
 | `LLM_FAILOVER_COOLDOWN_SECS` | u64 | `300` | No | Seconds a failed provider stays in cooldown |
 | `LLM_FAILOVER_THRESHOLD` | u32 | `3` | No | Consecutive retryable failures before provider enters cooldown |
+| `LLM_REQUEST_TIMEOUT_SECS` | u64 | `120` | No | Per-request timeout in seconds applied to all outbound LLM API calls. On timeout, returns a retryable `RequestFailed` error. Added v0.17.0. |
 | `SMART_ROUTING_CASCADE` | bool | `true` | No | When enabled, uncertain responses from the cheap (Pro-tier) model trigger escalation to the primary model. Redesigned in v0.16.0 — now uses 13-dimension scorer with four tiers (Flash/Standard/Pro/Frontier). |
 | **Embeddings** | | | | |
 | `EMBEDDING_ENABLED` | bool | `false` | No | Enable vector embeddings for semantic memory search |

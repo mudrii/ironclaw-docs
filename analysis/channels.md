@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Channel System
 
-> Updated: 2026-03-06 | Version: v0.16.1
+> Updated: 2026-03-12 | Version: v0.18.0
 
 ---
 
@@ -1141,4 +1141,24 @@ The `wit_version` column also tracks the WIT interface version the binary was co
 ### v0.16.1: WASM Artifact SHA256 Revert
 
 v0.16.1 (#627) reverts WASM artifact SHA256 checksums back to `null` in the registry JSON files. The checksums were added prematurely in v0.16.0 before the artifact build pipeline was stable. All registry `.json` files now have `"sha256": null`.
+
+---
+
+## v0.17.0 Channel Changes
+
+### Unified Thread Model for Web Gateway (PR #607)
+
+The web gateway now uses a single unified thread model for all message types (chat, routine notifications, heartbeat results). Previously, gateway-originated messages and routine-originated messages could end up in different threads for the same session. After this change, `GatewayChannel` resolves threads consistently using the same `SessionManager::resolve_thread()` path used by all other channels.
+
+### PID-Based Gateway Lock (PR #717)
+
+The web gateway now writes a PID lock file (`~/.ironclaw/gateway.pid`) on startup and removes it on clean shutdown. If a second IronClaw process attempts to start a gateway on the same data directory, it detects the existing PID file and refuses to bind — printing a clear error message instead of silently racing for the port. Stale lock files (process no longer running) are detected and cleaned up automatically.
+
+### Full Image Support Across All Channels (PR #725)
+
+Image attachments are now handled uniformly across all channels that support them (web gateway, Signal, WASM channels). The `IncomingMessage::attachments` field accepts `AttachmentKind::Image { data, mime_type }` and the agent pipeline forwards image data to multimodal LLM backends. Previously, image support was only wired up in the web gateway's chat handler.
+
+### WASM Channel Attachments with LLM Pipeline Integration (PR #596)
+
+WASM channel modules can now emit messages with attachments via the `emit_message_with_attachments` host function. Attachment data flows through the standard `IncomingMessage` pipeline and is forwarded to the LLM if the active backend supports multimodal input. The WIT interface was updated with a new `attachment` type covering `Image`, `File`, and `Audio` variants.
 

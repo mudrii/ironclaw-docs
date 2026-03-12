@@ -1,11 +1,74 @@
 # Changelog
 
-> Version baseline: IronClaw v0.16.1 (`v0.16.1` tag snapshot)
+> Version baseline: IronClaw v0.18.0 (`v0.18.0` tag snapshot)
 > Scope: mirrored release changelog entries for the latest relevant released versions
 
 All notable changes to this project are documented upstream in `nearai/ironclaw`. This mirror intentionally focuses on the latest released versions relevant to the current docs baseline.
 
 ## [Unreleased]
+
+## [0.18.0](https://github.com/nearai/ironclaw/compare/v0.17.0...v0.18.0) - 2026-03-11
+
+### Other
+
+- promote staging to main (2026-03-10 15:19 UTC) ([#865](https://github.com/nearai/ironclaw/pull/865))
+- update WASM artifact SHA256 checksums ([#876](https://github.com/nearai/ironclaw/pull/876))
+
+## [0.17.0](https://github.com/nearai/ironclaw/compare/v0.16.1...v0.17.0) - 2026-03-10
+
+### Added
+
+- *(llm)* per-provider unsupported parameter filtering ([#809](https://github.com/nearai/ironclaw/pull/809))
+- persist user_id in save_job and expose job_id on routine runs ([#709](https://github.com/nearai/ironclaw/pull/709))
+- add background sandbox reaper for orphaned Docker containers ([#634](https://github.com/nearai/ironclaw/pull/634))
+- *(wasm)* lazy schema injection on WASM tool errors ([#638](https://github.com/nearai/ironclaw/pull/638))
+- add AWS Bedrock LLM provider via native Converse API (feature-gated: `--features bedrock`) ([#713](https://github.com/nearai/ironclaw/pull/713))
+- full image support across all channels ([#725](https://github.com/nearai/ironclaw/pull/725))
+- *(skills)* exclude_keywords veto in skill activation scoring ([#688](https://github.com/nearai/ironclaw/pull/688))
+- *(mcp)* transport abstraction, stdio/UDS transports, and OAuth fixes ([#721](https://github.com/nearai/ironclaw/pull/721))
+- add PID-based gateway lock to prevent multiple instances ([#717](https://github.com/nearai/ironclaw/pull/717))
+- configurable LLM request timeout via `LLM_REQUEST_TIMEOUT_SECS` ([#630](https://github.com/nearai/ironclaw/pull/630))
+- *(timezone)* add timezone-aware session context ([#671](https://github.com/nearai/ironclaw/pull/671))
+- *(setup)* Anthropic OAuth onboarding with setup-token support ([#384](https://github.com/nearai/ironclaw/pull/384))
+- *(llm)* add Google Gemini, AWS Bedrock, io.net, Mistral, Yandex, and Cloudflare WS AI providers ([#676](https://github.com/nearai/ironclaw/pull/676))
+- unified thread model for web gateway ([#607](https://github.com/nearai/ironclaw/pull/607))
+- WASM channel attachments with LLM pipeline integration ([#596](https://github.com/nearai/ironclaw/pull/596))
+- enable Anthropic prompt caching via automatic cache_control injection ([#660](https://github.com/nearai/ironclaw/pull/660))
+- *(routines)* approval context for autonomous job execution ([#577](https://github.com/nearai/ironclaw/pull/577))
+- *(llm)* declarative provider registry ([#618](https://github.com/nearai/ironclaw/pull/618))
+- *(gateway)* show IronClaw version in status popover ([#636](https://github.com/nearai/ironclaw/pull/636))
+- wire memory hygiene retention policy into heartbeat loop ([#629](https://github.com/nearai/ironclaw/pull/629))
+
+### Fixed
+
+- prevent irreversible context loss when compaction archive write fails ([#754](https://github.com/nearai/ironclaw/pull/754))
+- *(mcp)* JSON-RPC spec compliance — flexible id, correct notification format ([#685](https://github.com/nearai/ironclaw/pull/685))
+- preserve tool-call history across thread hydration ([#670](https://github.com/nearai/ironclaw/pull/670))
+- CLI commands ignore runtime DATABASE_BACKEND when both features compiled ([#740](https://github.com/nearai/ironclaw/pull/740))
+- add timezone conversion support to time tool ([#687](https://github.com/nearai/ironclaw/pull/687))
+- standardize libSQL timestamps as RFC 3339 UTC ([#683](https://github.com/nearai/ironclaw/pull/683))
+- *(docker)* bind postgres to localhost only ([#686](https://github.com/nearai/ironclaw/pull/686))
+- *(repl)* skip /quit on EOF when stdin is not a TTY ([#724](https://github.com/nearai/ironclaw/pull/724))
+- *(web)* prevent Enter key from sending message during IME composition ([#715](https://github.com/nearai/ironclaw/pull/715))
+- *(config)* init_secrets no longer overwrites entire config ([#726](https://github.com/nearai/ironclaw/pull/726))
+- *(cli)* status command reads config.toml and settings.json correctly ([#734](https://github.com/nearai/ironclaw/pull/734))
+- *(setup)* preserve model name when re-running onboarding with same provider ([#694](https://github.com/nearai/ironclaw/pull/694))
+- *(setup)* initialize secrets crypto for env-var security option ([#706](https://github.com/nearai/ironclaw/pull/706))
+- persist /model selection across restarts ([#707](https://github.com/nearai/ironclaw/pull/707))
+- *(routines)* resolve message tool channel/target from per-job metadata ([#708](https://github.com/nearai/ironclaw/pull/708))
+- sanitize HTML error bodies from MCP servers to prevent web UI white screen ([#656](https://github.com/nearai/ironclaw/pull/656))
+- prevent Instant duration overflow on Windows ([#664](https://github.com/nearai/ironclaw/pull/664))
+- enable libsql remote + tls features for Turso cloud sync ([#587](https://github.com/nearai/ironclaw/pull/587))
+- *(llm)* nudge LLM when it expresses tool intent without calling tools ([#653](https://github.com/nearai/ironclaw/pull/653))
+- *(llm)* report zero cost for OpenRouter free-tier models ([#613](https://github.com/nearai/ironclaw/pull/613))
+- *(libsql)* support flexible embedding dimensions ([#534](https://github.com/nearai/ironclaw/pull/534))
+
+### Other
+
+- add simplified Chinese (zh-CN) README translation ([#488](https://github.com/nearai/ironclaw/pull/488))
+- Fix single-message mode to exit after one turn when background channels are enabled ([#719](https://github.com/nearai/ironclaw/pull/719))
+- add reviewer-feedback guardrails (CLAUDE.md, pre-commit hook, skill) ([#665](https://github.com/nearai/ironclaw/pull/665))
+- Improve test infrastructure: StubChannel, gateway helpers, security tests, search edge cases ([#623](https://github.com/nearai/ironclaw/pull/623))
 
 ## [0.16.1](https://github.com/nearai/ironclaw/compare/v0.16.0...v0.16.1) - 2026-03-06
 

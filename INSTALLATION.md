@@ -1,6 +1,6 @@
 # IronClaw Installation & Deployment Guide
 
-> Version: v0.16.1 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel), Linux
+> Version: v0.18.0 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel), Linux
 
 Complete guide for installing, configuring, and deploying IronClaw as a personal AI assistant.
 
@@ -116,6 +116,9 @@ cd ironclaw
 # Build with libSQL (zero-dependency, recommended for personal use)
 cargo build --release --no-default-features --features libsql
 
+# With AWS Bedrock support (adds aws-sdk dependency):
+cargo build --release --features bedrock
+
 # Or build with PostgreSQL support (default)
 cargo build --release
 
@@ -216,6 +219,7 @@ OPENAI_MODEL=gpt-4o              # or gpt-4-turbo, gpt-4o-mini, o1, o3-mini
 # LLM_API_KEY=gsk_...
 # LLM_MODEL=llama-3.3-70b-versatile
 # LLM_EXTRA_HEADERS="HTTP-Referer:https://myapp.com,X-Title:MyApp"  # Custom headers (v0.10.0+)
+# LLM_REQUEST_TIMEOUT_SECS=120       # LLM request timeout in seconds (default: 120)
 
 ##############################################
 # Embeddings (Semantic Memory)

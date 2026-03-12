@@ -1,6 +1,6 @@
 # LLM Provider Configuration
 
-> Version baseline: IronClaw v0.16.1 (`v0.16.1` tag snapshot)
+> Version baseline: IronClaw v0.18.0 (`v0.18.0` tag snapshot)
 
 IronClaw defaults to NEAR AI for model access, but supports any OpenAI-compatible
 endpoint as well as Anthropic and Ollama directly. This guide covers the most common
@@ -20,6 +20,12 @@ configurations.
 | vLLM / LiteLLM | `openai_compatible` | Optional | Self-hosted |
 | LM Studio | `openai_compatible` | No | Local GUI |
 | Tinfoil | `tinfoil` | `TINFOIL_API_KEY` | Private TEE inference |
+| Google Gemini | `openai_compatible` | `LLM_API_KEY` | Via OpenAI-compatible endpoint; or use `gemini` backend (v0.17.0) |
+| AWS Bedrock | `bedrock` | IAM/SSO | Native Converse API; requires `--features bedrock` (v0.17.0) |
+| Mistral AI | `openai_compatible` | `LLM_API_KEY` | Direct Mistral endpoint (v0.17.0) |
+| io.net | `openai_compatible` | `LLM_API_KEY` | Decentralized GPU cloud (v0.17.0) |
+| Yandex YandexGPT | `openai_compatible` | `LLM_API_KEY` | Yandex Cloud AI (v0.17.0) |
+| Cloudflare WS AI | `openai_compatible` | `LLM_API_KEY` | Cloudflare Workers AI gateway (v0.17.0) |
 
 ---
 
@@ -45,6 +51,23 @@ ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 Popular models: `claude-sonnet-4-20250514`, `claude-3-5-sonnet-20241022`, `claude-3-5-haiku-20241022`
+
+### Anthropic OAuth Onboarding (v0.17.0)
+
+As of v0.17.0, `ironclaw onboard` supports Anthropic OAuth login using a setup token:
+
+```bash
+ironclaw onboard --provider-only
+# Select "Anthropic" — the wizard opens a browser for OAuth
+```
+
+Standard API keys (`sk-ant-...`) are still fully supported and preferred for non-interactive/service deployments.
+
+### Anthropic Prompt Caching (v0.17.0)
+
+IronClaw automatically injects `cache_control` breakpoints for Anthropic models on eligible
+long-context messages, reducing costs for repeated context (e.g., workspace memory, long
+system prompts). No configuration required — enabled automatically when `LLM_BACKEND=anthropic`.
 
 ---
 
@@ -198,6 +221,94 @@ TINFOIL_MODEL=kimi-k2-5          # Default model
 
 ---
 
+## Google Gemini (v0.17.0)
+
+Google Gemini models are available via the OpenAI-compatible endpoint:
+
+```env
+LLM_BACKEND=openai_compatible
+LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+LLM_API_KEY=your-gemini-api-key
+LLM_MODEL=gemini-2.0-flash
+```
+
+Popular Gemini model IDs:
+
+| Model | ID |
+|---|---|
+| Gemini 2.0 Flash | `gemini-2.0-flash` |
+| Gemini 2.0 Flash-Lite | `gemini-2.0-flash-lite` |
+| Gemini 1.5 Pro | `gemini-1.5-pro` |
+
+---
+
+## AWS Bedrock (v0.17.0)
+
+AWS Bedrock requires building IronClaw with the `bedrock` feature flag:
+
+```bash
+cargo build --release --features bedrock
+```
+
+Then configure:
+
+```env
+LLM_BACKEND=bedrock
+BEDROCK_REGION=us-east-1
+BEDROCK_MODEL=anthropic.claude-sonnet-4-5-20251001-v2:0
+# Uses AWS credential chain (IAM role, environment, ~/.aws/credentials, SSO)
+```
+
+For AWS SSO profiles:
+
+```env
+AWS_PROFILE=my-sso-profile
+```
+
+Popular Bedrock model IDs:
+
+| Model | ID |
+|---|---|
+| Claude Sonnet 4.5 | `anthropic.claude-sonnet-4-5-20251001-v2:0` |
+| Claude Haiku 3.5 | `anthropic.claude-haiku-3-5-20241022-v1:0` |
+| Llama 3.3 70B | `meta.llama3-3-70b-instruct-v1:0` |
+| Amazon Nova Pro | `amazon.nova-pro-v1:0` |
+
+---
+
+## Mistral AI (v0.17.0)
+
+```env
+LLM_BACKEND=openai_compatible
+LLM_BASE_URL=https://api.mistral.ai/v1
+LLM_API_KEY=your-mistral-api-key
+LLM_MODEL=mistral-small-latest
+```
+
+---
+
+## io.net (v0.17.0)
+
+```env
+LLM_BACKEND=openai_compatible
+LLM_BASE_URL=https://api.io.net/v1
+LLM_API_KEY=your-ionet-api-key
+LLM_MODEL=meta-llama/Llama-3.3-70B-Instruct
+```
+
+---
+
+## Cloudflare Workers AI (v0.17.0)
+
+```env
+LLM_BACKEND=openai_compatible
+LLM_BASE_URL=https://api.cloudflare.com/client/v4/accounts/YOUR_ACCOUNT_ID/ai/v1
+LLM_API_KEY=your-cloudflare-api-token
+LLM_MODEL=@cf/meta/llama-3.3-70b-instruct-fp8-fast
+```
+
+---
+
 ## Using the Setup Wizard
 
 Instead of editing `.env` manually, run the onboarding wizard:
@@ -242,3 +353,17 @@ SMART_ROUTING_CASCADE=true                # Retry with primary if cheap model gi
 technical depth, code complexity, reasoning chains, context length, ambiguity, domain expertise required, multi-step planning, creativity, factual precision, adversarial robustness, mathematical complexity, structured output requirements, time-sensitivity.
 
 **Cascade mode** (`SMART_ROUTING_CASCADE=true`): applies only to **Pro-tier** prompts routed to the cheap model. If the cheap model's response shows uncertainty signals (hedging phrases, incomplete reasoning), the request is automatically re-sent to the primary model.
+
+---
+
+## LLM Request Timeout (v0.17.0)
+
+Configure how long IronClaw waits for LLM responses before timing out:
+
+```env
+LLM_REQUEST_TIMEOUT_SECS=120    # Default: 120 seconds
+```
+
+Increase this for slow local models (Ollama) or large-context requests.
+
+---

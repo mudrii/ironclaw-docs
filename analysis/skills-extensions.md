@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Skills, Extensions & Hooks
 
-> Updated: 2026-03-06 | Version: v0.16.1
+> Updated: 2026-03-12 | Version: v0.18.0
 
 ## 1. Overview
 
@@ -51,6 +51,9 @@ activation:
   keywords:                 # optional list; max 20 entries, min 3 chars each
     - "write"
     - "email"
+  exclude_keywords:         # optional list; max 20 entries, min 3 chars each (v0.17.0, PR #688)
+    - "delete"              # skill will NOT activate if any of these appear in the message
+    - "remove"
   patterns:                 # optional list of regex strings; max 5 entries
     - '(?i)\b(write|draft)\b.*\b(email|letter)\b'
   tags:                     # optional list; max 10 entries, min 3 chars each
@@ -77,8 +80,11 @@ Constraints enforced at load time (from `ActivationCriteria.enforce_limits()`):
 | Field | Max entries | Min token length |
 |-------|-------------|-----------------|
 | `keywords` | 20 | 3 characters |
+| `exclude_keywords` | 20 | 3 characters |
 | `patterns` | 5 | — |
 | `tags` | 10 | 3 characters |
+
+`exclude_keywords` acts as a veto in activation scoring (v0.17.0, PR #688): if any exclude keyword is found in the incoming message, the skill's score is set to zero regardless of how well the positive `keywords` or `patterns` match. This allows skills to opt out of activating in contexts where they would be harmful or irrelevant (e.g., a writing-assistant skill vetoing on destructive-action words).
 
 Regex patterns are compiled with a 64 KiB state limit to prevent ReDoS via pathological inputs.
 
@@ -593,6 +599,8 @@ The extension manager implements OAuth 2.1 with PKCE (`src/tools/mcp/auth.rs`):
 Fallback path: if OAuth is not supported, prompt the user for a manual API token.
 
 **Remote OAuth Support (v0.10.0)**: OAuth callbacks now work on remote servers, not just localhost. This enables `ironclaw auth <extension>` to work when the agent is running headless on a remote machine.
+
+**MCP Transport Abstraction — stdio and UDS (v0.17.0, PR #721)**: The MCP client now supports two additional transports alongside the existing Streamable HTTP transport: `stdio` (spawns a local MCP server process and communicates over stdin/stdout) and `unix` (Unix Domain Socket). The transport is selected by the `transport` field in `McpServerConfig`. OAuth fixes in the same PR correct token refresh for servers that return `expires_in` as a string rather than an integer, and fix PKCE flow errors when the callback URL contains extra query parameters.
 
 ### 5.3 WASM Tool Install Flow
 

@@ -1,6 +1,6 @@
 # IronClaw — Master Architecture Document
 
-> Updated: 2026-03-06 (v0.16.1) | Comprehensive reference for contributors
+> Updated: 2026-03-12 (v0.18.0) | Comprehensive reference for contributors
 
 ---
 
@@ -27,7 +27,7 @@ IronClaw is a secure personal AI assistant written in Rust, developed under the 
 
 The binary is a single self-contained executable. There is no separate daemon manager, no sidecar service, and no runtime dependency on a cloud control plane. The agent initializes all subsystems at startup through a five-phase `AppBuilder` sequence: database connection and schema migration, secrets store creation and LLM key injection, LLM provider chain construction with failover and circuit-breaking wrappers, tool and workspace initialization, and finally extension loading (WASM tools, MCP servers, skill registry). Background subsystems — heartbeat, routine engine, self-repair, session pruning — run as tokio tasks within the same process.
 
-IronClaw differs from TypeScript-based AI gateways in several important ways. First, it compiles to a native binary with no Node.js or Python runtime requirement. Second, it uses libsql (an embedded SQLite fork by Turso) or PostgreSQL as its storage layer, both exposed through a single `Database` trait abstraction with approximately sixty async methods. Third, multi-LLM support is provided by `rig-core`, a Rust framework that abstracts over OpenAI, Anthropic, Ollama, and OpenAI-compatible endpoints. NEAR AI is supported natively through a custom `NearAiProvider` that uses the Responses API with session-token authentication and response chaining for efficient multi-turn conversations. Tinfoil private inference, which runs models in hardware-attested TEEs, is also supported via the OpenAI-compatible Chat Completions API.
+IronClaw differs from TypeScript-based AI gateways in several important ways. First, it compiles to a native binary with no Node.js or Python runtime requirement. Second, it uses libsql (an embedded SQLite fork by Turso) or PostgreSQL as its storage layer, both exposed through a single `Database` trait abstraction with approximately sixty async methods. Third, multi-LLM support is provided by `rig-core`, a Rust framework that abstracts over OpenAI, Anthropic, Ollama, and OpenAI-compatible endpoints. NEAR AI is supported natively through a custom `NearAiProvider` that uses the Responses API with session-token authentication and response chaining for efficient multi-turn conversations. Tinfoil private inference, which runs models in hardware-attested TEEs, is also supported via the OpenAI-compatible Chat Completions API. v0.17.0 substantially expanded the provider surface: Google Gemini, Mistral AI, io.net, Yandex YandexGPT, and Cloudflare WS AI were added as first-class providers; AWS Bedrock gained a native Converse API implementation (feature-gated `--features bedrock`); Anthropic gained automatic `cache_control` injection for prompt caching and OAuth onboarding support; and a declarative provider registry was introduced to unify provider construction.
 
 The channel abstraction is the core extensibility point for message ingestion. A `Channel` trait with five lifecycle methods (`start`, `respond`, `send_status`, `broadcast`, `health_check`) allows any input source to feed the same agent loop. Implemented channels include an interactive REPL channel (rustyline + termimad), an HTTP webhook server, a web gateway with SSE/WebSocket streaming and a single-page browser UI, and a WASM channel runtime that loads compiled channel implementations at startup (hot-activation without restart supported since v0.10.0). A `ChannelManager` merges all active streams via `futures::stream::select_all` and provides a single injection sender for background tasks to push synthetic messages into the agent loop without being full Channel implementations. Startup time was optimized from ~15s to ~2s in v0.10.0 through lazy subsystem initialization.
 
@@ -97,7 +97,8 @@ The channel abstraction is the core extensibility point for message ingestion. A
 │  │  ┌─────────────────────────────────────────────────────────▼──────────┐ │  │
 │  │  │         Concrete Providers (wrapped by RigAdapter)                  │ │  │
 │  │  │  NearAiProvider │ NearAiChatProvider │ RigAdapter (OpenAI/Anthropic │ │  │
-│  │  │  Ollama / Tinfoil / OpenAI-compatible)                              │ │  │
+│  │  │  Ollama / Tinfoil / OpenAI-compatible) │ Gemini │ Mistral │ io.net  │ │  │
+│  │  │  Bedrock (Converse API, --features bedrock) │ YandexGPT │ CF WS AI │ │  │
 │  │  └─────────────────────────────────────────────────────────────────────┘ │  │
 │  └──────────────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────┬──────────────────────────────────────────┘
@@ -112,8 +113,8 @@ The channel abstraction is the core extensibility point for message ingestion. A
 │  │                                                                          │  │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │  │
 │  │  │  Built-in    │  │  WASM Tools  │  │  MCP Client  │  │  Builder   │  │  │
-│  │  │  (echo, http │  │  (wasmtime,  │  │  (JSON-RPC   │  │  Tool      │  │  │
-│  │  │  shell, file,│  │  component   │  │  over HTTP)  │  │  (LLM-     │  │  │
+│  │  │  (echo, http │  │  (wasmtime,  │  │  (stdio/UDS/ │  │  Tool      │  │  │
+│  │  │  shell, file,│  │  component   │  │  HTTP;v0.17) │  │  (LLM-     │  │  │
 │  │  │  memory, job)│  │  model)      │  │              │  │  driven)   │  │  │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘  └────────────┘  │  │
 │  └──────────────────────────────────────────────────────────────────────────┘  │
@@ -160,8 +161,8 @@ The following table lists every source module directory and the key top-level fi
 
 | Module | Path | Purpose |
 |--------|------|---------|
-| `agent` | `src/agent/` | Core agent orchestration: main event loop, session management, job scheduling, self-repair, heartbeat, routine engine, context compaction (**Context Compactor** (`agent/compaction.rs`): three strategies — Summarize (LLM summary → workspace daily log), Truncate (drop oldest turns), MoveToWorkspace (archive full turns); triggered automatically on ContextLengthExceeded), undo/redo, skill selection, cost guardrails. **Routine and heartbeat notifications** target the channel configured via `HEARTBEAT_NOTIFY_CHANNEL`; if delivery to that channel fails, the notification is broadcast on all installed channels as a fallback (PR #398, v0.13.0). |
-| `channels` | `src/channels/` | Multi-channel input abstraction: `Channel` trait, `ChannelManager` (stream merge), HTTP webhook, web gateway (axum + SSE + WebSocket), WASM channel runtime (hot-activate without restart since v0.10.0; all WASM channels support device pairing and channel-context-injected prompts for group chat privacy), REPL, **Signal channel** (`signal.rs`): Native Rust channel connecting to signal-cli HTTP daemon for Signal messaging. Added in v0.12.0. |
+| `agent` | `src/agent/` | Core agent orchestration: main event loop, session management, job scheduling, self-repair, heartbeat, routine engine, context compaction (**Context Compactor** (`agent/compaction.rs`): three strategies — Summarize (LLM summary → workspace daily log), Truncate (drop oldest turns), MoveToWorkspace (archive full turns); triggered automatically on ContextLengthExceeded), undo/redo, skill selection, cost guardrails. **Routine and heartbeat notifications** target the channel configured via `HEARTBEAT_NOTIFY_CHANNEL`; if delivery to that channel fails, the notification is broadcast on all installed channels as a fallback (PR #398, v0.13.0). **v0.17.0**: memory hygiene retention policy (document age limits and chunk pruning) is now wired into the heartbeat loop and runs automatically on each heartbeat tick. |
+| `channels` | `src/channels/` | Multi-channel input abstraction: `Channel` trait, `ChannelManager` (stream merge), HTTP webhook, web gateway (axum + SSE + WebSocket), WASM channel runtime (hot-activate without restart since v0.10.0; all WASM channels support device pairing and channel-context-injected prompts for group chat privacy), REPL, **Signal channel** (`signal.rs`): Native Rust channel connecting to signal-cli HTTP daemon for Signal messaging. Added in v0.12.0. **v0.17.0**: web gateway gained a PID-based gateway lock (prevents multiple simultaneous instances from binding to the same port) and a unified thread model across all gateway request handlers. Full image support added across all channels (v0.17.0). WASM channel attachments gained LLM pipeline integration (v0.17.0). |
 | `cli` | `src/cli/` | CLI command surface: onboarding, config, tool, mcp, memory, pairing, service, doctor, status |
 | `config` | `src/config/` | Configuration loading from environment, DB settings table, and optional TOML overlay. Sub-modules per domain: agent, builder, channels, database, embeddings, heartbeat, llm, routines, safety, sandbox, secrets, skills, tunnel, wasm |
 | `context` | `src/context/` | Per-job state isolation: `JobState` state machine (Pending → InProgress → Completed/Failed/Stuck), `JobContext`, `ContextManager` for concurrent job tracking |
@@ -171,17 +172,17 @@ The following table lists every source module directory and the key top-level fi
 | `extensions` | `src/extensions/` | `ExtensionManager`: coordinates MCP server auth and activation, WASM tool install/remove, registers in-chat discovery tools |
 | `history` | `src/history/` | Persistence for conversation threads and analytics: PostgreSQL repositories, aggregation queries (JobStats, ToolStats) |
 | `hooks` | `src/hooks/` | `HookRegistry` for Inbound/Outbound message interception: hooks can modify, reject, or pass through messages at the agent loop boundary |
-| `llm` | `src/llm/` | LLM provider chain: `LlmProvider` trait, `NearAiChatProvider` (Chat Completions, dual auth: session token + API key), `SmartRoutingProvider` (**redesigned v0.16.0**: 13-dimension complexity scorer produces 0–100 score mapped to four tiers Flash/Standard/Pro/Frontier → `Simple`/`Moderate`/`Complex` routing; pattern overrides fast-path greetings and security audits; cascade escalation for uncertain Pro-tier responses; sits at top of chain: `SmartRoutingProvider → RetryProvider → CircuitBreakerProvider → CachedProvider → FailoverProvider → backend`), `RigAdapter` (rig-core bridge for OpenAI/Anthropic/Ollama/Tinfoil), `FailoverProvider`, `CircuitBreakerProvider`, `CachedProvider`, `RetryProvider`, session token management |
+| `llm` | `src/llm/` | LLM provider chain: `LlmProvider` trait, `NearAiChatProvider` (Chat Completions, dual auth: session token + API key), `SmartRoutingProvider` (**redesigned v0.16.0**: 13-dimension complexity scorer produces 0–100 score mapped to four tiers Flash/Standard/Pro/Frontier → `Simple`/`Moderate`/`Complex` routing; pattern overrides fast-path greetings and security audits; cascade escalation for uncertain Pro-tier responses; sits at top of chain: `SmartRoutingProvider → RetryProvider → CircuitBreakerProvider → CachedProvider → FailoverProvider → backend`), `RigAdapter` (rig-core bridge for OpenAI/Anthropic/Ollama/Tinfoil), `FailoverProvider`, `CircuitBreakerProvider`, `CachedProvider`, `RetryProvider`, session token management. **v0.17.0 additions**: `GeminiProvider` (Google Gemini), `MistralProvider`, `IoNetProvider` (io.net), `YandexGptProvider` (Yandex YandexGPT), `CloudflareWsAiProvider` (Cloudflare WS AI), `BedrockProvider` (native Converse API, feature-gated `--features bedrock`); declarative provider registry (`ProviderRegistry`) unifies provider construction; Anthropic provider gained automatic `cache_control` injection for prompt caching and OAuth onboarding flow. |
 | `observability` | `src/observability/` | Tracing and metrics backend configuration |
 | `orchestrator` | `src/orchestrator/` | Internal HTTP API served to Docker sandbox containers: LLM proxy endpoint, job event streaming, per-job bearer token auth, `ContainerJobManager` (bollard lifecycle) |
 | `pairing` | `src/pairing/` | Device pairing and authentication helpers for remote channel setup |
 | `registry` | `src/registry/` | Extension/tool registry client for discovering installable tools and channels |
 | `safety` | `src/safety/` | Prompt injection defense: `Sanitizer` (pattern detection, XML escaping), `Validator` (length, encoding checks), `Policy` (rule-based actions: Block/Warn/Review/Sanitize), `LeakDetector` (15+ secret patterns with Block/Redact/Warn actions), `CredentialDetector` (HTTP param credential detection: requires approval when auth data is present in headers/URL) |
-| `sandbox` | `src/sandbox/` | Docker-based job isolation: `SandboxManager`, `ContainerRunner`, `NetworkProxy` (hyper HTTP/CONNECT proxy with domain allowlist and credential injection), `SandboxPolicy` (ReadOnly/WorkspaceWrite/FullAccess) |
+| `sandbox` | `src/sandbox/` | Docker-based job isolation: `SandboxManager`, `ContainerRunner`, `NetworkProxy` (hyper HTTP/CONNECT proxy with domain allowlist and credential injection), `SandboxPolicy` (ReadOnly/WorkspaceWrite/FullAccess). **v0.17.0** (PR #634): background sandbox reaper task periodically scans for and removes orphaned Docker containers that were not cleaned up during abnormal shutdown, preventing container accumulation. |
 | `secrets` | `src/secrets/` | Encrypted credential storage: AES-256-GCM encryption, HKDF-SHA256 per-secret key derivation, PostgreSQL or libSQL backend (both support encrypted store), OS keychain integration (macOS: security-framework, Linux: secret-service/KWallet) |
 | `setup` | `src/setup/` | 7-step interactive onboarding wizard: database backend selection, NEAR AI authentication, secrets master key setup, channel configuration |
 | `skills` | `src/skills/` | SKILL.md prompt extension system: `SkillRegistry` (discover, install, remove), deterministic scorer (keywords/tags/regex), `SkillTrust` model (Trusted vs Installed), tool attenuation (trust-based ceiling), gating requirements (bins/env/config), `SkillCatalog` (ClawHub HTTP client) |
-| `tools` | `src/tools/` | Extensible tool system: `Tool` trait, `ToolRegistry` (shadowing protection for built-in names; shared `Arc<RateLimiter>` for per-tool per-user sliding window rate limiting via **RateLimiter** (`tools/rate_limiter.rs`) — per-minute and per-hour windows), built-in tools (echo, time, json, **unified `http`** tool (replaces `web_fetch` — conditional approval: GET-no-auth=never, POST/auth=always; v0.16.0), **`restart`** tool (graceful process restart via Docker entrypoint loop; web-only; v0.16.0), shell, file ops, memory, job mgmt, routines, extensions, skills, `HtmlConverter` (**HTML-to-Markdown** built-in conversion — two-stage: readability extraction + markdown conversion; feature-gated `html-to-markdown`)), WASM sandbox (wasmtime component model, fuel metering, memory limits), MCP client (JSON-RPC over HTTP), dynamic software builder |
+| `tools` | `src/tools/` | Extensible tool system: `Tool` trait, `ToolRegistry` (shadowing protection for built-in names; shared `Arc<RateLimiter>` for per-tool per-user sliding window rate limiting via **RateLimiter** (`tools/rate_limiter.rs`) — per-minute and per-hour windows), built-in tools (echo, time, json, **unified `http`** tool (replaces `web_fetch` — conditional approval: GET-no-auth=never, POST/auth=always; v0.16.0), **`restart`** tool (graceful process restart via Docker entrypoint loop; web-only; v0.16.0), shell, file ops, memory, job mgmt, routines, extensions, skills, `HtmlConverter` (**HTML-to-Markdown** built-in conversion — two-stage: readability extraction + markdown conversion; feature-gated `html-to-markdown`)), WASM sandbox (wasmtime component model, fuel metering, memory limits), MCP client (**v0.17.0**: transport abstraction with stdio and Unix domain socket (UDS) transports alongside existing HTTP; OAuth fixes; JSON-RPC spec compliance improvements — flexible `id` field handling and correct notification format), dynamic software builder |
 | `tunnel` | `src/tunnel/` | Tunnel/ngrok-style public URL provisioning for webhook channels |
 | `worker` | `src/worker/` | Runs inside Docker containers: `Worker` execution loop, tool calls via LLM reasoning, Claude Code bridge (spawns `claude` CLI), orchestrator HTTP client, proxy LLM provider that forwards requests through orchestrator |
 | `workspace` | `src/workspace/` | Persistent memory (OpenClaw-inspired): path-based document store, content chunking (800 tokens, 15% overlap), `EmbeddingProvider` trait (OpenAI, NEAR AI, Ollama), hybrid FTS+vector search via Reciprocal Rank Fusion, identity file injection into system prompt, heartbeat checklist, disk-to-DB migration (via `bootstrap::migrate_disk_to_db()` and `Workspace::import_from_directory()`) |
@@ -222,7 +223,14 @@ src/main.rs
     │        │       ├──▶ llm::failover      (FailoverProvider)
     │        │       ├──▶ llm::circuit_breaker
     │        │       ├──▶ llm::response_cache
-    │        │       └──▶ llm::session       (SessionManager, token renewal)
+    │        │       ├──▶ llm::session       (SessionManager, token renewal)
+    │        │       ├──▶ llm::gemini        (GeminiProvider, v0.17.0)
+    │        │       ├──▶ llm::mistral       (MistralProvider, v0.17.0)
+    │        │       ├──▶ llm::ionet         (IoNetProvider, v0.17.0)
+    │        │       ├──▶ llm::yandex        (YandexGptProvider, v0.17.0)
+    │        │       ├──▶ llm::cloudflare    (CloudflareWsAiProvider, v0.17.0)
+    │        │       ├──▶ llm::bedrock       (BedrockProvider, Converse API, --features bedrock, v0.17.0)
+    │        │       └──▶ llm::provider_registry (declarative ProviderRegistry, v0.17.0)
     │        │
     │        ├──▶ safety (SafetyLayer)
     │        │       ├──▶ safety::sanitizer
@@ -840,7 +848,7 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | `workspace` | `src/workspace/` | 7 |
 | **Top-level files** | `src/*.rs` | 11 (`main.rs`, `lib.rs`, `app.rs`, `bootstrap.rs`, `service.rs`, `error.rs`, `settings.rs`, `util.rs`, `boot_screen.rs`, `testing.rs`, `tracing_fmt.rs`) |
 
-> **Note**: File counts are pinned to the `v0.16.1` release tag snapshot. They reflect `src/**.rs` at tag `v0.16.1`.
+> **Note**: File counts are pinned to the `v0.16.1` release tag snapshot. They reflect `src/**.rs` at tag `v0.16.1`. v0.17.0 and v0.18.0 added additional files (new provider modules, transport adapters, reaper task); counts above are not yet updated for those releases.
 
 The `tools` module is one of the largest modules, reflecting the breadth of the tool system: built-ins, a full WASM runtime, an MCP client, a software builder, and the registry/trait definitions. The `channels` module includes REPL, web gateway, HTTP, Signal (added v0.12.0), and WASM channel runtime implementations.
 
@@ -874,4 +882,4 @@ The `tools` module is one of the largest modules, reflecting the breadth of the 
 
 ---
 
-*Document generated from source code inspection of IronClaw v0.16.1 (`src/` directory). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*
+*Document generated from source code inspection of IronClaw v0.16.1 (`src/` directory), updated for v0.17.0 and v0.18.0. For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*

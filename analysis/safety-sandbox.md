@@ -1,8 +1,11 @@
 # IronClaw Codebase Analysis — Safety & Sandbox Security Model
 
-> Updated: 2026-03-06 | Version: v0.16.1
+> Updated: 2026-03-12 | Version: v0.18.0
 
 ## Security Changelog
+
+### v0.17.0 - Background Sandbox Reaper
+- **Orphaned Container Cleanup (PR #634)**: A background reaper task now periodically scans for Docker containers that were spawned by IronClaw sandbox jobs but were never cleaned up (e.g., due to agent crash or SIGKILL). Containers are identified by the `ironclaw.job_id` label applied at creation time. Any container whose associated job is no longer active (not in `Running` or `Pending` state in the database) is forcibly removed. The reaper runs every 60 seconds and emits a `tracing::warn!` for each orphan it removes.
 
 ### v0.16.0 - CSPRNG Security Hardening
 - **OsRng Migration**: All security-critical key and token generation now uses `aes_gcm::aead::OsRng` (Cryptographically Secure Pseudorandom Number Generator) instead of `rand::thread_rng()`. This ensures compliance with cryptographic security standards for master key generation, salt generation, and all credential-related random values. (PR #519)
