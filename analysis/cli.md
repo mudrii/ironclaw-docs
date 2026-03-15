@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — CLI Interface
 
-> Updated: 2026-03-06 | Version: v0.16.1
+> Updated: 2026-03-11 | Version: v0.18.0
 
 ## 1. Overview
 
@@ -14,7 +14,7 @@ ironclaw [OPTIONS] [SUBCOMMAND]
 
 | Flag | Description |
 |------|-------------|
-| `--version` | Print the version and exit. Added in v0.12.0; it outputs the installed package version (for this baseline: `ironclaw 0.16.1`, from Cargo.toml). |
+| `--version` | Print the version and exit. Added in v0.12.0; it outputs the installed package version (for this baseline: `ironclaw 0.18.0`, from Cargo.toml). |
 | `--cli-only` | Run in interactive CLI mode only, disabling other channels (HTTP, WASM) |
 | `--no-db` | Skip database connection (useful for testing or offline use) |
 | `-m, --message <MSG>` | Single-message mode: send one message and exit |

@@ -1,9 +1,9 @@
 # IronClaw Network Security Reference
 
-> Version baseline: IronClaw v0.16.1 (`v0.16.1` tag snapshot)
+> Version baseline: IronClaw v0.18.0 (`v0.18.0` tag snapshot)
 > Validated against source modules in `src/channels/`, `src/orchestrator/`, `src/sandbox/`, `src/tools/builtin/http.rs`, and `src/channels/wasm/signature.rs`
 
-This document summarizes the network-facing surfaces and egress controls in the released `v0.16.1` codebase. It complements the deeper module analyses in:
+This document summarizes the network-facing surfaces and egress controls in the released `v0.18.0` codebase. It complements the deeper module analyses in:
 
 - [analysis/channels.md](analysis/channels.md)
 - [analysis/safety-sandbox.md](analysis/safety-sandbox.md)
@@ -125,7 +125,7 @@ The built-in `http` tool applies explicit SSRF and exfiltration defenses:
 
 ## 6.2 WASM tool and channel HTTP
 
-Source: `src/tools/wasm/*`, `src/channels/wasm/*`, `src/safety/leak_detector.rs`
+Source: `src/tools/wasm/*`, `src/channels/wasm/*`, `crates/ironclaw_safety/src/leak_detector.rs`
 
 WASM execution uses host-side controls:
 - allowlisted outbound endpoints from capabilities metadata
@@ -149,9 +149,9 @@ For Docker sandbox execution, outbound HTTP is forced through a loopback proxy w
 
 ## 7. Secret and Credential Protections
 
-Source: `src/secrets/*`, `src/safety/*`
+Source: `src/secrets/*`, `crates/ironclaw_safety/src/*`
 
-At `v0.16.1`, security-critical randomness uses `OsRng` rather than `thread_rng()`.
+At `v0.18.0`, security-critical randomness uses `OsRng` rather than `thread_rng()`.
 
 Credential protections include:
 - encrypted at-rest secret storage
@@ -172,17 +172,24 @@ These are expected deployment caveats, not undocumented surprises:
 
 ## 9. Release-Specific Security Changes Covered Here
 
-### v0.15.0
-- query-token gateway auth restricted to SSE/streaming GET endpoints only
-- OAuth callbacks can route through the gateway for hosted deployments
+### v0.18.0
+- housekeeping release only: staged artifact checksum and staging promotion updates (no major network-surface behavior changes)
+
+### v0.17.0
+- background sandbox reaper and transport hardening for MCP worker execution paths
+- expanded provider and routing behavior in connected subsystems
+
+### v0.16.1
+- no major new network surface; release mainly reverted premature WASM registry SHA256 values to `null`
 
 ### v0.16.0
 - Slack HMAC-SHA256 webhook signature validation added
 - security-critical randomness migrated to `OsRng`
 - unified `http` tool approval model documented by actual source behavior
 
-### v0.16.1
-- no major new network surface; release mainly reverted premature WASM registry SHA256 values to `null`
+### v0.15.0
+- query-token gateway auth restricted to SSE/streaming GET endpoints only
+- OAuth callbacks can route through the gateway for hosted deployments
 
 ## 10. Validation Sources
 

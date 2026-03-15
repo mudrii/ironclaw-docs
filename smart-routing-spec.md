@@ -1,6 +1,6 @@
 # Smart Model Routing for IronClaw
 
-> Version baseline: IronClaw v0.16.1 (`v0.16.1` tag snapshot)
+> Version baseline: IronClaw v0.18.0 (`v0.18.0` tag snapshot)
 > Source provenance: mirrored from the release-tree design spec at `docs/smart-routing-spec.md`
 
 **Status:** Implemented  

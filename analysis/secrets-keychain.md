@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Secrets Management & Keychain
 
-> Updated: 2026-03-06 | Version: v0.16.1
+> Updated: 2026-03-11 | Version: v0.18.0
 
 ## 1. Overview
 
@@ -348,7 +348,7 @@ AES-GCM authentication tag verification in `aes-gcm` is constant-time by constru
 
 ### Response Leak Detection
 
-After credential injection and HTTP request execution, the response passes through the `LeakDetector` (in `src/safety/leak_detector.rs`) before being returned to the WASM tool or the LLM. The leak detector scans for known secret patterns (API key formats, tokens, etc.). If a secret value is echoed back in the response body — for example because a misconfigured API reflects request headers — it is redacted or blocked before the WASM tool or LLM context ever sees it. This is the final line of defense shown in the module-level security model diagram.
+After credential injection and HTTP request execution, the response passes through the `LeakDetector` (in `crates/ironclaw_safety/src/leak_detector.rs`) before being returned to the WASM tool or the LLM. The leak detector scans for known secret patterns (API key formats, tokens, etc.). If a secret value is echoed back in the response body — for example because a misconfigured API reflects request headers — it is redacted or blocked before the WASM tool or LLM context ever sees it. This is the final line of defense shown in the module-level security model diagram.
 
 ---
 

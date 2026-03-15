@@ -3,9 +3,9 @@
 > **AI Agent Use**: Optimized for code review, bug triage, and targeted fixes.
 > Jump directly to the section relevant to the error or task — no narrative reading required.
 
-> Version baseline: IronClaw v0.16.1 (`v0.16.1` tag snapshot)
+> Version baseline: IronClaw v0.18.0 (`v0.18.0` tag snapshot)
 
-**Source**: IronClaw v0.16.1 (`v0.16.1`) · `~/src/ironclaw/`
+**Source**: IronClaw v0.18.0 (`v0.18.0`) · `~/src/ironclaw/`
 
 ---
 
@@ -77,11 +77,11 @@
 | Message tool (attachments, context inference) | `src/tools/builtin/message.rs` |
 | MCP client (Streamable HTTP transport) | `src/tools/mcp/client.rs` |
 | Tool rate limiter | `src/tools/rate_limiter.rs` |
-| Prompt injection sanitizer | `src/safety/sanitizer.rs` |
-| Input validator | `src/safety/validator.rs` |
-| Policy rules engine | `src/safety/policy.rs` |
-| Secret leak detector (15+ patterns) | `src/safety/leak_detector.rs` |
-| Credential detection in HTTP params | `src/safety/credential_detect.rs` |
+| Prompt injection sanitizer | `crates/ironclaw_safety/src/sanitizer.rs` |
+| Input validator | `crates/ironclaw_safety/src/validator.rs` |
+| Policy rules engine | `crates/ironclaw_safety/src/policy.rs` |
+| Secret leak detector (15+ patterns) | `crates/ironclaw_safety/src/leak_detector.rs` |
+| Credential detection in HTTP params | `crates/ironclaw_safety/src/credential_detect.rs` |
 | LLM provider trait | `src/llm/provider.rs` |
 | LLM provider factory / backend enum | `src/llm/mod.rs` |
 | NEAR AI provider (Chat Completions, dual auth) | `src/llm/nearai_chat.rs` |
@@ -115,12 +115,12 @@
 | Trust-based tool attenuation | `src/skills/attenuation.rs` |
 | ClawHub registry client | `src/skills/catalog.rs` |
 | Onboarding wizard (9-step) | `src/setup/wizard.rs` |
-| Worker runtime (inside containers) | `src/worker/runtime.rs` |
+| Worker runtime (inside containers) | `src/worker/job.rs` |
 | Claude Code bridge | `src/worker/claude_bridge.rs` |
 | Orchestrator internal API | `src/orchestrator/api.rs` |
 | Per-job bearer token store | `src/orchestrator/auth.rs` |
 | Entry point, CLI arg parsing | `src/main.rs` |
-| `ironclaw --version` (print version and exit, e.g., "ironclaw 0.16.1") | `src/main.rs` |
+| `ironclaw --version` (print version and exit, e.g., "ironclaw 0.18.0") | `src/main.rs` |
 | Library root, module declarations | `src/lib.rs` |
 
 ---
@@ -134,7 +134,7 @@
 | `llm` | `src/llm/` | Multi-provider LLM: retry, circuit breaker, cache, failover |
 | `tools` | `src/tools/` | Built-in tools, WASM sandbox, MCP client, dynamic builder |
 | `extensions` | `src/extensions/` | Dynamic extensions (WASM tools/channels), hot activation, secrets |
-| `safety` | `src/safety/` | Prompt injection defense: sanitize, validate, policy, leak-detect |
+| `safety` | `crates/ironclaw_safety/src/` | Prompt injection defense: sanitize, validate, policy, leak-detect |
 | `db` | `src/db/` | Database abstraction: PostgreSQL + libSQL backends |
 | `workspace` | `src/workspace/` | Persistent memory: chunking, embeddings, hybrid RRF search |
 | `context` | `src/context/` | Job context isolation, state machine, conversation memory |
@@ -230,10 +230,10 @@ All error types defined in `src/error.rs`. Top-level `Error` wraps domain errors
 
 | Variant | Root Cause | Fix |
 |---------|------------|-----|
-| `InjectionDetected { pattern }` | Prompt injection in tool output | Output passes through `src/safety/sanitizer.rs` |
+| `InjectionDetected { pattern }` | Prompt injection in tool output | Output passes through `crates/ironclaw_safety/src/sanitizer.rs` |
 | `OutputTooLarge { length, max }` | Tool output exceeds max length | Tool must trim output before returning |
-| `BlockedContent { pattern }` | Policy rule blocked content | Check `src/safety/policy.rs` rules |
-| `ValidationFailed { reason }` | Input validation failed | Check `src/safety/validator.rs` |
+| `BlockedContent { pattern }` | Policy rule blocked content | Check `crates/ironclaw_safety/src/policy.rs` rules |
+| `ValidationFailed { reason }` | Input validation failed | Check `crates/ironclaw_safety/src/validator.rs` |
 | `PolicyViolation { rule }` | Named policy rule triggered | Inspect rule in `PolicyRule` registry |
 
 ### 3.7 JobError
@@ -871,7 +871,7 @@ Source: `src/tools/mcp/client.rs`
 
 ## 9. Safety Layer Pipeline
 
-Source: `src/safety/`
+Source: `crates/ironclaw_safety/src/`
 
 Ingress and egress validation are split across flow stages:
 
@@ -889,17 +889,17 @@ Tool Output
     • Checks output size against `max_output_length`; oversized output is replaced with truncation marker
     │
     ▼
-[2] Leak detection (src/safety/leak_detector.rs)
+[2] Leak detection (crates/ironclaw_safety/src/leak_detector.rs)
     • Detect and redact known secret patterns
     • Block irrecoverable leaks, return `[Output blocked due to potential secret leakage]`
     │
     ▼
-[3] Policy engine (src/safety/policy.rs)
+[3] Policy engine (crates/ironclaw_safety/src/policy.rs)
     • PolicyRule system: severity (Critical/High/Medium/Low) + action (Block/Warn/Review/Sanitize)
     • Critical = Block immediately (→ SafetyError::PolicyViolation)
     │
     ▼
-[4] Sanitizer (src/safety/sanitizer.rs)
+[4] Sanitizer (crates/ironclaw_safety/src/sanitizer.rs)
     • Escapes and wraps with provenance marker only when needed:
     • `<tool_output name=\"{}\" sanitized=\"true\">...`
     │
@@ -907,7 +907,7 @@ Tool Output
 LLM context (sanitized)
 ```
 
-**Credential detect** (`src/safety/credential_detect.rs`): Used by the HTTP tool specifically to detect manually-provided credentials in request parameters (headers, URL query params, URL userinfo). Checks for auth header names (Authorization, X-Api-Key, etc.), auth value prefixes (Bearer, Basic, Token), credential query params (api_key, access_token, etc.), and embedded URL userinfo. Triggers approval prompt before executing the HTTP request.
+**Credential detect** (`crates/ironclaw_safety/src/credential_detect.rs`): Used by the HTTP tool specifically to detect manually-provided credentials in request parameters (headers, URL query params, URL userinfo). Checks for auth header names (Authorization, X-Api-Key, etc.), auth value prefixes (Bearer, Basic, Token), credential query params (api_key, access_token, etc.), and embedded URL userinfo. Triggers approval prompt before executing the HTTP request.
 
 **Shell tool** (`src/tools/builtin/shell.rs`): scrubs sensitive env vars before command execution to prevent `env` / `printenv` / `$VAR` leakage.
 
@@ -1042,7 +1042,7 @@ IronClaw supports two internal execution modes that run inside Docker containers
 
 **Purpose**: Standard agentic execution inside a container.
 
-**Source**: `src/worker/runtime.rs`
+**Source**: `src/worker/job.rs`
 
 **Command** (internal, invoked by orchestrator):
 ```bash
@@ -1195,7 +1195,7 @@ grep -rn '<the_pattern>' src/
 
 **Symptom**: API key visible in LLM response or user output
 **Root cause**: Tool returns raw credential; `requires_sanitization()` returns `false`
-**Fix**: Set `requires_sanitization() = true`; add pattern to `src/safety/leak_detector.rs`
+**Fix**: Set `requires_sanitization() = true`; add pattern to `crates/ironclaw_safety/src/leak_detector.rs`
 
 ---
 
@@ -1376,4 +1376,4 @@ sqlite3 ~/.ironclaw/ironclaw.db "SELECT id, status, created_at FROM agent_jobs O
 
 ---
 
-*Source: IronClaw v0.16.1 (`v0.16.1`) · Docs: github.com/nearai/ironclaw-docs · Generated: 2026-03-06*
+*Source: IronClaw v0.18.0 (`v0.18.0`) · Docs: github.com/nearai/ironclaw-docs · Generated: 2026-03-15*

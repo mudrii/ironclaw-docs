@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Worker & Orchestrator (Docker Sandbox)
 
-> Updated: 2026-03-06 | Version: v0.16.1
+> Updated: 2026-03-11 | Version: v0.18.0
 
 ## 1. Overview
 
@@ -170,9 +170,9 @@ This gives the browser UI real-time visibility into container activity.
 
 ---
 
-## 4. Worker Runtime (`worker/runtime.rs`)
+## 4. Worker Runtime (`worker/job.rs`)
 
-Source file: `src/worker/runtime.rs`
+Source file: `src/worker/job.rs`
 
 `WorkerRuntime` is the entry point when `ironclaw worker` is invoked inside
 a container. It reads `IRONCLAW_WORKER_TOKEN` from the environment and

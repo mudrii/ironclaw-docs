@@ -1,6 +1,6 @@
 # IronClaw — Master Architecture Document
 
-> Updated: 2026-03-06 (v0.16.1) | Comprehensive reference for contributors
+> Updated: 2026-03-11 (v0.18.0) | Comprehensive reference for contributors
 
 ---
 
@@ -176,7 +176,7 @@ The following table lists every source module directory and the key top-level fi
 | `orchestrator` | `src/orchestrator/` | Internal HTTP API served to Docker sandbox containers: LLM proxy endpoint, job event streaming, per-job bearer token auth, `ContainerJobManager` (bollard lifecycle) |
 | `pairing` | `src/pairing/` | Device pairing and authentication helpers for remote channel setup |
 | `registry` | `src/registry/` | Extension/tool registry client for discovering installable tools and channels |
-| `safety` | `src/safety/` | Prompt injection defense: `Sanitizer` (pattern detection, XML escaping), `Validator` (length, encoding checks), `Policy` (rule-based actions: Block/Warn/Review/Sanitize), `LeakDetector` (15+ secret patterns with Block/Redact/Warn actions), `CredentialDetector` (HTTP param credential detection: requires approval when auth data is present in headers/URL) |
+| `safety` | `crates/ironclaw_safety/src/` | Prompt injection defense: `Sanitizer` (pattern detection, XML escaping), `Validator` (length, encoding checks), `Policy` (rule-based actions: Block/Warn/Review/Sanitize), `LeakDetector` (15+ secret patterns with Block/Redact/Warn actions), `CredentialDetector` (HTTP param credential detection: requires approval when auth data is present in headers/URL) |
 | `sandbox` | `src/sandbox/` | Docker-based job isolation: `SandboxManager`, `ContainerRunner`, `NetworkProxy` (hyper HTTP/CONNECT proxy with domain allowlist and credential injection), `SandboxPolicy` (ReadOnly/WorkspaceWrite/FullAccess) |
 | `secrets` | `src/secrets/` | Encrypted credential storage: AES-256-GCM encryption, HKDF-SHA256 per-secret key derivation, PostgreSQL or libSQL backend (both support encrypted store), OS keychain integration (macOS: security-framework, Linux: secret-service/KWallet) |
 | `setup` | `src/setup/` | 7-step interactive onboarding wizard: database backend selection, NEAR AI authentication, secrets master key setup, channel configuration |
@@ -225,17 +225,17 @@ src/main.rs
     │        │       └──▶ llm::session       (SessionManager, token renewal)
     │        │
     │        ├──▶ safety (SafetyLayer)
-    │        │       ├──▶ safety::sanitizer
-    │        │       ├──▶ safety::validator
-    │        │       ├──▶ safety::policy
-    │        │       ├──▶ safety::leak_detector
-    │        │       └──▶ safety::credential_detect (HTTP param credential detection)
+    │        │       ├──▶ crates/ironclaw_safety::sanitizer
+    │        │       ├──▶ crates/ironclaw_safety::validator
+    │        │       ├──▶ crates/ironclaw_safety::policy
+    │        │       ├──▶ crates/ironclaw_safety::leak_detector
+    │        │       └──▶ crates/ironclaw_safety::credential_detect (HTTP param credential detection)
     │        │
     │        ├──▶ tools (ToolRegistry)
     │        │       ├──▶ tools::builtin     (echo, time, json, http [unified, replaces web_fetch v0.16.0], restart [v0.16.0], shell, file, memory, job, html_converter)
     │        │       ├──▶ tools::wasm        (wasmtime, WasmToolRuntime, WasmToolWrapper)
     │        │       │       ├──▶ secrets    (credential injection at host boundary)
-    │        │       │       └──▶ safety     (leak detection on WASM output)
+    │        │       │       └──▶ crates/ironclaw_safety (leak detection on WASM output)
     │        │       ├──▶ tools::mcp         (McpClient, JSON-RPC over HTTP)
     │        │       └──▶ tools::builder     (LlmSoftwareBuilder, WASM generation)
     │        │               └──▶ llm        (LLM-driven iterative build loop)
@@ -824,23 +824,23 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | `extensions` | `src/extensions/` | 4 |
 | `history` | `src/history/` | 3 |
 | `hooks` | `src/hooks/` | 5 |
-| `llm` | `src/llm/` | 13 |
+| `llm` | `src/llm/` | 22 |
 | `observability` | `src/observability/` | 5 |
 | `orchestrator` | `src/orchestrator/` | 4 |
 | `pairing` | `src/pairing/` | 2 |
 | `registry` | `src/registry/` | 6 |
-| `safety` | `src/safety/` | 6 |
+| `safety` | `crates/ironclaw_safety/src/` | 6 |
 | `sandbox` | `src/sandbox/` | 10 |
 | `secrets` | `src/secrets/` | 5 |
 | `setup` | `src/setup/` | 4 |
 | `skills` | `src/skills/` | 7 |
-| `tools` | `src/tools/` | 46 |
+| `tools` | `src/tools/` | 58 |
 | `tunnel` | `src/tunnel/` | 6 |
-| `worker` | `src/worker/` | 5 |
+| `worker` | `src/worker/` | 6 |
 | `workspace` | `src/workspace/` | 7 |
 | **Top-level files** | `src/*.rs` | 11 (`main.rs`, `lib.rs`, `app.rs`, `bootstrap.rs`, `service.rs`, `error.rs`, `settings.rs`, `util.rs`, `boot_screen.rs`, `testing.rs`, `tracing_fmt.rs`) |
 
-> **Note**: File counts are pinned to the `v0.16.1` release tag snapshot. They reflect `src/**.rs` at tag `v0.16.1`.
+> **Note**: File counts are pinned to the `v0.18.0` release tag snapshot. They reflect `src/**.rs` and `crates/ironclaw_safety/src/**.rs` at tag `v0.18.0`.
 
 The `tools` module is one of the largest modules, reflecting the breadth of the tool system: built-ins, a full WASM runtime, an MCP client, a software builder, and the registry/trait definitions. The `channels` module includes REPL, web gateway, HTTP, Signal (added v0.12.0), and WASM channel runtime implementations.
 
@@ -874,4 +874,4 @@ The `tools` module is one of the largest modules, reflecting the breadth of the 
 
 ---
 
-*Document generated from source code inspection of IronClaw v0.16.1 (`src/` directory). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*
+*Document generated from source code inspection of IronClaw v0.18.0 (`src/` and `crates/ironclaw_safety/src/` directories). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*

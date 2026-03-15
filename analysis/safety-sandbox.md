@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Safety & Sandbox Security Model
 
-> Updated: 2026-03-06 | Version: v0.16.1
+> Updated: 2026-03-11 | Version: v0.18.0
 
 ## Security Changelog
 
@@ -35,7 +35,7 @@ The model is layered: safety checks run on LLM inputs and outputs; WASM tools ar
 [Hook Pre-intercept]  (planned: channel-level input hooks)
     |
     v
-[Safety Layer]                              src/safety/
+[Safety Layer]                              crates/ironclaw_safety/src/
     |-- Sanitizer      strip malicious content, escape special tokens
     |-- Validator      policy enforcement, length/encoding checks
     |-- Leak Detector  catch credential exfiltration attempts in tool output
@@ -71,11 +71,11 @@ The model is layered: safety checks run on LLM inputs and outputs; WASM tools ar
 
 ---
 
-## 3. Safety Layer (`src/safety/`)
+## 3. Safety Layer (`crates/ironclaw_safety/src/`)
 
-The safety layer is the first line of defense against prompt injection. It applies to all external data before that data reaches the LLM context. The `SafetyLayer` struct in `src/safety/mod.rs` wraps four sub-components and exposes them through a single `sanitize_tool_output` / `validate_input` / `wrap_for_llm` API.
+The safety layer is the first line of defense against prompt injection. It applies to all external data before that data reaches the LLM context. The `SafetyLayer` struct in `crates/ironclaw_safety/src/mod.rs` wraps four sub-components and exposes them through a single `sanitize_tool_output` / `validate_input` / `wrap_for_llm` API.
 
-### 3.1 Sanitizer (`src/safety/sanitizer.rs`)
+### 3.1 Sanitizer (`crates/ironclaw_safety/src/sanitizer.rs`)
 
 The sanitizer detects and neutralizes prompt injection patterns in external content. It uses two detection mechanisms:
 
@@ -111,7 +111,7 @@ The sanitizer detects and neutralizes prompt injection patterns in external cont
 
 **Escaping behavior**: When a Critical-severity match is found, the sanitizer escapes the entire content — stripping null bytes, backslash-escaping `<|` / `|>` / `[INST]` tokens, and prefixing role lines (`system:`, `user:`, `assistant:`) with `[ESCAPED]`. For non-critical matches, warnings are emitted but content is passed through.
 
-### 3.2 Validator (`src/safety/validator.rs`)
+### 3.2 Validator (`crates/ironclaw_safety/src/validator.rs`)
 
 The validator performs structural checks on inputs and tool parameters:
 
@@ -124,7 +124,7 @@ The validator performs structural checks on inputs and tool parameters:
 
 The `validate_tool_params` method recursively walks a `serde_json::Value` and applies the same checks to all string leaf values. This means a WASM tool cannot smuggle injection payloads through nested JSON parameters.
 
-### 3.3 Leak Detector (`src/safety/leak_detector.rs`)
+### 3.3 Leak Detector (`crates/ironclaw_safety/src/leak_detector.rs`)
 
 The leak detector scans content for recognizable secret patterns at three points: before outbound HTTP requests from WASM tools (to prevent exfiltration), in tool outputs before they reach the LLM (to prevent accidental exposure), and in inbound user messages before they are processed by the agent (added in v0.13.0, PR #433). The third scan point catches accidentally-included secrets before the LLM can echo them back, which would trigger the outbound leak detector and create error loops.
 
@@ -159,7 +159,7 @@ For HTTP request scanning (`scan_http_request`), the URL, all header values, and
 
 Performance: a prefix-based Aho-Corasick matcher rapidly eliminates most of the content before the more expensive regex patterns are applied.
 
-### 3.4 Policy (`src/safety/policy.rs`)
+### 3.4 Policy (`crates/ironclaw_safety/src/policy.rs`)
 
 The policy layer applies a set of named rules with four possible actions — `Warn`, `Block`, `Review`, `Sanitize` — based on regex matching. Default rules in `Policy::default()`:
 
