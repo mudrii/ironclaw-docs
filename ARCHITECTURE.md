@@ -1,6 +1,6 @@
 # IronClaw — Master Architecture Document
 
-> Updated: 2026-03-11 (v0.18.0) | Comprehensive reference for contributors
+> Updated: 2026-03-17 (v0.19.0) | Comprehensive reference for contributors
 
 ---
 
@@ -41,7 +41,7 @@ The channel abstraction is the core extensibility point for message ingestion. A
 │                                                                                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐   │
 │  │ REPL Channel │  │ HTTP Webhook │  │ Web Gateway  │  │  WASM Channels   │   │
-│  │ (rustyline)  │  │  (axum)      │  │ SSE/WebSocket│  │(Tg,Slack,WA,Dc)  │   │
+│  │ (rustyline)  │  │  (axum)      │  │ SSE/WebSocket│  │(Tg,Slack,WA,Dc,Feishu)│   │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────────┘   │
 │         │                 │                  │                  │               │
 │         └─────────────────┴──────────────────┴──────────────────┘               │
@@ -161,7 +161,7 @@ The following table lists every source module directory and the key top-level fi
 | Module | Path | Purpose |
 |--------|------|---------|
 | `agent` | `src/agent/` | Core agent orchestration: main event loop, session management, job scheduling, self-repair, heartbeat, routine engine, context compaction (**Context Compactor** (`agent/compaction.rs`): three strategies — Summarize (LLM summary → workspace daily log), Truncate (drop oldest turns), MoveToWorkspace (archive full turns); triggered automatically on ContextLengthExceeded), undo/redo, skill selection, cost guardrails. **Routine and heartbeat notifications** target the channel configured via `HEARTBEAT_NOTIFY_CHANNEL`; if delivery to that channel fails, the notification is broadcast on all installed channels as a fallback (PR #398, v0.13.0). |
-| `channels` | `src/channels/` | Multi-channel input abstraction: `Channel` trait, `ChannelManager` (stream merge), HTTP webhook, web gateway (axum + SSE + WebSocket), WASM channel runtime (hot-activate without restart since v0.10.0; all WASM channels support device pairing and channel-context-injected prompts for group chat privacy), REPL, **Signal channel** (`signal.rs`): Native Rust channel connecting to signal-cli HTTP daemon for Signal messaging. Added in v0.12.0. |
+| `channels` | `src/channels/` | Multi-channel input abstraction: `Channel` trait, `ChannelManager` (stream merge), HTTP webhook, web gateway (axum + SSE + WebSocket), WASM channel runtime (hot-activate without restart since v0.10.0; all WASM channels support device pairing and channel-context-injected prompts for group chat privacy), REPL, **Signal channel** (`signal.rs`): Native Rust channel connecting to signal-cli HTTP daemon for Signal messaging. Added in v0.12.0. Feishu/Lark channel added in v0.19.0 ([#1110](https://github.com/nearai/ironclaw/pull/1110)). **Internationalization (v0.19.0):** Web UI supports `en` (default) and `zh-CN` via `src/channels/web/static/i18n/`. ([#929](https://github.com/nearai/ironclaw/pull/929)) |
 | `cli` | `src/cli/` | CLI command surface: onboarding, config, tool, mcp, memory, pairing, service, doctor, status |
 | `config` | `src/config/` | Configuration loading from environment, DB settings table, and optional TOML overlay. Sub-modules per domain: agent, builder, channels, database, embeddings, heartbeat, llm, routines, safety, sandbox, secrets, skills, tunnel, wasm |
 | `context` | `src/context/` | Per-job state isolation: `JobState` state machine (Pending → InProgress → Completed/Failed/Stuck), `JobContext`, `ContextManager` for concurrent job tracking |
@@ -171,7 +171,7 @@ The following table lists every source module directory and the key top-level fi
 | `extensions` | `src/extensions/` | `ExtensionManager`: coordinates MCP server auth and activation, WASM tool install/remove, registers in-chat discovery tools |
 | `history` | `src/history/` | Persistence for conversation threads and analytics: PostgreSQL repositories, aggregation queries (JobStats, ToolStats) |
 | `hooks` | `src/hooks/` | `HookRegistry` for Inbound/Outbound message interception: hooks can modify, reject, or pass through messages at the agent loop boundary |
-| `llm` | `src/llm/` | LLM provider chain: `LlmProvider` trait, `NearAiChatProvider` (Chat Completions, dual auth: session token + API key), `SmartRoutingProvider` (**redesigned v0.16.0**: 13-dimension complexity scorer produces 0–100 score mapped to four tiers Flash/Standard/Pro/Frontier → `Simple`/`Moderate`/`Complex` routing; pattern overrides fast-path greetings and security audits; cascade escalation for uncertain Pro-tier responses; sits at top of chain: `SmartRoutingProvider → RetryProvider → CircuitBreakerProvider → CachedProvider → FailoverProvider → backend`), `RigAdapter` (rig-core bridge for OpenAI/Anthropic/Ollama/Tinfoil), `FailoverProvider`, `CircuitBreakerProvider`, `CachedProvider`, `RetryProvider`, session token management |
+| `llm` | `src/llm/` | LLM provider chain: `LlmProvider` trait, `NearAiChatProvider` (Chat Completions, dual auth: session token + API key), `SmartRoutingProvider` (**redesigned v0.16.0**: 13-dimension complexity scorer produces 0–100 score mapped to four tiers Flash/Standard/Pro/Frontier → `Simple`/`Moderate`/`Complex` routing; pattern overrides fast-path greetings and security audits; cascade escalation for uncertain Pro-tier responses; sits at top of chain: `SmartRoutingProvider → RetryProvider → CircuitBreakerProvider → CachedProvider → FailoverProvider → backend`), `RigAdapter` (rig-core bridge for OpenAI/Anthropic/Ollama/Tinfoil), `FailoverProvider`, `CircuitBreakerProvider`, `CachedProvider`, `RetryProvider`, session token management. **New providers (v0.19.0):** MiniMax (`LLM_BACKEND=minimax`, v0.19.0), Z.AI/GLM-5 (`LLM_BACKEND=zai`, v0.19.0), Codex/ChatGPT (`LLM_USE_CODEX_AUTH=true`, v0.19.0) |
 | `observability` | `src/observability/` | Tracing and metrics backend configuration |
 | `orchestrator` | `src/orchestrator/` | Internal HTTP API served to Docker sandbox containers: LLM proxy endpoint, job event streaming, per-job bearer token auth, `ContainerJobManager` (bollard lifecycle) |
 | `pairing` | `src/pairing/` | Device pairing and authentication helpers for remote channel setup |
@@ -265,7 +265,7 @@ src/main.rs
     │        ├──▶ channels::http     (HttpChannel, axum webhook)
     │        ├──▶ channels::repl     (ReplChannel, rustyline)
     │        ├──▶ channels::signal   (SignalChannel, signal-cli HTTP/JSON-RPC daemon; added v0.12.0)
-    │        ├──▶ channels::wasm     (WASM channel runtime; loads channels-src/: Telegram, Slack, Discord, WhatsApp; hot-activate v0.10.0; device pairing + channel-aware prompts)
+    │        ├──▶ channels::wasm     (WASM channel runtime; loads channels-src/: Telegram, Slack, Discord, WhatsApp, Feishu/Lark (v0.19.0); hot-activate v0.10.0; device pairing + channel-aware prompts)
     │        └──▶ cli                 (clap command routing)
     │
     └──▶ agent (Agent)
@@ -814,7 +814,7 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | Module | Directory | `.rs` Files |
 |--------|-----------|------------|
 | `agent` | `src/agent/` | 21 |
-| `channels` | `src/channels/` | 37 |
+| `channels` | `src/channels/` | 43 |
 | `cli` | `src/cli/` | 12 |
 | `config` | `src/config/` | 17 |
 | `context` | `src/context/` | 4 |
@@ -824,7 +824,7 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | `extensions` | `src/extensions/` | 4 |
 | `history` | `src/history/` | 3 |
 | `hooks` | `src/hooks/` | 5 |
-| `llm` | `src/llm/` | 22 |
+| `llm` | `src/llm/` | 25 |
 | `observability` | `src/observability/` | 5 |
 | `orchestrator` | `src/orchestrator/` | 4 |
 | `pairing` | `src/pairing/` | 2 |
@@ -840,9 +840,9 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | `workspace` | `src/workspace/` | 7 |
 | **Top-level files** | `src/*.rs` | 11 (`main.rs`, `lib.rs`, `app.rs`, `bootstrap.rs`, `service.rs`, `error.rs`, `settings.rs`, `util.rs`, `boot_screen.rs`, `testing.rs`, `tracing_fmt.rs`) |
 
-> **Note**: File counts are pinned to the `v0.18.0` release tag snapshot. They reflect `src/**.rs` and `crates/ironclaw_safety/src/**.rs` at tag `v0.18.0`.
+> **Note**: File counts are pinned to the `v0.19.0` release tag snapshot. They reflect `src/**.rs` and `crates/ironclaw_safety/src/**.rs` at tag `v0.19.0`.
 
-The `tools` module is one of the largest modules, reflecting the breadth of the tool system: built-ins, a full WASM runtime, an MCP client, a software builder, and the registry/trait definitions. The `channels` module includes REPL, web gateway, HTTP, Signal (added v0.12.0), and WASM channel runtime implementations.
+The `tools` module is one of the largest modules, reflecting the breadth of the tool system: built-ins, a full WASM runtime, an MCP client, a software builder, and the registry/trait definitions. The `channels` module includes REPL, web gateway, HTTP, Signal (added v0.12.0), Feishu/Lark WASM plugin (v0.19.0), and WASM channel runtime implementations.
 
 **Key third-party crate dependencies:**
 
@@ -874,4 +874,4 @@ The `tools` module is one of the largest modules, reflecting the breadth of the 
 
 ---
 
-*Document generated from source code inspection of IronClaw v0.18.0 (`src/` and `crates/ironclaw_safety/src/` directories). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*
+*Document generated from source code inspection of IronClaw v0.19.0 (`src/` and `crates/ironclaw_safety/src/` directories). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*

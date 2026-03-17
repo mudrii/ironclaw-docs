@@ -1,6 +1,6 @@
 # LLM Provider Configuration
 
-> Version baseline: IronClaw v0.18.0 (`v0.18.0` tag snapshot)
+> Version baseline: IronClaw v0.19.0 (`v0.19.0` tag snapshot)
 
 IronClaw defaults to NEAR AI for model access, but supports any OpenAI-compatible
 endpoint as well as Anthropic and Ollama directly. This guide covers the most common
@@ -20,6 +20,9 @@ configurations.
 | vLLM / LiteLLM | `openai_compatible` | Optional | Self-hosted |
 | LM Studio | `openai_compatible` | No | Local GUI |
 | Tinfoil | `tinfoil` | `TINFOIL_API_KEY` | Private TEE inference |
+| MiniMax | `minimax` | `MINIMAX_API_KEY` | Chinese AI provider, MiniMax-M2.5 models |
+| Z.AI | `zai` | `ZAI_API_KEY` | GLM-5 series models from Z.AI/Zhipu |
+| Codex / ChatGPT | `openai` + `LLM_USE_CODEX_AUTH=true` | (Codex CLI OAuth token) | OpenAI ChatGPT via Codex OAuth — no separate API key |
 
 ---
 
@@ -195,6 +198,62 @@ TINFOIL_MODEL=kimi-k2-5          # Default model
 |----------|---------|-------------|
 | `TINFOIL_API_KEY` | — | Required. Tinfoil API key |
 | `TINFOIL_MODEL` | `kimi-k2-5` | Model identifier |
+
+---
+
+## MiniMax
+
+MiniMax is a built-in LLM provider (v0.19.0, [#940](https://github.com/nearai/ironclaw/pull/940)).
+
+```env
+LLM_BACKEND=minimax
+MINIMAX_API_KEY=your-minimax-api-key
+# MINIMAX_MODEL=MiniMax-M2.5   # Default model
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MINIMAX_API_KEY` | — | Required. MiniMax API key |
+| `MINIMAX_MODEL` | `MiniMax-M2.5` | Model identifier (`MiniMax-M2.5`, `MiniMax-M2.5-highspeed`) |
+
+---
+
+## Z.AI (GLM-5)
+
+Z.AI provides access to GLM-5 series models. Built-in provider (v0.19.0, [#938](https://github.com/nearai/ironclaw/pull/938)).
+
+```env
+LLM_BACKEND=zai
+ZAI_API_KEY=your-zai-api-key
+# ZAI_MODEL=glm-4-plus   # Default model
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ZAI_API_KEY` | — | Required. Z.AI API key |
+| `ZAI_MODEL` | `glm-4-plus` | Model identifier |
+
+---
+
+## Codex / ChatGPT (via Codex CLI OAuth)
+
+IronClaw can reuse existing Codex CLI OAuth tokens to call the ChatGPT backend via OpenAI's Responses API. No separate API key is needed if Codex CLI is already authenticated (v0.19.0, [#693](https://github.com/nearai/ironclaw/pull/693)).
+
+This is **not** a new `LLM_BACKEND` value — it is a credential injection layer on top of `openai`. Activated by `LLM_USE_CODEX_AUTH=true`.
+
+```env
+LLM_BACKEND=openai
+LLM_USE_CODEX_AUTH=true
+# CODEX_MODEL=o4-mini    # Default model
+# No API key needed — reads from ~/.codex/auth.json
+```
+
+**Prerequisites:** Codex CLI must be installed and authenticated (`codex auth`).
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_USE_CODEX_AUTH` | `false` | Set to `true` to use Codex CLI OAuth credentials |
+| `CODEX_MODEL` | `o4-mini` | Model identifier |
 
 ---
 

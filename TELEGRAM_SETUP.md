@@ -1,6 +1,6 @@
 # Telegram Channel Setup
 
-> Version baseline: IronClaw v0.18.0 (`v0.18.0` tag snapshot)
+> Version baseline: IronClaw v0.19.0 (`v0.19.0` tag snapshot)
 
 This guide covers configuring the Telegram channel for IronClaw, including DM pairing for access control.
 
@@ -12,6 +12,8 @@ The Telegram channel lets you interact with IronClaw via Telegram DMs and groups
 - **Polling mode**: No tunnel required; ~30s delay
 - **DM pairing**: Approve unknown users before they can message the agent
 - **Group mentions**: `@YourBot` or `/command` to trigger in groups
+
+> **v0.19.0:** Long responses are now automatically split into multiple Telegram messages when they exceed Telegram's 4096-character limit. ([PR #1273](https://github.com/nearai/ironclaw/pull/1273))
 
 ## Prerequisites
 
@@ -37,6 +39,8 @@ When prompted, enable the Telegram channel and paste your bot token. The wizard 
 - Validate the token
 - Optionally configure a webhook secret
 - Set up tunnel (if you want webhook mode)
+
+> **v0.19.0:** During hot activation (activating the Telegram channel while IronClaw is running), the gateway now verifies Telegram owner identity before binding the channel. This prevents unauthorized users from claiming the owner slot during a live reload. ([#1157](https://github.com/nearai/ironclaw/pull/1157))
 
 ### 3. (Optional) Configure Tunnel for Webhooks
 
@@ -135,3 +139,7 @@ For webhook validation, set `telegram_webhook_secret` in secrets. Telegram will 
 
 - For webhook mode: Start your tunnel before `ironclaw run`
 - For polling only: No tunnel needed; ignore tunnel-related warnings
+
+#### Telegram bot token validation fails intermittently
+
+**Fixed in v0.19.0** ([#1166](https://github.com/nearai/ironclaw/pull/1166)). Token validation previously could fail transiently with HTTP 404 errors from the Telegram Bot API. Update to v0.19.0 to resolve.

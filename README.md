@@ -1,9 +1,9 @@
 # IronClaw Documentation
 
-> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.18.0
+> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.19.0
 > — a secure, self-hosted personal AI assistant written in Rust.
 
-**Documentation set for IronClaw v0.18.0, validated against release tag `v0.18.0` (2026-03-11).**
+**Documentation set for IronClaw v0.19.0, validated against release tag `v0.19.0` (2026-03-17).**
 
 ---
 
@@ -40,28 +40,28 @@
 
 IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.ai) with:
 
-- **Multi-channel**: REPL, web gateway (axum), HTTP webhooks, WASM plugin channels, native Signal channel
+- **Multi-channel**: REPL, web gateway (axum), HTTP webhooks, WASM plugin channels (incl. Feishu/Lark), native Signal channel
 - **Security-first**: WASM sandbox (wasmtime), Docker isolation (bollard), credential injection, SSRF proxy
 - **Self-expanding**: Dynamic WASM tool builder, MCP protocol client, plugin architecture
 - **Persistent memory**: Hybrid FTS+vector search (RRF), workspace filesystem, identity files
-- **Multiple LLM backends**: NEAR AI, Anthropic, OpenAI, Ollama, OpenAI-compatible, Tinfoil
+- **Multiple LLM backends**: NEAR AI, Anthropic, OpenAI, Ollama, OpenAI-compatible, Tinfoil, MiniMax, Z.AI, Codex/ChatGPT
 - **Dual database**: libSQL (embedded, no server required) or PostgreSQL (with pgvector)
 
-### Source Module Statistics (v0.18.0)
+### Source Module Statistics (v0.19.0)
 
 | Module | Files | Description |
 |--------|------:|-------------|
 | `tools/` | 58 | Tool system: built-in (incl. unified `http` + `restart`), MCP, WASM, dynamic builder, rate limiter, HTML-to-Markdown |
-| `channels/` | 42 | Channels: REPL, web gateway, HTTP, native Signal, WASM plugins (with HMAC-SHA256 Slack signing, WIT versioning, DB-stored channel binaries) |
+| `channels/` | 42 | Channels: REPL, web gateway, HTTP, native Signal, WASM plugins (with HMAC-SHA256 Slack signing, WIT versioning, DB-stored channel binaries, Feishu/Lark WASM channel plugin (v0.19.0)) |
 | `agent/` | 22 | Agent runtime: loop, sessions, jobs, routines, heartbeat, context compaction |
 | `config/` | 20 | Configuration: all env vars and structs |
 | `workspace/` | 7 | Memory, embeddings, hybrid FTS+vector search |
-| `llm/` | 22 | LLM backends, redesigned 13-dim smart routing, reliability wrappers, trace recording |
+| `llm/` | 25 | LLM backends, redesigned 13-dim smart routing, reliability wrappers, trace recording |
 | `tunnel/` | 6 | Tunnels: cloudflare, ngrok, tailscale, custom |
 | `secrets/` | 5 | Keychain, AES-256-GCM crypto, credential injection (OsRng throughout) |
 | `safety/` | 6 | Prompt injection defense, leak detection, secret scanning, policy enforcement (`crates/ironclaw_safety/src`) |
 | `worker/` | 6 | Docker worker: runtime, LLM bridge, proxy |
-| **Total (`src/`)** | **323** | All files under `src/` at `v0.18.0` (including 305 Rust source files) |
+| **Total (`src/`)** | **323** | All files under `src/` at `v0.19.0` (including 312 Rust source files) |
 
 ---
 
@@ -115,6 +115,35 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 ---
 
 ## What's New
+
+### v0.19.0 (2026-03-17)
+
+### Added
+
+- **Feishu/Lark WASM channel** — Talk to your agent through a Feishu or Lark bot ([#1110](https://github.com/nearai/ironclaw/pull/1110))
+- **New LLM providers**: MiniMax (built-in, `LLM_BACKEND=minimax`), Z.AI/GLM-5 (built-in, `LLM_BACKEND=zai`), Codex/ChatGPT via `LLM_USE_CODEX_AUTH=true` ([#940](https://github.com/nearai/ironclaw/pull/940), [#938](https://github.com/nearai/ironclaw/pull/938), [#693](https://github.com/nearai/ironclaw/pull/693))
+- **`ironclaw logs`** — Gateway log access CLI: live follow (`-f`), JSON output, log-level control ([#1105](https://github.com/nearai/ironclaw/pull/1105))
+- **`ironclaw cron`** — Alias for `ironclaw routines` for intuitive cron scheduling ([#1017](https://github.com/nearai/ironclaw/pull/1017))
+- **`ironclaw channels list`** and **`ironclaw skills list/search/info`** — new CLI discovery commands ([#933](https://github.com/nearai/ironclaw/pull/933), [#918](https://github.com/nearai/ironclaw/pull/918))
+- **Heartbeat `fire_at`** — Time-of-day scheduling with IANA timezone support ([#1029](https://github.com/nearai/ironclaw/pull/1029))
+- **i18n support** — Chinese (zh-CN) and English UI translations ([#929](https://github.com/nearai/ironclaw/pull/929))
+- Slack approval buttons for tool execution in DMs ([#796](https://github.com/nearai/ironclaw/pull/796))
+- Context-llm tool support ([#616](https://github.com/nearai/ironclaw/pull/616))
+- Configurable hybrid search fusion strategy ([#234](https://github.com/nearai/ironclaw/pull/234))
+- Import OpenClaw memory, history, and settings ([#903](https://github.com/nearai/ironclaw/pull/903))
+- ASCII art banner during onboarding ([#851](https://github.com/nearai/ironclaw/pull/851))
+- Sandbox retry logic for transient container failures ([#1232](https://github.com/nearai/ironclaw/pull/1232))
+
+### Fixed (Security)
+
+- Webhook auth migrated to HMAC-SHA256 `X-Webhook-Signature` header (was in body) ([#970](https://github.com/nearai/ironclaw/pull/970))
+- Webhook server defaults to loopback when tunnel is configured ([#1194](https://github.com/nearai/ironclaw/pull/1194))
+- Content-Security-Policy header added to web gateway ([#966](https://github.com/nearai/ironclaw/pull/966))
+- Metadata spoofing prevention for internal job monitor flag ([#1195](https://github.com/nearai/ironclaw/pull/1195))
+- Anthropic OAuth token persistence after Keychain re-read ([#1213](https://github.com/nearai/ironclaw/pull/1213))
+- MCP: handle 400 auth errors, clear auth mode after OAuth, trim tokens ([#1158](https://github.com/nearai/ironclaw/pull/1158))
+- Eliminated panic paths in production code ([#1184](https://github.com/nearai/ironclaw/pull/1184))
+- Telegram owner verification during hot activation ([#1157](https://github.com/nearai/ironclaw/pull/1157))
 
 ### v0.18.0 (2026-03-11)
 
@@ -322,8 +351,8 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 
 ## Version
 
-Documented: IronClaw v0.18.0
-Release tag: [v0.18.0](https://github.com/nearai/ironclaw/releases/tag/v0.18.0) (2026-03-11)
+Documented: IronClaw v0.19.0
+Release tag: [v0.19.0](https://github.com/nearai/ironclaw/releases/tag/v0.19.0) (2026-03-17)
 Source: [github.com/nearai/ironclaw](https://github.com/nearai/ironclaw)
 Docs repo: [github.com/mudrii/ironclaw-docs](https://github.com/mudrii/ironclaw-docs)
-Generated: 2026-03-15
+Generated: 2026-03-17

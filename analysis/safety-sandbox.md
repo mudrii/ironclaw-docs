@@ -1,8 +1,20 @@
 # IronClaw Codebase Analysis — Safety & Sandbox Security Model
 
-> Updated: 2026-03-11 | Version: v0.18.0
+> Updated: 2026-03-17 | Version: v0.19.0
 
 ## Security Changelog
+
+### v0.19.0 - Security Hardening
+
+- **Metadata spoofing prevention:** Internal job monitor flag protected from client manipulation ([#1195](https://github.com/nearai/ironclaw/pull/1195))
+- **Webhook HMAC-SHA256 migration:** Secret transmitted in `X-Webhook-Signature` header instead of body ([#970](https://github.com/nearai/ironclaw/pull/970), [#1162](https://github.com/nearai/ironclaw/pull/1162))
+- **Webhook server loopback default:** Binds to `127.0.0.1` when tunnel is configured ([#1194](https://github.com/nearai/ironclaw/pull/1194))
+- **CSP header:** Content-Security-Policy added to web gateway responses ([#966](https://github.com/nearai/ironclaw/pull/966))
+- **MCP audit:** 14 MCP module audit findings addressed ([#1094](https://github.com/nearai/ironclaw/pull/1094))
+- **Sandbox retry logic:** Retry for transient container failures ([#1232](https://github.com/nearai/ironclaw/pull/1232))
+- **Panic path elimination:** All `.expect()` and `.unwrap()` removed from production code ([#1087](https://github.com/nearai/ironclaw/pull/1087), [#1184](https://github.com/nearai/ironclaw/pull/1184))
+- **SSRF embedding base URL fix** ([#1103](https://github.com/nearai/ironclaw/pull/1103))
+- **Pairing approval fix** (fix/pairing-approval)
 
 ### v0.16.0 - CSPRNG Security Hardening
 - **OsRng Migration**: All security-critical key and token generation now uses `aes_gcm::aead::OsRng` (Cryptographically Secure Pseudorandom Number Generator) instead of `rand::thread_rng()`. This ensures compliance with cryptographic security standards for master key generation, salt generation, and all credential-related random values. (PR #519)
@@ -73,7 +85,7 @@ The model is layered: safety checks run on LLM inputs and outputs; WASM tools ar
 
 ## 3. Safety Layer (`crates/ironclaw_safety/src/`)
 
-The safety layer is the first line of defense against prompt injection. It applies to all external data before that data reaches the LLM context. The `SafetyLayer` struct in `crates/ironclaw_safety/src/mod.rs` wraps four sub-components and exposes them through a single `sanitize_tool_output` / `validate_input` / `wrap_for_llm` API.
+The safety layer is the first line of defense against prompt injection. It applies to all external data before that data reaches the LLM context. The `SafetyLayer` struct in `crates/ironclaw_safety/src/lib.rs` wraps four sub-components and exposes them through a single `sanitize_tool_output` / `validate_input` / `wrap_for_llm` API.
 
 ### 3.1 Sanitizer (`crates/ironclaw_safety/src/sanitizer.rs`)
 

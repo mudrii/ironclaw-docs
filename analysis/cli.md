@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — CLI Interface
 
-> Updated: 2026-03-11 | Version: v0.18.0
+> Updated: 2026-03-17 | Version: v0.19.0
 
 ## 1. Overview
 
@@ -240,11 +240,19 @@ Shows where settings are stored: `database (settings table)` if connected, or a 
 |-----------|---------|
 | `agent.*` | `agent.name`, `agent.max_parallel_jobs`, `agent.max_cost_per_day_cents` |
 | `embeddings.*` | `embeddings.enabled`, `embeddings.provider`, `embeddings.model` |
-| `heartbeat.*` | `heartbeat.enabled`, `heartbeat.interval_secs` |
+| `heartbeat.*` | `heartbeat.enabled`, `heartbeat.interval_secs`, `heartbeat.fire_at` |
 | `channels.*` | `channels.http_enabled`, `channels.http_port` |
 | `wasm.*` | `wasm.enabled`, `wasm.tools_dir` |
 | `sandbox.*` | `sandbox.enabled`, `sandbox.memory_limit_mb` |
 | `skills.*` | `skills.enabled`, `skills.max_tokens` |
+
+**Notable heartbeat settings:**
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `heartbeat.enabled` | bool | Enable or disable the heartbeat subsystem |
+| `heartbeat.interval_secs` | integer | Interval in seconds between heartbeat ticks |
+| `heartbeat.fire_at` | string | Time-of-day schedule `"HH:MM IANA/Timezone"` for daily one-shot triggers. Example: `"09:00 America/New_York"` (v0.19.0, PR [#1029](https://github.com/nearai/ironclaw/pull/1029)) |
 
 ---
 
@@ -376,9 +384,73 @@ Installs a named extension or bundle.
 **`registry install-defaults [--force] [--build]`**
 Shorthand for `registry install default` — installs the `default` bundle, which contains the recommended set of extensions for new users.
 
+### `ironclaw cron` alias (v0.19.0, [#1017](https://github.com/nearai/ironclaw/pull/1017))
+
+`cron` is a convenience **alias** for the `routines` command, not a new standalone command. All `ironclaw routines` subcommands work identically with `ironclaw cron`:
+
+```bash
+ironclaw cron list              # Same as: ironclaw routines list
+ironclaw cron create            # Same as: ironclaw routines create
+```
+
+This alias makes cron-scheduled routines more intuitive to manage. All functionality belongs to `routines`.
+
+### `ironclaw channels list` (v0.19.0, [#933](https://github.com/nearai/ironclaw/pull/933))
+
+Lists all configured and installed WASM channels with their status.
+
+```bash
+ironclaw channels list          # List all channels: name, type, activation state, version
+```
+
+### `ironclaw skills` (v0.19.0, [#918](https://github.com/nearai/ironclaw/pull/918))
+
+Discovery and inspection commands for skills (`SKILL.md` files in `~/.ironclaw/skills/`).
+
+```bash
+ironclaw skills list             # List all installed skills
+ironclaw skills search <query>   # Search skills by keyword
+ironclaw skills info <name>      # Show metadata for a specific skill (triggers, keywords, trust level)
+```
+
 ---
 
-## 10. Tool CLI (`tool.rs`)
+## 10. Logs CLI (`logs.rs`)
+
+### `ironclaw logs` (v0.19.0, [#1105](https://github.com/nearai/ironclaw/pull/1105))
+
+Gateway log access. Reads from `~/.ironclaw/gateway.log`, or streams live via SSE (`/api/logs/events`).
+
+```bash
+ironclaw logs                          # Last 200 lines (default)
+ironclaw logs -f                       # Follow (live stream via SSE)
+ironclaw logs -l 500                   # Show last 500 lines
+ironclaw logs --json                   # One JSON object per line
+ironclaw logs --local-time             # Display timestamps in local timezone
+ironclaw logs --plain                  # No ANSI styling
+ironclaw logs --level info             # Set runtime log level (trace|debug|info|warn|error)
+ironclaw logs --level                  # Get current runtime log level
+ironclaw logs --url http://host:3000   # Custom gateway URL
+ironclaw logs --token <TOKEN>          # Auth token (default: GATEWAY_AUTH_TOKEN env)
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-f` / `--follow` | false | Stream live logs via SSE (replays recent history first) |
+| `-l` / `--limit` | 200 | Max lines to show |
+| `--json` | false | Output one JSON object per line |
+| `--local-time` | false | Display timestamps in local timezone |
+| `--plain` | false | No ANSI styling |
+| `--level [LEVEL]` | — | Get (no value) or set runtime log level |
+| `--url` | `http://{GATEWAY_HOST}:{GATEWAY_PORT}` | Gateway URL override |
+| `--token` | `GATEWAY_AUTH_TOKEN` env | Auth token |
+| `--timeout` | 5000 | Connection timeout in milliseconds |
+
+API endpoints: `GET /api/logs/events` (SSE stream), `GET/POST /api/logs/level` (log level).
+
+---
+
+## 11. Tool CLI (`tool.rs`)
 
 `ironclaw tool` manages WASM tools installed in `~/.ironclaw/tools/`. Tools are `.wasm` component files paired with `.capabilities.json` files that declare their permissions.
 
@@ -420,7 +492,7 @@ OAuth tokens and refresh tokens are stored separately in the encrypted secrets s
 
 ---
 
-## 11. OAuth Defaults (`oauth_defaults.rs`)
+## 12. OAuth Defaults (`oauth_defaults.rs`)
 
 `oauth_defaults.rs` is the shared OAuth infrastructure used by every auth flow in IronClaw: WASM tool auth, MCP server auth, and the NEAR AI login during onboarding.
 
@@ -468,7 +540,7 @@ The landing HTML page is rendered inline with a success (green checkmark) or fai
 
 ---
 
-## 12. Pairing CLI (`pairing.rs`)
+## 13. Pairing CLI (`pairing.rs`)
 
 `ironclaw pairing` manages DM pairing — the approval workflow for inbound messages from unknown senders on channels like Telegram or Slack.
 
@@ -489,7 +561,7 @@ The `PairingStore` persists requests on disk (JSON files per channel) and is rat
 
 ---
 
-## 13. Internal Worker Commands
+## 14. Internal Worker Commands
 
 Two subcommands are marked as internal use by the orchestrator and are not intended for direct user invocation:
 
@@ -503,7 +575,7 @@ Runs as a Claude Code bridge inside a Docker container. Spawns the `claude` CLI 
 
 ---
 
-## 14. Architecture Notes
+## 15. Architecture Notes
 
 **clap derive pattern:** All CLI types use `#[derive(Parser)]`, `#[derive(Subcommand)]`, and `#[command(...)]` attributes. The `Cli` struct in `src/cli/mod.rs` is the root parser; `Command` is the top-level subcommand enum. Each subcommand module exports its own enum (e.g., `ConfigCommand`, `McpCommand`) and a `run_*` async function.
 

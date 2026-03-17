@@ -1,9 +1,9 @@
 # IronClaw Network Security Reference
 
-> Version baseline: IronClaw v0.18.0 (`v0.18.0` tag snapshot)
+> Version baseline: IronClaw v0.19.0 (`v0.19.0` tag snapshot)
 > Validated against source modules in `src/channels/`, `src/orchestrator/`, `src/sandbox/`, `src/tools/builtin/http.rs`, and `src/channels/wasm/signature.rs`
 
-This document summarizes the network-facing surfaces and egress controls in the released `v0.18.0` codebase. It complements the deeper module analyses in:
+This document summarizes the network-facing surfaces and egress controls in the released `v0.19.0` codebase. It complements the deeper module analyses in:
 
 - [analysis/channels.md](analysis/channels.md)
 - [analysis/safety-sandbox.md](analysis/safety-sandbox.md)
@@ -15,11 +15,13 @@ This document summarizes the network-facing surfaces and egress controls in the 
 | Surface | Default bind | Auth | Notes |
 |---|---|---|---|
 | Web gateway | `127.0.0.1:3000` | Bearer token | Browser UI + JSON API + SSE + WS |
-| HTTP webhook server | `0.0.0.0:8080` | Shared secret | Hosts built-in HTTP webhook routes and WASM webhook fragments |
+| HTTP webhook server | `127.0.0.1:8080` (loopback when tunnel active) / `0.0.0.0:8080` (no tunnel) | Shared secret | Hosts built-in HTTP webhook routes and WASM webhook fragments |
 | Orchestrator internal API | `127.0.0.1:50051` on macOS/Windows, `0.0.0.0:50051` on Linux | Per-job bearer token | Worker/container control plane |
 | OAuth callback route (gateway) | same as gateway | none on callback endpoint itself | Used for hosted/remote OAuth callback flow |
 | Local OAuth listener | loopback `127.0.0.1:9876` by default | none | Short-lived CLI/local OAuth callback server |
 | Sandbox proxy | loopback ephemeral port | loopback-only | Egress control point for sandbox containers |
+
+> **v0.19.0:** When a tunnel (cloudflared/ngrok/tailscale) is configured, the webhook server now defaults to `127.0.0.1:8080` instead of `0.0.0.0:8080`, preventing direct external access. ([#1194](https://github.com/nearai/ironclaw/pull/1194))
 
 ## 2. Web Gateway Security
 
@@ -55,6 +57,7 @@ Protected routes include chat, memory, jobs, logs, extensions, pairing, routines
 - request body limit is `1 MiB`
 - SSE + WebSocket connection count is capped at `100` combined
 - security headers include `X-Content-Type-Options: nosniff` and `X-Frame-Options: DENY`
+- `Content-Security-Policy` header (v0.19.0, PR [#966](https://github.com/nearai/ironclaw/pull/966))
 
 ## 3. HTTP Webhook Security
 
@@ -62,10 +65,12 @@ Source: `src/channels/http.rs`, `src/channels/webhook_server.rs`, `src/channels/
 
 ### Built-in HTTP webhook channel
 
-The built-in HTTP channel:
+The built-in HTTP channel validates an HMAC-SHA256 signature sent in the `X-Webhook-Signature` request header (v0.19.0+, PR [#970](https://github.com/nearai/ironclaw/pull/970)). The secret is **never** transmitted in the request body.
+
 - expects JSON input
-- validates a shared secret from the request body using constant-time comparison
 - applies request-size and rate-limit controls
+
+> **Migration note (v0.19.0):** If you configured `webhook_secret` before v0.19.0, the secret value is unchanged — only the transmission method changed from body to header. Update any external sender integrations to send `X-Webhook-Signature: sha256=<hmac>` instead of putting the secret in the request body.
 
 ### WASM channel webhook security
 
@@ -95,6 +100,10 @@ Security properties:
 
 Operational caveat:
 - on Linux, the orchestrator binds `0.0.0.0` because Docker bridge networking cannot reach host loopback directly; firewalling remains important even though worker routes require tokens
+
+#### Internal Job Monitor Flag Protection (v0.19.0)
+
+IronClaw now prevents metadata spoofing of the internal job monitor flag ([#1195](https://github.com/nearai/ironclaw/pull/1195)). Prior to v0.19.0, a client with gateway access could set job metadata fields that the server treats as internal signals. This is now rejected at the API boundary.
 
 ## 5. OAuth Callback Paths
 
@@ -151,7 +160,7 @@ For Docker sandbox execution, outbound HTTP is forced through a loopback proxy w
 
 Source: `src/secrets/*`, `crates/ironclaw_safety/src/*`
 
-At `v0.18.0`, security-critical randomness uses `OsRng` rather than `thread_rng()`.
+Security-critical randomness uses `OsRng` rather than `thread_rng()`.
 
 Credential protections include:
 - encrypted at-rest secret storage
@@ -165,12 +174,23 @@ Credential protections include:
 These are expected deployment caveats, not undocumented surprises:
 
 - no app-layer TLS termination is built into the gateway; use a reverse proxy or tunnel for remote exposure
-- the webhook server defaults to `0.0.0.0` for webhook reachability
+- **Webhook server bind address:** Defaults to `0.0.0.0:8080` when no tunnel is configured. When a tunnel (cloudflared, ngrok, tailscale) is active, defaults to `127.0.0.1:8080` (loopback) — external traffic arrives via the tunnel. For production without a tunnel, restrict inbound traffic via firewall rules or use a reverse proxy.
 - the Linux orchestrator listener also binds `0.0.0.0`
 - the orchestrator API does not currently add its own request-rate limiter
 - orchestrator shutdown is not as graceful as the main gateway/webhook listeners
 
 ## 9. Release-Specific Security Changes Covered Here
+
+### v0.19.0 (2026-03-17)
+- **Webhook HMAC-SHA256 header migration** — Secret transmitted via `X-Webhook-Signature` header instead of request body ([#970](https://github.com/nearai/ironclaw/pull/970), [#1162](https://github.com/nearai/ironclaw/pull/1162))
+- **Webhook server loopback default** — Binds to `127.0.0.1` when tunnel is configured ([#1194](https://github.com/nearai/ironclaw/pull/1194))
+- **Content-Security-Policy header** — Added to all web gateway responses ([#966](https://github.com/nearai/ironclaw/pull/966))
+- **Metadata spoofing prevention** — Internal job monitor flag protected from client manipulation ([#1195](https://github.com/nearai/ironclaw/pull/1195))
+- **MCP auth hardening** — 14 audit findings addressed ([#1094](https://github.com/nearai/ironclaw/pull/1094))
+- **Telegram owner verification** — Owner verified during hot activation ([#1157](https://github.com/nearai/ironclaw/pull/1157))
+- **SSRF base-URL fix** — Embedding base URL SSRF fix ([#1103](https://github.com/nearai/ironclaw/pull/1103))
+- **Panic path elimination** — All `.expect()` and `.unwrap()` removed from production code ([#1087](https://github.com/nearai/ironclaw/pull/1087), [#1184](https://github.com/nearai/ironclaw/pull/1184))
+- **Sandbox retry logic** — Retry for transient container failures ([#1232](https://github.com/nearai/ironclaw/pull/1232))
 
 ### v0.18.0
 - housekeeping release only: staged artifact checksum and staging promotion updates (no major network-surface behavior changes)

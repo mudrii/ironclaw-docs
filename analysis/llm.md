@@ -1,4 +1,4 @@
-# IronClaw v0.16.1 — LLM Backend System Deep Dive
+# IronClaw v0.19.0 — LLM Backend System Deep Dive
 
 > **Scope:** `src/llm/`, `src/config/llm.rs`, `src/agent/cost_guard.rs`,
 > `src/agent/context_monitor.rs`, `src/agent/compaction.rs`,
@@ -132,8 +132,12 @@ pub enum LlmBackend {
     Ollama,           // Local Ollama instance
     OpenAiCompatible, // vLLM, LiteLLM, Together, OpenRouter, etc.
     Tinfoil,          // Private inference in hardware-attested TEEs
+    MiniMax,          // MiniMax built-in provider (v0.19.0, PR #940)
+    ZAi,              // Z.AI / GLM-5 built-in provider (v0.19.0, PR #938)
 }
 ```
+
+**Note:** Codex/ChatGPT is NOT a new `LlmBackend` variant — it is a credential injection layer on top of `OpenAi`, activated by `LLM_USE_CODEX_AUTH=true`.
 
 Parsing is case-insensitive and accepts aliases: `"claude"` maps to
 `Anthropic`, `"near"` maps to `NearAi`, `"compatible"` maps to
@@ -165,6 +169,9 @@ Notable factory quirks:
 | Ollama | None | Chat Completions | Native | Zero cost (local) |
 | OpenAiCompatible | Optional key | Chat Completions | Native | Via cost table |
 | Tinfoil | API key | Chat Completions | Chat-format | Via cost table |
+| MiniMax (`minimax`) | `MINIMAX_API_KEY` | Chat Completions | Native | Via cost table | default model: `MiniMax-M2.5` |
+| Z.AI (`zai`) | `ZAI_API_KEY` | Chat Completions | Native | Via cost table | default model: `glm-4-plus` |
+| Codex / ChatGPT | OpenAI + `LLM_USE_CODEX_AUTH=true` | Codex CLI token | No separate API key; reads `~/.codex/auth.json` | Via cost table |
 
 ---
 
@@ -587,6 +594,12 @@ Supports GitHub and Google OAuth flows for `private.near.ai` authentication.
 For `cloud-api.near.ai`, API keys are used directly (saved to
 `~/.ironclaw/.env` on first setup).
 
+#### Codex OAuth Flow (`src/llm/codex_auth.rs`)
+
+When `LLM_USE_CODEX_AUTH=true` is set with `LLM_BACKEND=openai`, IronClaw activates the Codex credential injection layer. The `CodexAuthProvider` (`src/llm/codex_auth.rs`) reads tokens from `~/.codex/auth.json` and wraps the `CodexChatGptProvider` (`src/llm/codex_chatgpt.rs`), which routes to the OpenAI Responses API.
+
+**This is NOT a new `LlmBackend` enum variant** — it wraps the existing `OpenAi` backend. (v0.19.0, PR [#693](https://github.com/nearai/ironclaw/pull/693))
+
 ---
 
 ## 9. Configuration Resolution
@@ -637,6 +650,12 @@ This is implemented in `LlmConfig::resolve(settings: &Settings)`.
 | `LLM_EXTRA_HEADERS` | OpenAiCompatible | Comma-separated `Key:Value` pairs injected into every HTTP request (added v0.10.0). Example: `"HTTP-Referer:https://myapp.com,X-Title:MyApp"` |
 | `TINFOIL_API_KEY` | Tinfoil | Required |
 | `TINFOIL_MODEL` | Tinfoil | Default: kimi-k2-5 |
+| `MINIMAX_API_KEY` | MiniMax | Required. MiniMax API key |
+| `MINIMAX_MODEL` | MiniMax | Default: MiniMax-M2.5 |
+| `ZAI_API_KEY` | ZAi | Required. Z.AI API key |
+| `ZAI_MODEL` | ZAi | Default: glm-4-plus |
+| `LLM_USE_CODEX_AUTH` | OpenAi | Bool; enables Codex CLI OAuth injection (default: false) |
+| `CODEX_MODEL` | OpenAi (Codex) | Model when using Codex auth (default: o4-mini) |
 
 ### 9.3 Cheap Model for Lightweight Tasks
 
@@ -918,7 +937,7 @@ async fn evaluate(
 
 ---
 
-*Generated from IronClaw v0.16.1 source — `src/llm/`, `src/config/llm.rs`,
+*Generated from IronClaw v0.19.0 source — `src/llm/`, `src/config/llm.rs`,
 `src/agent/cost_guard.rs`, `src/agent/context_monitor.rs`,
 `src/agent/compaction.rs`, `src/estimation/`, `src/evaluation/`,
 `src/observability/`.*

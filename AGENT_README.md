@@ -3,9 +3,9 @@
 > **AI Agent Use**: Optimized for code review, bug triage, and targeted fixes.
 > Jump directly to the section relevant to the error or task — no narrative reading required.
 
-> Version baseline: IronClaw v0.18.0 (`v0.18.0` tag snapshot)
+> Version baseline: IronClaw v0.19.0 (`v0.19.0` tag snapshot)
 
-**Source**: IronClaw v0.18.0 (`v0.18.0`) · `~/src/ironclaw/`
+**Source**: IronClaw v0.19.0 (`v0.19.0`) · `~/src/ironclaw/`
 
 ---
 
@@ -612,6 +612,9 @@ Add your own notes below the comment block. The agent will refine and append as 
 | Ollama | `ollama` | `OLLAMA_BASE_URL` | Chat Completions | Native |
 | OpenAI-compatible | `openai_compatible` | `LLM_BASE_URL`, `LLM_MODEL` | Chat Completions | Native |
 | Tinfoil (TEE) | `tinfoil` | `TINFOIL_API_KEY` | Chat Completions (adapted) | Chat-format |
+| MiniMax | `minimax` | `MINIMAX_API_KEY` | Chat Completions | Native (default model: `MiniMax-M2.5`) |
+| Z.AI | `zai` | `ZAI_API_KEY` | Chat Completions | Native (default model: `glm-4-plus`) |
+| Codex/ChatGPT | `openai` + `LLM_USE_CODEX_AUTH=true` | reads `~/.codex/auth.json` | Chat Completions | Native (default model: `o4-mini`) |
 
 **NEAR AI auth mode selection** (`src/llm/nearai_chat.rs`):
 - If `NEARAI_API_KEY` set → Bearer API key auth (base URL defaults to `https://cloud-api.near.ai`)
@@ -1376,4 +1379,4 @@ sqlite3 ~/.ironclaw/ironclaw.db "SELECT id, status, created_at FROM agent_jobs O
 
 ---
 
-*Source: IronClaw v0.18.0 (`v0.18.0`) · Docs: github.com/nearai/ironclaw-docs · Generated: 2026-03-15*
+*Source: IronClaw v0.19.0 (`v0.19.0`) · Docs: github.com/nearai/ironclaw-docs · Generated: 2026-03-15*

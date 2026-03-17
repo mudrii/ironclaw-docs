@@ -1,6 +1,6 @@
 # IronClaw Developer Reference
 
-> Version baseline: IronClaw v0.18.0 (`v0.18.0` tag snapshot)
+> Version baseline: IronClaw v0.19.0 (`v0.19.0` tag snapshot)
 
 Reference for developers building tools, channels, or contributing to IronClaw.
 

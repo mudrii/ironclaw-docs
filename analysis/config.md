@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Configuration System
 
-> Updated: 2026-03-11 | Version: v0.18.0
+> Updated: 2026-03-17 | Version: v0.19.0
 
 ## 1. Overview
 
@@ -199,6 +199,7 @@ The runtime handles token exchange, scope merging for shared providers (e.g., tw
 | `HEARTBEAT_INTERVAL_SECS` | u64 | `1800` (30 min) | No | Interval between heartbeat checks |
 | `HEARTBEAT_NOTIFY_CHANNEL` | string | — | No | Channel name to notify on heartbeat findings (e.g. `tui`, `gateway`) |
 | `HEARTBEAT_NOTIFY_USER` | string | — | No | User ID to notify on heartbeat findings |
+| `HEARTBEAT_FIRE_AT` | string | — | No | Time-of-day schedule `"HH:MM IANA/Timezone"` for daily one-shot triggers. Example: `"09:00 America/New_York"` (v0.19.0, [#1029](https://github.com/nearai/ironclaw/pull/1029)) |
 | **Memory Hygiene** | | | | |
 | `MEMORY_HYGIENE_ENABLED` | bool | `true` | No | Enable automatic cleanup of stale workspace documents |
 | `MEMORY_HYGIENE_RETENTION_DAYS` | u32 | `30` | No | Days before `daily/` documents are deleted |
@@ -508,6 +509,7 @@ pub struct HeartbeatConfig {
     pub interval_secs: u64,              // HEARTBEAT_INTERVAL_SECS (default: 1800)
     pub notify_channel: Option<String>,  // HEARTBEAT_NOTIFY_CHANNEL
     pub notify_user: Option<String>,     // HEARTBEAT_NOTIFY_USER
+    pub fire_at: Option<String>,         // HEARTBEAT_FIRE_AT (v0.19.0, #1029)
 }
 ```
 
@@ -687,6 +689,8 @@ The config system reads from `Settings` as a fallback when an env var is not set
 This means most fields can be changed at runtime via `ironclaw config set <path> <value>`
 without restarting — the new value is stored in `Settings` and picked up on the
 next `Config::from_db()` call (which happens at the start of each agent session).
+
+> **v0.19.0 Config Unification:** All subsystems now uniformly follow `env > settings > default` resolution via the Settings fallback mechanism (Phase 2, [#1203](https://github.com/nearai/ironclaw/pull/1203), [#1124](https://github.com/nearai/ironclaw/pull/1124)). Previously some subsystems had inconsistent fallback behavior.
 
 Fields that require a full restart are those read only during early bootstrap
 (before the DB is available), primarily:

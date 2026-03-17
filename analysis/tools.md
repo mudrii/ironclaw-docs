@@ -1,6 +1,6 @@
 # IronClaw Tool System — Developer Reference
 
-Version: v0.16.1
+Version: v0.19.0
 Source: `src/tools/`
 
 ---

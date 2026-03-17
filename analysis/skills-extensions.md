@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Skills, Extensions & Hooks
 
-> Updated: 2026-03-11 | Version: v0.18.0
+> Updated: 2026-03-17 | Version: v0.19.0
 
 ## 1. Overview
 
@@ -190,6 +190,8 @@ GET {registry_url}/api/v1/download?slug={url-encoded-slug}
 The slug is URL-encoded to prevent query string injection via characters like `&`, `#`, `=`.
 
 **Error handling**: All network errors return an empty result vector. Catalog search is best-effort and never blocks the agent.
+
+> **v0.19.0:** New CLI subcommands for skills discovery: `ironclaw skills list`, `ironclaw skills search <query>`, `ironclaw skills info <name>` ([#918](https://github.com/nearai/ironclaw/pull/918)). These complement the conversational activation path and are useful for debugging skill selection.
 
 ### 2.5a Bundled Skills (v0.15.0)
 

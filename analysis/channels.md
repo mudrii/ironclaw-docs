@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Channel System
 
-> Updated: 2026-03-11 | Version: v0.18.0
+> Updated: 2026-03-17 | Version: v0.19.0
 
 ---
 
@@ -895,6 +895,20 @@ upgrading to a newer Graph API version.
 Set `config.owner_id` to restrict the channel to a single WhatsApp account ID,
 or populate `allow_from` with an allowlist of phone numbers.
 
+#### Feishu / Lark Channel (v0.19.0, [#1110](https://github.com/nearai/ironclaw/pull/1110))
+
+WASM channel plugin for Feishu (Chinese enterprise messaging) and Lark (international branding). Source: `channels-src/feishu/`. Registry: `registry/channels/feishu.json`.
+
+- **Auth:** `feishu_app_id` and `feishu_app_secret` secrets (manual, no OAuth). App credentials from https://open.feishu.cn/app.
+- **WIT version:** 0.3.0
+- **Artifact:** `channel-feishu-0.1.1-wasm32-wasip2.tar.gz` (v0.19.0 release)
+
+**Install:**
+```bash
+ironclaw registry install feishu
+ironclaw onboard --channels-only
+```
+
 ---
 
 ## 8. Configuration Reference
@@ -1141,4 +1155,12 @@ The `wit_version` column also tracks the WIT interface version the binary was co
 ### v0.16.1: WASM Artifact SHA256 Revert
 
 v0.16.1 (#627) reverts WASM artifact SHA256 checksums back to `null` in the registry JSON files. The checksums were added prematurely in v0.16.0 before the artifact build pipeline was stable. All registry `.json` files now have `"sha256": null`.
+
+## 11. v0.19.0 Channel Changes
+
+#### Owner Scope Refactor (v0.19.0, [#1151](https://github.com/nearai/ironclaw/pull/1151))
+
+The `owner_scope` system was refactored to unify ownership binding across all WASM channels and fix default routing fallback. Channel-specific `owner_id` fields now go through a common resolution path. Hot-activation events verify ownership before binding (Telegram: [#1157](https://github.com/nearai/ironclaw/pull/1157)).
+
+> **v0.19.0:** Telegram channel now splits long responses (>4096 characters) into multiple messages automatically. ([PR telegram-split-message](https://github.com/nearai/ironclaw/pull/1273))
 

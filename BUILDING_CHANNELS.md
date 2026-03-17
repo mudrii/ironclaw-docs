@@ -1,6 +1,6 @@
 # Building WASM Channels
 
-> Version baseline: IronClaw v0.18.0 (`v0.18.0` tag snapshot)
+> Version baseline: IronClaw v0.19.0 (`v0.19.0` tag snapshot)
 
 This guide covers how to build WASM channel modules for IronClaw.
 
@@ -366,6 +366,20 @@ cp channels-src/telegram/telegram.wasm channels-src/telegram/telegram.capabiliti
 ```
 
 **Note**: The main IronClaw build compiles Telegram channel artifacts via `build.rs`, but does not embed `telegram.wasm` with `include_bytes!`. Manual `./channels-src/telegram/build.sh` is optional (useful for direct channel-only iteration).
+
+### Reference Implementations
+
+The following first-party channels in `channels-src/` are available as real-world implementation references:
+
+| Channel | Source | Notes |
+|---------|--------|-------|
+| Telegram | `channels-src/telegram/` | Full-featured: webhook/polling, DM pairing, group support |
+| Feishu / Lark | `channels-src/feishu/` | New in v0.19.0; minimal, clean implementation; manual secret auth |
+
+Study `channels-src/feishu/src/lib.rs` as a minimal, well-structured reference for building a new channel. It demonstrates:
+- Minimal `on_start()` implementation returning `ChannelConfig` with HTTP endpoints
+- Secret-based authentication (no OAuth complexity)
+- Message event handling and response dispatch
 
 ### Other Channels
 

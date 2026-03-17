@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Workspace, Memory & Storage
 
-> Updated: 2026-03-11 | Version: v0.18.0
+> Updated: 2026-03-17 | Version: v0.19.0
 
 ## 1. Overview
 

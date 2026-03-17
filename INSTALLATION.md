@@ -1,6 +1,6 @@
 # IronClaw Installation & Deployment Guide
 
-> Version: v0.18.0 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel), Linux
+> Version: v0.19.0 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel), Linux
 
 Complete guide for installing, configuring, and deploying IronClaw as a personal AI assistant.
 
@@ -101,7 +101,7 @@ irm https://github.com/nearai/ironclaw/releases/latest/download/ironclaw-install
 **Verify:**
 ```bash
 ironclaw --version
-# Expected for this docs baseline: ironclaw 0.18.0
+# Expected for this docs baseline: ironclaw 0.19.0
 ```
 
 ### 3.2 Build from Source
@@ -570,6 +570,39 @@ ironclaw registry install github-tools
 
 As of v0.12.0, skills are **enabled by default** — no configuration needed to activate the skills system.
 
+### Log Commands (v0.19.0)
+
+Access and stream gateway logs directly from the CLI:
+
+```bash
+ironclaw logs                    # View last 200 gateway log lines
+ironclaw logs -f                 # Follow live logs (SSE stream)
+ironclaw logs --level debug      # Change runtime log level
+ironclaw logs --json             # Machine-readable JSON output
+```
+
+### Cron Alias (v0.19.0)
+
+`ironclaw cron` is an alias for `ironclaw routines` (added for intuitive cron scheduling):
+
+```bash
+ironclaw cron list               # Same as: ironclaw routines list
+```
+
+### Channel Commands (v0.19.0)
+
+```bash
+ironclaw channels list           # List all installed channels with status
+```
+
+### Skills Commands (v0.19.0)
+
+```bash
+ironclaw skills list             # List installed skills
+ironclaw skills search <query>   # Search skills by keyword
+ironclaw skills info <name>      # Inspect a skill's metadata and triggers
+```
+
 ---
 
 ## 11. Verify Your Installation
@@ -752,4 +785,4 @@ If you need Okta integration, build a custom WASM tool using [BUILDING_CHANNELS.
 
 ---
 
-*Source: IronClaw v0.18.0 · See also: [ARCHITECTURE.md](ARCHITECTURE.md), [AGENT_README.md](AGENT_README.md)*
+*Source: IronClaw v0.19.0 · See also: [ARCHITECTURE.md](ARCHITECTURE.md), [AGENT_README.md](AGENT_README.md)*
