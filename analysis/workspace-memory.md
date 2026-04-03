@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Workspace, Memory & Storage
 
-> Updated: 2026-03-17 | Version: v0.19.0
+> Updated: 2026-04-03 | Version: v0.23.0
 
 ## 1. Overview
 
@@ -712,10 +712,157 @@ The `run_if_due(workspace, config)` function is called from the agent startup lo
 
 ---
 
-## 9. Configuration Reference
+## 9. Layered Memory (`workspace/layer.rs`, v0.23.0)
+
+The layered memory system introduces named memory layers with read/write permissions and sensitivity controls. Layers map to synthetic `user_id` values in the workspace database tables, enabling multi-scope memory isolation.
+
+### MemoryLayer
+
+```rust
+#[derive(Debug, Clone, Deserialize)]
+pub struct MemoryLayer {
+    pub name: String,
+    pub scope: String,
+    #[serde(default = "default_true")]  // defaults to true
+    pub writable: bool,
+    #[serde(default)]  // defaults to Private
+    pub sensitivity: LayerSensitivity,
+}
+```
+
+The `scope` field is the `user_id` used for database queries on this layer — this is how layers map to rows in `memory_documents` and `memory_chunks`.
+
+### LayerSensitivity
+
+```rust
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LayerSensitivity {
+    #[default]
+    Private,
+    Shared,
+}
+```
+
+### Helper Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `default_for_user(user_id)` | `fn(& str) -> Vec<MemoryLayer>` | Creates a single private writable layer with the given user_id as scope |
+| `read_scopes(layers)` | `fn(&[MemoryLayer]) -> Vec<String>` | Collects all layer scope values (for multi-scope reads) |
+| `writable_scopes(layers)` | `fn(&[MemoryLayer]) -> Vec<String>` | Collects only writable layer scopes |
+| `find(layers, name)` | `fn(&[MemoryLayer], &str) -> Option<&MemoryLayer>` | Finds a layer by name |
+| `private_layer(layers)` | `fn(&[MemoryLayer]) -> Option<&MemoryLayer>` | Finds the first layer with `Private` sensitivity |
+
+### Multi-Scope Workspace Reads (PR #1117)
+
+The layered memory system enables reading across multiple memory layer scopes in a single operation. `read_scopes()` collects scope strings from all layers (both writable and read-only), and these scopes are passed to workspace search and read operations. Combined with the `workspace_read_scopes` field in `UserIdentity` (from multi-tenant auth), this allows authenticated users to access shared layers alongside their private layer.
+
+The `WriteResult` struct tracks layer-aware writes:
+
+```rust
+pub struct WriteResult {
+    pub document: MemoryDocument,
+    pub redirected: bool,
+    pub actual_layer: String,
+}
+```
+
+When content is flagged as sensitive (see Privacy Classification below), the write is redirected from a shared layer to the private layer. The `redirected` flag indicates this occurred.
+
+---
+
+## 10. Privacy Classification (`workspace/privacy.rs`, v0.23.0)
+
+The privacy classification system guards writes to shared memory layers by detecting sensitive content and redirecting it to the private layer.
+
+### SensitivityResult
+
+```rust
+pub struct SensitivityResult {
+    pub is_sensitive: bool,
+    pub confidence: f32,
+}
+```
+
+Confidence ranges from 0.0 to 1.0, enabling downstream callers to apply thresholds and supporting future upgrade to LLM-based classifiers with probabilistic scores.
+
+### PrivacyClassifier Trait
+
+```rust
+pub trait PrivacyClassifier: Send + Sync {
+    fn classify(&self, content: &str) -> SensitivityResult;
+}
+```
+
+### PatternPrivacyClassifier
+
+Default regex-based classifier targeting hard PII where silent redirect is clearly correct:
+
+| Pattern | Description |
+|---------|-------------|
+| `\b\d{3}-\d{2}-\d{4}\b` | SSN (Social Security Number) |
+| `\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b` | Credit card numbers (with/without separators) |
+| `(?i)\b(password\|passwd\|api[_-]?key\|auth[_-]?token\|secret[_-]?key)\b` | Credentials and auth tokens |
+
+Ambiguous terms (health vocabulary, contact info, email addresses, phone numbers) are intentionally excluded — they cause false positives in household contexts and silently redirect content the user intended to share. Regex-based classification is binary: matched patterns yield confidence 1.0, non-matches yield 0.0.
+
+### ConfigurablePrivacyClassifier
+
+Accepts custom regex patterns at construction time, allowing operators to tune sensitivity for their use case:
+
+```rust
+pub struct ConfigurablePrivacyClassifier {
+    patterns: Vec<Regex>,
+}
+```
+
+`ConfigurablePrivacyClassifier::new(pattern_strs: Vec<String>)` compiles the patterns and returns an error if any pattern fails to compile. An empty pattern list allows everything through.
+
+---
+
+## 11. Embedding Cache (`workspace/embedding_cache.rs`, v0.23.0)
+
+An LRU cache for embedding vectors that avoids redundant API calls during workspace search. Wraps any `EmbeddingProvider` transparently.
+
+### CachedEmbeddingProvider
+
+```rust
+pub struct CachedEmbeddingProvider {
+    inner: Arc<dyn EmbeddingProvider>,
+    cache: Mutex<LruCache<[u8; 32], Vec<f32>>>,
+}
+```
+
+Cache keys are `SHA-256(model_name + "\0" + text)` — raw 32-byte hashes to avoid hex string allocation overhead. The cache is thread-safe via `std::sync::Mutex` (not `tokio::sync::Mutex`) because the lock is never held across `.await` points.
+
+### Configuration
+
+```rust
+pub struct EmbeddingCacheConfig {
+    pub max_entries: usize,  // default: DEFAULT_EMBEDDING_CACHE_SIZE (10,000)
+}
+```
+
+Env var: `EMBEDDING_CACHE_SIZE` (default: 10,000). The constructor clamps to at least 1 entry. Entries above 100,000 emit a warning about memory usage.
+
+Approximate memory: `max_entries * dimension * 4 bytes` for the embedding payload. At 10,000 entries with 1536-dimension embeddings, this is ~58 MB for payload alone (actual memory higher due to LRU linked-list overhead).
+
+### Behavior
+
+- **Single embed**: Check cache, return on hit. On miss, call inner provider, store result, return.
+- **Batch embed**: Partition texts into cache hits and misses. Only fetch misses from the inner provider. Batch results are cached, but only the last `capacity` entries (avoids wasting clone work on entries that would be immediately evicted).
+- **Thundering herd**: Concurrent callers with the same uncached key each call the inner provider independently. This is acceptable because embeddings are idempotent and the last writer wins.
+- **Error handling**: Failed inner calls are never cached — the cache remains clean for retry.
+- **LRU eviction**: Standard least-recently-used eviction via `lru::LruCache`. `get()` promotes entries to most-recently-used automatically.
+
+---
+
+## 12. Configuration Reference
 
 | Env Var | Default | Description |
 |---------|---------|-------------|
+| `EMBEDDING_CACHE_SIZE` | `10000` | Maximum number of cached embeddings in the LRU cache |
 | `DATABASE_BACKEND` | `postgres` | `postgres` (or `pg`, `postgresql`) or `libsql` (or `turso`, `sqlite`) |
 | `DATABASE_URL` | — | PostgreSQL connection string (required for postgres backend) |
 | `DATABASE_POOL_SIZE` | `10` | PostgreSQL connection pool size |

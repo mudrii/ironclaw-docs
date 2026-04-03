@@ -1,9 +1,9 @@
 # IronClaw Documentation
 
-> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.19.0
+> Comprehensive developer reference for [IronClaw](https://github.com/nearai/ironclaw) v0.23.0
 > — a secure, self-hosted personal AI assistant written in Rust.
 
-**Documentation set for IronClaw v0.19.0, validated against release tag `v0.19.0` (2026-03-17).**
+**Documentation set for IronClaw v0.23.0, validated against release tag `v0.23.0` (2026-03-27).**
 
 ---
 
@@ -41,27 +41,28 @@
 IronClaw is a Rust-based personal AI assistant built by [NEAR AI](https://near.ai) with:
 
 - **Multi-channel**: REPL, web gateway (axum), HTTP webhooks, WASM plugin channels (incl. Feishu/Lark), native Signal channel
-- **Security-first**: WASM sandbox (wasmtime), Docker isolation (bollard), credential injection, SSRF proxy
+- **Security-first**: WASM sandbox (wasmtime), Docker isolation (bollard), credential injection, SSRF proxy, multi-tenant isolation
+- **Graduated command approval**: Low/Medium/High risk levels with per-tool reasoning threaded through all surfaces
 - **Self-expanding**: Dynamic WASM tool builder, MCP protocol client, plugin architecture
-- **Persistent memory**: Hybrid FTS+vector search (RRF), workspace filesystem, identity files
-- **Multiple LLM backends**: NEAR AI, Anthropic, OpenAI, Ollama, OpenAI-compatible, Tinfoil, MiniMax, Z.AI, Codex/ChatGPT
+- **Persistent memory**: Hybrid FTS+vector search (RRF), workspace filesystem, identity files, layered memory with privacy redirect
+- **Multiple LLM backends**: NEAR AI, Anthropic, OpenAI, Ollama, OpenAI-compatible, Tinfoil, MiniMax, Z.AI, Codex/ChatGPT, GitHub Copilot, Gemini (Cloud Code API OAuth), OpenAI Codex (ChatGPT subscription)
 - **Dual database**: libSQL (embedded, no server required) or PostgreSQL (with pgvector)
 
-### Source Module Statistics (v0.19.0)
+### Source Module Statistics (v0.23.0)
 
 | Module | Files | Description |
 |--------|------:|-------------|
-| `tools/` | 58 | Tool system: built-in (incl. unified `http` + `restart`), MCP, WASM, dynamic builder, rate limiter, HTML-to-Markdown |
-| `channels/` | 42 | Channels: REPL, web gateway, HTTP, native Signal, WASM plugins (with HMAC-SHA256 Slack signing, WIT versioning, DB-stored channel binaries, Feishu/Lark WASM channel plugin (v0.19.0)) |
+| `tools/` | 60 | Tool system: built-in (incl. unified `http` + `restart`), MCP, WASM, dynamic builder, rate limiter, HTML-to-Markdown |
+| `channels/` | 47 | Channels: REPL, web gateway, HTTP, native Signal, WASM plugins (with HMAC-SHA256 Slack signing, WIT versioning, DB-stored channel binaries, Feishu/Lark WASM channel plugin) |
 | `agent/` | 22 | Agent runtime: loop, sessions, jobs, routines, heartbeat, context compaction |
-| `config/` | 20 | Configuration: all env vars and structs |
-| `workspace/` | 7 | Memory, embeddings, hybrid FTS+vector search |
-| `llm/` | 25 | LLM backends, redesigned 13-dim smart routing, reliability wrappers, trace recording |
+| `config/` | 21 | Configuration: all env vars and structs |
+| `workspace/` | 10 | Memory, embeddings, hybrid FTS+vector search, layered privacy redirect |
+| `llm/` | 35 | LLM backends (incl. GitHub Copilot, Gemini OAuth, OpenAI Codex), redesigned 13-dim smart routing, reliability wrappers, trace recording |
 | `tunnel/` | 6 | Tunnels: cloudflare, ngrok, tailscale, custom |
 | `secrets/` | 5 | Keychain, AES-256-GCM crypto, credential injection (OsRng throughout) |
 | `safety/` | 6 | Prompt injection defense, leak detection, secret scanning, policy enforcement (`crates/ironclaw_safety/src`) |
 | `worker/` | 6 | Docker worker: runtime, LLM bridge, proxy |
-| **Total (`src/`)** | **323** | All files under `src/` at `v0.19.0` (including 312 Rust source files) |
+| **Total (`src/`)** | **367** | All files under `src/` at `v0.23.0` (including 336 Rust source files) |
 
 ---
 
@@ -115,6 +116,88 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 ---
 
 ## What's New
+
+### v0.23.0 (2026-03-27)
+
+### Added
+
+- **Multi-tenant isolation phases 2-4** — complete per-user workspace isolation with multi-tenant auth ([#1614](https://github.com/nearai/ironclaw/pull/1614))
+- **Direct hosted OAuth callbacks** with proxy auth token ([#1684](https://github.com/nearai/ironclaw/pull/1684))
+
+### Fixed
+
+- **MCP Streamable HTTP** — handle 202 Accepted responses and wire session manager for Streamable HTTP transport ([#1437](https://github.com/nearai/ironclaw/pull/1437))
+- **Truncated tool call handling** — discard truncated tool calls when `finish_reason == Length` instead of passing malformed JSON to tools ([#1631](https://github.com/nearai/ironclaw/pull/1631), [#1632](https://github.com/nearai/ironclaw/pull/1632))
+- **Routine recovery** — recover delete name after failed update fallback ([#1108](https://github.com/nearai/ironclaw/pull/1108))
+- Channel-relay auth dead-end, observability, and URL override ([#1681](https://github.com/nearai/ironclaw/pull/1681))
+- XML tool-call recovery filtered by context ([#1641](https://github.com/nearai/ironclaw/pull/1641))
+
+---
+
+### v0.22.0 (2026-03-25)
+
+### Added
+
+- **Per-tool reasoning** — thread reasoning through provider, session, and all surfaces so the agent explains _why_ it chose each tool ([#1513](https://github.com/nearai/ironclaw/pull/1513))
+- **`ironclaw models` subcommands** — `list`, `status`, `set`, `set-provider` for managing LLM model configuration from the CLI ([#1043](https://github.com/nearai/ironclaw/pull/1043))
+- **`ironclaw hooks list`** — new subcommand to inspect registered lifecycle hooks ([#1023](https://github.com/nearai/ironclaw/pull/1023))
+- **Multi-tenant auth** with per-user workspace isolation ([#1118](https://github.com/nearai/ironclaw/pull/1118))
+- **Gemini OAuth** — full Gemini CLI OAuth integration with Google Cloud Code API ([#1356](https://github.com/nearai/ironclaw/pull/1356))
+- **GitHub Copilot provider** — use GitHub Copilot as an LLM backend ([#1512](https://github.com/nearai/ironclaw/pull/1512))
+- **OpenAI Codex provider** — use OpenAI Codex via ChatGPT subscription ([#1461](https://github.com/nearai/ironclaw/pull/1461))
+- **Graduated command approval** — Low/Medium/High risk levels for shell commands (closes #172) ([#368](https://github.com/nearai/ironclaw/pull/368))
+- **Message queuing** — queue and merge messages during active turns instead of dropping them ([#1412](https://github.com/nearai/ironclaw/pull/1412))
+- **Layered memory** with sensitivity-based privacy redirect ([#1112](https://github.com/nearai/ironclaw/pull/1112))
+- **Webhook trigger endpoint** — public endpoint for triggering routines externally ([#736](https://github.com/nearai/ironclaw/pull/736))
+- **Light/dark/system theme** toggle for the web gateway ([#1457](https://github.com/nearai/ironclaw/pull/1457))
+- **UX overhaul** — complete design system, onboarding, and web polish ([#1277](https://github.com/nearai/ironclaw/pull/1277))
+- **`stuck_threshold` activation** — time-based stuck job detection ([#1234](https://github.com/nearai/ironclaw/pull/1234))
+- **Chat onboarding** and routine advisor ([#927](https://github.com/nearai/ironclaw/pull/927))
+
+### Fixed (Security)
+
+- Validate embedding base URLs to prevent SSRF ([#1221](https://github.com/nearai/ironclaw/pull/1221))
+- Escape tool output XML content and remove misleading sanitized attr ([#1067](https://github.com/nearai/ironclaw/pull/1067))
+- Reject malformed `ic2.*` states in hosted OAuth decoder ([#1441](https://github.com/nearai/ironclaw/pull/1441), [#1454](https://github.com/nearai/ironclaw/pull/1454))
+- Patch rustls-webpki vulnerability (RUSTSEC-2026-0049)
+- Post-merge review sweep — 8 fixes across security, perf, and correctness ([#1550](https://github.com/nearai/ironclaw/pull/1550))
+
+---
+
+### v0.21.0 (2026-03-20)
+
+### Added
+
+- **Structured fallback deliverables** — failed or stuck jobs now produce structured partial deliverables instead of bare error strings ([#236](https://github.com/nearai/ironclaw/pull/236))
+- **LRU embedding cache** — workspace search avoids redundant embedding calls via an in-memory LRU cache ([#1423](https://github.com/nearai/ironclaw/pull/1423))
+- **Webhook callbacks for relay events** — receive channel-relay events via configurable HTTP callbacks ([#1254](https://github.com/nearai/ironclaw/pull/1254))
+
+### Other
+
+- **Generic hosted OAuth and MCP auth** — auth flows generalized beyond Anthropic/OpenAI to support arbitrary OAuth providers ([#1375](https://github.com/nearai/ironclaw/pull/1375))
+- Auto-approve fix for credentialed HTTP requests ([#1257](https://github.com/nearai/ironclaw/pull/1257))
+
+---
+
+### v0.20.0 (2026-03-19)
+
+### Added
+
+- **Self-repair `stuck_threshold` wire** — stuck_threshold, its store, and the builder are now fully wired so the agent self-repairs stuck jobs ([#712](https://github.com/nearai/ironclaw/pull/712))
+- **FaultInjector testing framework** — inject failures into `StubLlm` for resilience testing ([#1233](https://github.com/nearai/ironclaw/pull/1233))
+- **Unified settings page** — single settings page with subtabs in the web gateway ([#1191](https://github.com/nearai/ironclaw/pull/1191))
+- **MiniMax M2.7 upgrade** — default MiniMax model upgraded to M2.7 ([#1357](https://github.com/nearai/ironclaw/pull/1357))
+
+### Fixed
+
+- Routine concurrency: `full_job` runs stay running until linked job completion ([#1374](https://github.com/nearai/ironclaw/pull/1374), [#1372](https://github.com/nearai/ironclaw/pull/1372))
+- MCP: retry after missing session id errors ([#1355](https://github.com/nearai/ironclaw/pull/1355))
+- Telegram: preserve polling after secret-blocked updates ([#1353](https://github.com/nearai/ironclaw/pull/1353))
+- LLM: cap retry-after delays ([#1351](https://github.com/nearai/ironclaw/pull/1351))
+- Rate limiter returns `retry_after: None` instead of a duration ([#1269](https://github.com/nearai/ironclaw/pull/1269))
+- Removed debug_assert guards that panic on valid error paths ([#1385](https://github.com/nearai/ironclaw/pull/1385))
+
+---
 
 ### v0.19.0 (2026-03-17)
 
@@ -351,8 +434,8 @@ See [INSTALLATION.md](INSTALLATION.md) for complete setup and deployment, [LLM_P
 
 ## Version
 
-Documented: IronClaw v0.19.0
-Release tag: [v0.19.0](https://github.com/nearai/ironclaw/releases/tag/v0.19.0) (2026-03-17)
+Documented: IronClaw v0.23.0
+Release tag: [v0.23.0](https://github.com/nearai/ironclaw/releases/tag/v0.23.0) (2026-03-27)
 Source: [github.com/nearai/ironclaw](https://github.com/nearai/ironclaw)
 Docs repo: [github.com/mudrii/ironclaw-docs](https://github.com/mudrii/ironclaw-docs)
-Generated: 2026-03-17
+Generated: 2026-04-03

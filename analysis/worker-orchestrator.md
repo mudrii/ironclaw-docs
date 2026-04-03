@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Worker & Orchestrator (Docker Sandbox)
 
-> Updated: 2026-03-17 | Version: v0.19.0
+> Updated: 2026-04-03 | Version: v0.23.0
 
 ## 1. Overview
 
@@ -483,3 +483,125 @@ via `/workspace/.claude/settings.json` rather than
 auto-approved and would require interactive confirmation, which times out
 harmlessly in a non-interactive container. The Docker container boundary is
 still the primary security mechanism; the settings file adds a second layer.
+
+---
+
+## 11. v0.20.0–v0.23.0 Worker & Orchestrator Changes
+
+### Structured Fallback Deliverables (#236)
+
+**Source:** `src/context/fallback.rs`
+
+Failed or stuck jobs now produce a `FallbackDeliverable` instead of silently
+failing. This impacts worker output: when a job fails or is detected as stuck,
+the worker (or the orchestrator-side recovery path) builds a structured summary
+of what was accomplished before the failure.
+
+**`FallbackDeliverable` captures:**
+
+- `partial` flag (true if any action succeeded)
+- `failure_reason` (truncated to 1000 bytes)
+- `last_action` with tool name, sanitized output preview (200 bytes), and success flag
+- `action_stats` (total/successful/failed counts)
+- `tokens_used`, `cost`, `elapsed_secs`, `repair_attempts`
+
+The deliverable is stored in `JobContext.metadata["fallback_deliverable"]` and
+surfaced through the `job_status` tool. Output previews use sanitized output
+(not raw) to prevent secret leakage through the fallback API surface.
+
+### Stuck Threshold Detection (#1234, #712)
+
+**Source:** `src/agent/self_repair.rs`
+
+The worker/orchestrator now detect stuck jobs by elapsed time rather than
+relying solely on explicit `mark_stuck()` calls from within the job.
+
+`DefaultSelfRepair` carries a `stuck_threshold: Duration`. During each repair
+cycle, `detect_stuck_jobs()` calls `ContextManager::find_stuck_jobs_with_threshold()`
+which finds `InProgress` jobs exceeding the threshold. These jobs are transitioned
+to `JobState::Stuck` with reason `"exceeded stuck_threshold"`, enabling the
+normal `attempt_recovery()` path.
+
+This closes a gap where jobs that hung without making progress (e.g., waiting
+on an unresponsive external API) were never detected because no internal code
+path called `mark_stuck()`.
+
+### Owner-Scoped Permissions for Full-Job Routines (#1440)
+
+**Source:** `src/worker/job.rs`
+
+Full-job routines now execute with owner-scoped permissions. The job context
+carries an `owner_id` in its metadata, which is used for:
+
+- **Message routing**: When a routine-spawned job sends a message via the
+  `message` tool, it routes to the owner's channel and target (e.g.,
+  `telegram:<owner_id>`) rather than to the gateway.
+- **Approval context**: The job worker uses the owner's autonomous tool scope
+  when executing tools, so tools requiring approval are filtered against the
+  owner's permission set rather than a generic default.
+
+This enables routines to act on behalf of their creator while maintaining
+the principle of least privilege.
+
+### Multi-Tenant Job Isolation
+
+**Source:** `src/tenant.rs`
+
+`TenantCtx` provides per-user rate limiting that directly impacts worker and
+orchestrator behavior:
+
+```rust
+pub struct TenantRateState {
+    pub llm_semaphore: Arc<Semaphore>,  // limits concurrent LLM calls per user
+    pub job_semaphore: Arc<Semaphore>,  // limits concurrent jobs per user
+}
+```
+
+**Impact on workers:**
+
+- Each user's concurrent LLM calls are bounded by `llm_semaphore`. Worker jobs
+  running on behalf of a user acquire a permit before each LLM call.
+- Each user's concurrent jobs are bounded by `job_semaphore`. The scheduler
+  acquires a permit before spawning a new worker for a user.
+- `TenantRateRegistry` lazily creates per-tenant state, so there is no
+  per-user overhead until a user actually submits work.
+- `TenantScope` ensures all database operations in workers are scoped to the
+  owning user — a worker cannot read or modify jobs belonging to other users.
+
+### Default New Lightweight Routines to Tools-Enabled (#1573)
+
+**Source:** `src/tools/builtin/routine.rs`, `src/config/routines.rs`, `src/agent/routine_engine.rs`
+
+New lightweight routines created via `routine_create` now default to
+`use_tools = true`. Previously, `use_tools` defaulted to `false` for backward
+compatibility. The `parse_routine_execution()` function receives
+`default_use_tools: true` when called from the create path.
+
+**Runtime gating:**
+
+The `lightweight_tools_enabled` flag in `RoutineConfig` (env: `ROUTINES_LIGHTWEIGHT_TOOLS`,
+default: `true`) acts as a global kill switch. Even if a routine has `use_tools = true`,
+tools are disabled when the global flag is off. When both are enabled:
+
+- `execute_lightweight_with_tools()` runs a simplified agentic loop (max 3-5
+  iterations, sequential tool execution, auto-approval of non-Always tools).
+- The routine uses the owner's live autonomous tool scope.
+- Existing routines stored in the database without `use_tools` continue to
+  default to `false` for backward compatibility (serde `#[serde(default)]`).
+
+### Normalize Cron Schedules on Routine Create (#1648)
+
+**Source:** `src/agent/routine.rs`, `src/tools/builtin/routine.rs`
+
+Cron schedules are now normalized at creation time via `normalize_cron_expression()`.
+Standard 5-field cron expressions (the format most users know) are automatically
+expanded to the 7-field format required by the `cron` crate:
+
+- 5-field (`min hour dom month dow`) → prepend `0` (seconds), append `*` (year)
+- 6-field → append `*` (year)
+- 7-field → pass through unchanged
+
+Normalization happens in `build_routine_trigger()` during creation and in the
+`routine_update` tool when the schedule is modified. The `next_cron_fire()`
+function also applies normalization internally, so even legacy routines stored
+with non-normalized schedules will parse correctly.

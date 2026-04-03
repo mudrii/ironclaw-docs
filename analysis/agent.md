@@ -1,8 +1,8 @@
 # IronClaw Agent Runtime System — Deep Dive
 
-**Version:** v0.19.0
+**Version:** v0.23.0
 **Source tree:** `src/agent/` (21 files)
-**Last updated:** 2026-03-05
+**Last updated:** 2026-04-03
 
 ---
 
@@ -969,3 +969,199 @@ Added in v0.16.0. The `/restart` system command triggers a graceful process rest
 ### Deterministic Tool Ordering (PR #582)
 
 `tool_definitions()` now sorts all tool definitions alphabetically before sending to the LLM. This ensures deterministic ordering across restarts and is required for reproducible trace-based E2E tests.
+
+---
+
+## 15. v0.20.0–v0.23.0 Agent Changes
+
+### Per-Tool Reasoning (#1513)
+
+**Source:** `src/llm/reasoning.rs`, `src/llm/reasoning_models.rs`, `src/llm/provider.rs`
+
+LLM providers can now supply per-tool reasoning alongside each tool call via the
+`ToolCall.reasoning: Option<String>` field. This is threaded through the provider,
+session, and all surfaces (web, CLI, channels).
+
+**How it works:**
+
+1. `ToolCall` in `provider.rs` carries an optional `reasoning` field populated by
+   the LLM provider when the model supplies per-call rationale.
+2. In `Reasoning::select_tools()`, each returned `ToolSelection` prefers
+   per-tool reasoning if the provider supplied it, falling back to the shared
+   response content (`content` field from the tool completion response).
+3. In `Reasoning::respond_with_tools()`, tool calls returned to the caller have
+   their reasoning populated: if the provider set `tc.reasoning`, it is cleaned
+   (thinking tags, tool tags stripped via `truncate_at_tool_tags` + `clean_response`);
+   otherwise the shared narrative from the response content is used as a fallback.
+4. The `ToolSelection.reasoning` field carries the rationale through to the
+   dispatcher, where it can be displayed in the web UI, logged, or stored for
+   audit purposes.
+
+**Native thinking model detection** (`reasoning_models.rs`):
+
+Models with built-in chain-of-thought (Qwen3, QwQ, DeepSeek-R1, GLM-Z1/4-Plus/5,
+Nanbeige, Step-3.5, MiniMax-M2) are detected by `has_native_thinking()`. These
+models skip IronClaw's `<think>/<final>` system prompt injection — they use their
+own reasoning format. The response cleaning pipeline already handles all known
+thinking tag variants.
+
+### Message Queuing During Active Turns (#1412)
+
+**Source:** `src/agent/agent_loop.rs`
+
+Messages arriving while a turn is already processing are queued on the thread
+and merged when the current turn completes. This prevents the earlier behavior
+of silently dropping or processing each message as a separate turn with partial
+context.
+
+**Mechanism:**
+
+1. When the main loop receives a message for a thread in `Processing` state,
+   the message is queued on the `Thread` object.
+2. After `process_user_input()` returns a `Response`, a drain loop runs:
+   it collects all queued messages, merges them (newline-separated) into a
+   single string, and processes them as one turn.
+3. The intermediate response from the completed turn is sent to the user before
+   starting the merged turn, so the user sees each reply in order.
+4. Only `Response` results continue the drain loop. `NeedApproval`,
+   `Interrupted`, `Ok` (control-command ack), and `Error` all break the loop.
+5. If processing the merged messages fails, the drained content is re-queued
+   via `thread.requeue_drained()` so it is not lost and will be picked up on
+   the next successful turn.
+6. Attachments from the original message are cleared on the queued message
+   clone to prevent re-application to unrelated text.
+
+### Stuck Threshold Activation (#1234, #712)
+
+**Source:** `src/agent/self_repair.rs`
+
+Time-based stuck job detection was wired in v0.20.0 and fully activated in v0.22.0.
+The `stuck_threshold` duration on `DefaultSelfRepair` drives automatic detection
+of jobs that have been in `InProgress` longer than the threshold.
+
+**Detection flow:**
+
+1. `detect_stuck_jobs()` calls `ContextManager::find_stuck_jobs_with_threshold()`
+   with the configured `stuck_threshold` duration.
+2. Jobs found in `InProgress` state that exceed the threshold are automatically
+   transitioned to `JobState::Stuck` with reason `"exceeded stuck_threshold"`.
+3. Jobs already in `Stuck` state are only reported if their `stuck_duration`
+   exceeds the threshold (recently transitioned jobs skip this check since they
+   were already vetted by the threshold query).
+4. `repair_stuck_job()` also handles the `InProgress` → `Stuck` transition
+   for jobs detected via the threshold, ensuring `attempt_recovery()` can run
+   (which requires `Stuck` state as a precondition).
+
+This replaces the previous approach of relying solely on explicit `mark_stuck()`
+calls from within the job, which missed jobs that hung without making progress.
+
+### Structured Fallback Deliverables (#236)
+
+**Source:** `src/context/fallback.rs`
+
+Failed or stuck jobs now produce a `FallbackDeliverable` instead of silently
+failing with just an error string. This gives users structured visibility into
+what was accomplished before the failure.
+
+**`FallbackDeliverable` fields:**
+
+```rust
+pub struct FallbackDeliverable {
+    pub partial: bool,            // true if at least one action succeeded
+    pub failure_reason: String,   // truncated to 1000 bytes
+    pub last_action: Option<LastAction>,  // tool_name, output_preview (200 bytes), success
+    pub action_stats: ActionStats,        // total, successful, failed counts
+    pub tokens_used: u64,
+    pub cost: String,             // decimal as string for JSON safety
+    pub elapsed_secs: f64,
+    pub repair_attempts: u32,
+}
+```
+
+**Integration:**
+
+- Built via `FallbackDeliverable::build(ctx, memory, reason)` from the job's
+  `JobContext` and `Memory`.
+- Stored in `JobContext.metadata["fallback_deliverable"]`.
+- Surfaced through the `job_status` tool.
+- Output previews use `output_sanitized` (not raw output) to avoid leaking
+  secrets through the fallback API surface. Failed actions fall back to the
+  error message for the preview.
+- All string fields are truncated to safe lengths on char boundaries using
+  `truncate_str()` which respects UTF-8 multi-byte sequences.
+
+### Truncated Tool Call Handling (#1631)
+
+**Source:** `src/agent/agentic_loop.rs`, `src/llm/reasoning.rs`
+
+When the LLM's response is truncated (`finish_reason == FinishReason::Length`),
+tool calls are discarded rather than executed with incomplete parameters.
+
+**In the shared agentic loop (`agentic_loop.rs`):**
+
+1. After `respond_with_tools()` returns `ToolCalls`, the loop checks
+   `output.finish_reason == FinishReason::Length`.
+2. If truncated: all tool calls are discarded. Any assistant text content
+   is preserved in the conversation. A `TRUNCATED_TOOL_CALL_NOTICE` user
+   message is injected telling the LLM to try a different approach.
+3. A `truncation_count` tracks consecutive truncations. After 3, the loop
+   sets `reason_ctx.force_text = true` to force text-only mode, preventing
+   further tool call attempts that cannot fit in the output budget.
+
+**In `Reasoning::select_tools()` (`reasoning.rs`):**
+
+The same guard exists at the tool selection level: if `finish_reason == Length`,
+the method returns an empty selection vector, falling through to
+`respond_with_tools()` which has a larger output token budget (4096 vs 1024).
+
+**`TRUNCATED_TOOL_CALL_NOTICE` constant:**
+
+```
+Your previous response was truncated while generating tool call parameters.
+The tool calls were discarded. Please try a different approach —
+summarize or transform the data instead of echoing it verbatim in a tool call.
+```
+
+### Chat Onboarding (#927)
+
+**Source:** `src/agent/agent_loop.rs`, `src/workspace/seeds/GREETING.md`
+
+A static bootstrap greeting (`BOOTSTRAP_GREETING`) is persisted to the database
+and broadcast on first launch. It is sent before the LLM is involved so the
+user sees something immediately. The conversational onboarding (profile building,
+channel setup) happens organically in subsequent turns driven by `BOOTSTRAP.md`
+workspace seed files. This is not a separate onboarding system but an
+LLM-driven conversational flow seeded by workspace identity files.
+
+### Multi-Tenant Context
+
+**Source:** `src/tenant.rs`
+
+`TenantCtx` is threaded through agent operations, providing per-user isolation
+for database access, workspace, cost guard, and rate limiting.
+
+**Architecture:**
+
+- **`TenantScope`**: Scoped database view bound to a single user. All ID-based
+  lookups (jobs, routines, sandbox jobs) automatically filter by ownership,
+  returning `None` when the resource belongs to a different user. This is the
+  only way handler code should access the database.
+- **`AdminScope`**: Cross-tenant access for system-level operations (heartbeat,
+  routine engine, self-repair). Must be obtained explicitly via
+  `AgentDeps::admin_store()`.
+- **`TenantCtx`**: Bundles `TenantScope` with workspace, `CostGuard`, and
+  per-tenant rate limiting. Constructed once per request at the entry point
+  where a `user_id` becomes known. `Clone + Send + Sync`.
+
+**Per-tenant rate limiting (`TenantRateState`):**
+
+```rust
+pub struct TenantRateState {
+    pub llm_semaphore: Arc<Semaphore>,  // limits concurrent LLM calls
+    pub job_semaphore: Arc<Semaphore>,  // limits concurrent jobs
+}
+```
+
+`TenantRateRegistry` lazily creates per-tenant state using
+`tokio::sync::RwLock<HashMap>`. Each user gets independent LLM and job
+concurrency limits enforced via Tokio semaphores.

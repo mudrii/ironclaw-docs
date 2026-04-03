@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — CLI Interface
 
-> Updated: 2026-03-17 | Version: v0.19.0
+> Updated: 2026-04-03 | Version: v0.23.0
 
 ## 1. Overview
 
@@ -103,6 +103,19 @@ The full command tree derived from `src/cli/mod.rs` and `src/app.rs`:
 | `ironclaw service uninstall` | Remove the OS service and its unit file |
 | `ironclaw doctor` | Probe external dependencies and validate configuration |
 | `ironclaw status` | Show system health and component diagnostics |
+| `ironclaw hooks list` | List discoverable lifecycle hooks (bundled + plugin) |
+| `ironclaw hooks list --verbose` | Show hook points, priority, and failure mode |
+| `ironclaw hooks list --json` | Output hooks as JSON |
+| `ironclaw models list` | List all LLM providers with default models |
+| `ironclaw models list <PROVIDER> [--verbose]` | Show details for a specific provider (env vars, base URL, live model list) |
+| `ironclaw models list --json` | Output provider list as JSON |
+| `ironclaw models status` | Show current active provider and model |
+| `ironclaw models status --json` | Output current model config as JSON |
+| `ironclaw models set <MODEL>` | Set the default model (persists to config.toml and .env) |
+| `ironclaw models set-provider <PROVIDER>` | Set the LLM provider (uses provider's default model) |
+| `ironclaw models set-provider <PROVIDER> --model <MODEL>` | Set both provider and model |
+| `ironclaw login` | Re-authenticate with an LLM provider |
+| `ironclaw login --openai-codex` | Authenticate with OpenAI Codex (ChatGPT subscription OAuth) |
 | `ironclaw worker --job-id <UUID>` | Run as a sandboxed worker inside Docker (internal, not for users) |
 | `ironclaw claude-bridge --job-id <UUID>` | Run as a Claude Code bridge inside Docker (internal, not for users) |
 
@@ -575,7 +588,85 @@ Runs as a Claude Code bridge inside a Docker container. Spawns the `claude` CLI 
 
 ---
 
-## 15. Architecture Notes
+## 15. Models CLI (`models.rs`)
+
+### `ironclaw models` (v0.23.0)
+
+Manage LLM providers and models. Settings are persisted to both `config.toml` and `~/.ironclaw/.env` so changes take effect immediately without a restart.
+
+```bash
+ironclaw models list                              # List all providers (* = active)
+ironclaw models list openai --verbose             # Show details for a specific provider
+ironclaw models list --json                       # JSON output
+ironclaw models status                            # Show current provider and model
+ironclaw models status --json                     # JSON output
+ironclaw models set gpt-4o                        # Set the default model
+ironclaw models set-provider anthropic --model claude-sonnet-4-6-20250514  # Set provider + model
+```
+
+**Subcommand details:**
+
+**`models list [PROVIDER] [--verbose] [--json]`**
+Lists all registered providers with their default models. The active provider is marked with `*`. When a `PROVIDER` argument is given, shows details for that provider including aliases, env vars, supported parameters, and a live model list (fetched from the provider's API if credentials are available). `--verbose` adds env var names, base URL, aliases, and protocol. `--json` outputs machine-readable JSON.
+
+**`models status [--json]`**
+Shows the currently active provider, model, fallback model (if set), and cheap model (if set). Resolution order: `LLM_BACKEND` env var > `settings.llm_backend` > default (`nearai`).
+
+**`models set <MODEL>`**
+Sets the default model name. Validates against known model patterns (warns but proceeds for unrecognized names). Persists to `config.toml` and syncs to `~/.ironclaw/.env` (writes the provider-specific model env var, e.g., `OPENAI_MODEL` for OpenAI). Custom `--config` paths skip `.env` sync to avoid polluting the default profile.
+
+**`models set-provider <PROVIDER> [--model MODEL]`**
+Sets the LLM provider. Validates the provider name against the registry (including aliases like `claude` for `anthropic`). If `--model` is omitted, uses the provider's default model. Persists both `LLM_BACKEND` and the model env var to `config.toml` and `~/.ironclaw/.env`.
+
+---
+
+## 16. Hooks CLI (`hooks.rs`)
+
+### `ironclaw hooks list` (v0.23.0)
+
+Lists all discoverable lifecycle hooks from bundled and plugin (WASM capabilities) sources. Plugin discovery uses the flat-file sidecar layout (`foo.wasm` + `foo.capabilities.json`). Workspace hooks (stored in the database) are not listed because this command does not connect to the database.
+
+```bash
+ironclaw hooks list                    # List all hooks: name, kind, priority, hook points
+ironclaw hooks list --verbose          # Show source, failure mode, detailed points
+ironclaw hooks list --json             # JSON output
+```
+
+**Hook sources:**
+
+| Source | Description |
+|--------|-------------|
+| `bundled` | Hardcoded hooks (e.g., `builtin.audit_log`) |
+| `plugin.tool:<name>` | Hooks from WASM tool capabilities sidecar files |
+| `plugin.channel:<name>` | Hooks from WASM channel capabilities sidecar files |
+
+**Hook kinds:** `audit`, `rule`, `reject`, `webhook`.
+
+**Hook points:** `BeforeInbound`, `BeforeToolCall`, `BeforeOutbound`, `OnSessionStart`, `OnSessionEnd`, `TransformResponse`.
+
+**Priority ordering:** Lower priority numbers run first. Default priorities: audit=25, rules=100, webhooks=300.
+
+**Failure modes:** `fail_open` (default for most hooks) — hook errors do not block the pipeline.
+
+---
+
+## 17. Login CLI (v0.23.0)
+
+### `ironclaw login`
+
+Re-authenticate with an LLM provider. Currently supports OpenAI Codex (ChatGPT subscription) via device code OAuth flow.
+
+```bash
+ironclaw login --openai-codex          # Authenticate with OpenAI Codex
+```
+
+The `--openai-codex` flag triggers the OAuth 2.0 device code flow against `auth.openai.com`. On success, tokens are persisted to `~/.ironclaw/openai_codex_session.json`. Use this command to re-login after token expiry or when switching accounts.
+
+---
+
+## 18. Architecture Notes
+
+**New subcommands (v0.23.0):** `Models`, `Hooks`, and `Login` were added to the `Command` enum in `src/cli/mod.rs`. `Models` and `Hooks` are subcommand enums (`ModelsCommand`, `HooksCommand`) with their own `run_*` async functions. `Login` is a struct variant with an `--openai-codex` boolean flag. The `onboard` command also gained new flags: `--quick` (auto-defaults except LLM provider/model) and `--step <STEPS>` (run specific setup steps like `provider`, `channels`, `model`, `database`, `security`). The old `--channels-only` and `--provider-only` flags are deprecated in favor of `--step`.
 
 **clap derive pattern:** All CLI types use `#[derive(Parser)]`, `#[derive(Subcommand)]`, and `#[command(...)]` attributes. The `Cli` struct in `src/cli/mod.rs` is the root parser; `Command` is the top-level subcommand enum. Each subcommand module exports its own enum (e.g., `ConfigCommand`, `McpCommand`) and a `run_*` async function.
 

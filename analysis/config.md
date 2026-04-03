@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Configuration System
 
-> Updated: 2026-03-17 | Version: v0.19.0
+> Updated: 2026-04-03 | Version: v0.23.0
 
 ## 1. Overview
 
@@ -89,6 +89,20 @@ default is possible.
 | `LLM_EXTRA_HEADERS` | string | — | No | Comma-separated `Key:Value` HTTP headers injected into OpenAI-compatible provider requests. Example: `"HTTP-Referer:https://myapp.com,X-Title:MyApp"`. Added v0.10.0. |
 | `TINFOIL_API_KEY` | secret | — | If `LLM_BACKEND=tinfoil` | Tinfoil private inference API key |
 | `TINFOIL_MODEL` | string | `kimi-k2-5` | No | Tinfoil model name |
+| **GitHub Copilot** | | | | |
+| `GITHUB_COPILOT_TOKEN` | secret | — | If `LLM_BACKEND=github_copilot` | GitHub Copilot authentication token (from IDE sign-in or device login flow) |
+| `GITHUB_COPILOT_MODEL` | string | `gpt-4o` | No | Copilot model name |
+| `GITHUB_COPILOT_EXTRA_HEADERS` | string | — | No | Comma-separated `Key:Value` HTTP headers injected into Copilot requests. Overrides default VS Code identity headers (case-insensitive merge). Example: `"Copilot-Integration-Id:custom-chat,X-Test:enabled"` |
+| **OpenAI Codex (ChatGPT)** | | | | |
+| `OPENAI_CODEX_MODEL` | string | `gpt-5.3-codex` | No | Model override for OpenAI Codex provider. Falls back to `OPENAI_MODEL` > `settings.selected_model` > default |
+| `OPENAI_CODEX_API_URL` | string | `https://chatgpt.com/backend-api/codex` | No | Responses API base URL for Codex. SSRF-validated |
+| `OPENAI_CODEX_AUTH_URL` | string | `https://auth.openai.com` | No | OAuth authorization server URL. SSRF-validated |
+| `OPENAI_CODEX_CLIENT_ID` | string | `app_EMoamEEZ73f0CkXaXp7hrann` | No | OAuth client ID for device code flow |
+| `OPENAI_CODEX_SESSION_PATH` | path | `~/.ironclaw/openai_codex_session.json` | No | Path to session file for token persistence |
+| `OPENAI_CODEX_REFRESH_MARGIN_SECS` | u64 | `300` | No | Seconds before token expiry to proactively refresh |
+| **Gemini** | | | | |
+| `GEMINI_MODEL` | string | `gemini-2.5-flash` | No | Model name for Gemini OAuth provider |
+| `GEMINI_CREDENTIALS_PATH` | path | `~/.gemini/oauth_creds.json` | No | Path to Gemini OAuth credentials file |
 | **LLM Resilience** | | | | |
 | `CIRCUIT_BREAKER_THRESHOLD` | u32 | disabled | No | Consecutive failures before circuit breaker opens. Omit to disable |
 | `CIRCUIT_BREAKER_RECOVERY_SECS` | u64 | `30` | No | Seconds before circuit allows a probe after opening |
@@ -103,6 +117,8 @@ default is possible.
 | `EMBEDDING_PROVIDER` | string | `nearai` | No | Provider: `openai`, `nearai`, or `ollama` |
 | `EMBEDDING_MODEL` | string | `text-embedding-3-small` | No | Embedding model name |
 | `EMBEDDING_DIMENSION` | usize | inferred | No | Vector dimension. Inferred from model name if unset (1536 for `text-embedding-3-small`, 3072 for `text-embedding-3-large`, 768 for `nomic-embed-text`, 1024 for `mxbai-embed-large`, 384 for `all-minilm`) |
+| `EMBEDDING_CACHE_SIZE` | usize | `10000` | No | Maximum entries in the embedding LRU cache. Approximate memory: `cache_size x dimension x 4 bytes` (e.g., 10,000 x 1536 floats = ~58 MB payload). Must be at least 1 |
+| `EMBEDDING_BASE_URL` | string | — | No | Custom base URL for OpenAI-compatible embedding providers. Overrides the default `https://api.openai.com` |
 | **Agent** | | | | |
 | `AGENT_NAME` | string | `ironclaw` | No | Agent display name |
 | `AGENT_MAX_PARALLEL_JOBS` | usize | `5` | No | Maximum concurrent jobs |
@@ -115,6 +131,10 @@ default is possible.
 | `ALLOW_LOCAL_TOOLS` | bool | `false` | No | Allow chat to use filesystem/shell tools directly (bypasses sandbox) |
 | `MAX_COST_PER_DAY_CENTS` | u64 | unlimited | No | Maximum daily LLM spend in cents (e.g. `10000` = $100). Unset = no limit |
 | `MAX_ACTIONS_PER_HOUR` | u64 | unlimited | No | Maximum LLM/tool actions per hour. Unset = no limit |
+| `MAX_COST_PER_USER_PER_DAY_CENTS` | u64 | unlimited | No | Maximum daily LLM spend per user in cents (multi-tenant). None = unlimited |
+| **Multi-Tenant** | | | | |
+| `TENANT_MAX_LLM_CONCURRENT` | usize | `4` | No | Maximum concurrent LLM calls per user in multi-tenant mode |
+| `TENANT_MAX_JOBS_CONCURRENT` | usize | `3` | No | Maximum concurrent jobs per user in multi-tenant mode |
 | **Self-Repair** | | | | |
 | `SELF_REPAIR_CHECK_INTERVAL_SECS` | u64 | `60` | No | How often (seconds) to check for stuck jobs |
 | `SELF_REPAIR_MAX_ATTEMPTS` | u32 | `3` | No | Maximum repair attempts before marking a job failed |
@@ -199,7 +219,11 @@ The runtime handles token exchange, scope merging for shared providers (e.g., tw
 | `HEARTBEAT_INTERVAL_SECS` | u64 | `1800` (30 min) | No | Interval between heartbeat checks |
 | `HEARTBEAT_NOTIFY_CHANNEL` | string | — | No | Channel name to notify on heartbeat findings (e.g. `tui`, `gateway`) |
 | `HEARTBEAT_NOTIFY_USER` | string | — | No | User ID to notify on heartbeat findings |
-| `HEARTBEAT_FIRE_AT` | string | — | No | Time-of-day schedule `"HH:MM IANA/Timezone"` for daily one-shot triggers. Example: `"09:00 America/New_York"` (v0.19.0, [#1029](https://github.com/nearai/ironclaw/pull/1029)) |
+| `HEARTBEAT_FIRE_AT` | string | — | No | Time-of-day schedule `"HH:MM"` (24h) for daily one-shot triggers. Example: `"09:00"`. When set, `HEARTBEAT_INTERVAL_SECS` is ignored (v0.19.0, [#1029](https://github.com/nearai/ironclaw/pull/1029)) |
+| `HEARTBEAT_QUIET_START` | u32 | — | No | Hour (0-23) when quiet hours start. Heartbeat is suppressed during quiet hours |
+| `HEARTBEAT_QUIET_END` | u32 | — | No | Hour (0-23) when quiet hours end |
+| `HEARTBEAT_TIMEZONE` | string | — | No | IANA timezone for `fire_at` and quiet hours evaluation (e.g., `America/New_York`) |
+| `HEARTBEAT_MULTI_TENANT` | bool | auto | No | When true, cycle heartbeat through all users with routines. Auto-detected from `GATEWAY_USER_TOKENS` presence; set explicitly to override |
 | **Memory Hygiene** | | | | |
 | `MEMORY_HYGIENE_ENABLED` | bool | `true` | No | Enable automatic cleanup of stale workspace documents |
 | `MEMORY_HYGIENE_RETENTION_DAYS` | u32 | `30` | No | Days before `daily/` documents are deleted |
@@ -283,32 +307,72 @@ pub struct AgentConfig {
     pub allow_local_tools: bool,             // ALLOW_LOCAL_TOOLS
     pub max_cost_per_day_cents: Option<u64>, // MAX_COST_PER_DAY_CENTS
     pub max_actions_per_hour: Option<u64>,   // MAX_ACTIONS_PER_HOUR
+    pub max_cost_per_user_per_day_cents: Option<u64>, // MAX_COST_PER_USER_PER_DAY_CENTS
     pub max_tool_iterations: usize,          // AGENT_MAX_TOOL_ITERATIONS (default: 50)
     pub auto_approve_tools: bool,            // AGENT_AUTO_APPROVE_TOOLS (default: false)
+    pub default_timezone: String,            // DEFAULT_TIMEZONE (default: "UTC")
+    pub max_tokens_per_job: u64,             // AGENT_MAX_TOKENS_PER_JOB (default: 0 = unlimited)
+    pub multi_tenant: bool,                  // Auto-detected from GATEWAY_USER_TOKENS
+    pub max_llm_concurrent_per_user: Option<usize>, // TENANT_MAX_LLM_CONCURRENT
+    pub max_jobs_concurrent_per_user: Option<usize>, // TENANT_MAX_JOBS_CONCURRENT
 }
 ```
 
 ### LlmConfig (`config/llm.rs`)
 
-Multi-provider LLM configuration. Only the sub-struct matching the active backend
-is populated; the others are `None`.
+Multi-provider LLM configuration. The backend identifier is a string that maps to
+either the built-in NearAI/Bedrock/Gemini/Codex providers or to a registry-based
+provider via `RegistryProviderConfig`.
 
 ```rust
-pub enum LlmBackend {
-    NearAi,           // "nearai" (default)
-    OpenAi,           // "openai"
-    Anthropic,        // "anthropic" or "claude"
-    Ollama,           // "ollama"
-    OpenAiCompatible, // "openai_compatible" or "compatible"
-    Tinfoil,          // "tinfoil"
+pub struct LlmConfig {
+    pub backend: String,                           // "nearai", "openai", "groq", "tinfoil", etc.
+    pub session: SessionConfig,                    // NearAI OAuth/session-token auth config
+    pub nearai: NearAiConfig,                      // always populated (also used for embeddings)
+    pub provider: Option<RegistryProviderConfig>,  // Some for registry-based providers
+    pub bedrock: Option<BedrockConfig>,            // Some when backend=bedrock
+    pub gemini_oauth: Option<GeminiOauthConfig>,   // Some when backend=gemini_oauth
+    pub openai_codex: Option<OpenAiCodexConfig>,   // Some when backend=openai_codex
+    pub request_timeout_secs: u64,                 // LLM_REQUEST_TIMEOUT_SECS (default: 120)
+    pub cheap_model: Option<String>,               // LLM_CHEAP_MODEL (generic, any backend)
+    pub smart_routing_cascade: bool,               // SMART_ROUTING_CASCADE (default: true)
+}
+
+/// Unified config for all registry-based providers (OpenAI, Anthropic,
+/// Ollama, Groq, Tinfoil, GitHub Copilot, OpenAI-compatible, etc.)
+pub struct RegistryProviderConfig {
+    pub protocol: ProviderProtocol,          // OpenAiCompletions, Anthropic, etc.
+    pub provider_id: String,                 // canonical ID (e.g., "groq", "openai")
+    pub api_key: Option<SecretString>,       // provider-specific API key env var
+    pub base_url: String,                    // API endpoint
+    pub model: String,                       // model name
+    pub extra_headers: Vec<(String, String)>,// additional HTTP headers
+    pub oauth_token: Option<SecretString>,   // Anthropic OAuth (claude login)
+    pub is_codex_chatgpt: bool,              // route to Codex ChatGPT Responses API
+    pub refresh_token: Option<SecretString>, // Codex ChatGPT token refresh
+    pub auth_path: Option<PathBuf>,          // Codex auth.json path
+    pub cache_retention: CacheRetention,     // Anthropic prompt cache (none/short/long)
+    pub unsupported_params: Vec<String>,     // params stripped from requests
+}
+
+pub struct OpenAiCodexConfig {
+    pub model: String,                  // OPENAI_CODEX_MODEL (default: "gpt-5.3-codex")
+    pub auth_endpoint: String,          // OPENAI_CODEX_AUTH_URL
+    pub api_base_url: String,           // OPENAI_CODEX_API_URL
+    pub client_id: String,              // OPENAI_CODEX_CLIENT_ID
+    pub session_path: PathBuf,          // OPENAI_CODEX_SESSION_PATH
+    pub token_refresh_margin_secs: u64, // OPENAI_CODEX_REFRESH_MARGIN_SECS (default: 300)
+}
+
+pub struct GeminiOauthConfig {
+    pub model: String,                  // GEMINI_MODEL (default: "gemini-2.5-flash")
+    pub credentials_path: PathBuf,      // GEMINI_CREDENTIALS_PATH
 }
 
 pub struct NearAiConfig {
     pub model: String,
     pub cheap_model: Option<String>,
     pub base_url: String,
-    pub auth_base_url: String,
-    pub session_path: PathBuf,
     pub api_key: Option<SecretString>,
     pub fallback_model: Option<String>,
     pub max_retries: u32,
@@ -320,44 +384,6 @@ pub struct NearAiConfig {
     pub failover_cooldown_secs: u64,
     pub failover_cooldown_threshold: u32,
     pub smart_routing_cascade: bool,    // SMART_ROUTING_CASCADE (default: true)
-}
-
-pub struct LlmConfig {
-    pub backend: LlmBackend,
-    pub nearai: NearAiConfig,                           // always populated
-    pub openai: Option<OpenAiDirectConfig>,             // Some when backend=openai
-    pub anthropic: Option<AnthropicDirectConfig>,       // Some when backend=anthropic
-    pub ollama: Option<OllamaConfig>,                   // Some when backend=ollama
-    pub openai_compatible: Option<OpenAiCompatibleConfig>, // Some when backend=openai_compatible
-    pub tinfoil: Option<TinfoilConfig>,                 // Some when backend=tinfoil
-}
-
-pub struct OpenAiDirectConfig {
-    pub api_key: SecretString,   // OPENAI_API_KEY
-    pub model: String,           // OPENAI_MODEL
-    pub base_url: Option<String>, // OPENAI_BASE_URL
-}
-
-pub struct AnthropicDirectConfig {
-    pub api_key: SecretString,   // ANTHROPIC_API_KEY
-    pub model: String,           // ANTHROPIC_MODEL
-    pub base_url: Option<String>, // ANTHROPIC_BASE_URL
-}
-
-pub struct OllamaConfig {
-    pub base_url: String, // OLLAMA_BASE_URL
-    pub model: String,    // OLLAMA_MODEL
-}
-
-pub struct OpenAiCompatibleConfig {
-    pub base_url: String,         // LLM_BASE_URL (required)
-    pub api_key: Option<SecretString>, // LLM_API_KEY
-    pub model: String,            // LLM_MODEL
-}
-
-pub struct TinfoilConfig {
-    pub api_key: SecretString, // TINFOIL_API_KEY
-    pub model: String,         // TINFOIL_MODEL
 }
 ```
 
@@ -486,6 +512,8 @@ pub struct EmbeddingsConfig {
     pub model: String,                      // EMBEDDING_MODEL
     pub ollama_base_url: String,            // OLLAMA_BASE_URL
     pub dimension: usize,                   // EMBEDDING_DIMENSION (inferred from model)
+    pub openai_base_url: Option<String>,    // EMBEDDING_BASE_URL (custom OpenAI-compatible endpoint)
+    pub cache_size: usize,                  // EMBEDDING_CACHE_SIZE (default: 10,000)
 }
 ```
 
@@ -509,7 +537,11 @@ pub struct HeartbeatConfig {
     pub interval_secs: u64,              // HEARTBEAT_INTERVAL_SECS (default: 1800)
     pub notify_channel: Option<String>,  // HEARTBEAT_NOTIFY_CHANNEL
     pub notify_user: Option<String>,     // HEARTBEAT_NOTIFY_USER
-    pub fire_at: Option<String>,         // HEARTBEAT_FIRE_AT (v0.19.0, #1029)
+    pub fire_at: Option<NaiveTime>,      // HEARTBEAT_FIRE_AT (v0.19.0, #1029)
+    pub quiet_hours_start: Option<u32>,  // HEARTBEAT_QUIET_START (0-23)
+    pub quiet_hours_end: Option<u32>,    // HEARTBEAT_QUIET_END (0-23)
+    pub timezone: Option<String>,        // HEARTBEAT_TIMEZONE (IANA name)
+    pub multi_tenant: bool,              // HEARTBEAT_MULTI_TENANT or auto-detected
 }
 ```
 
@@ -825,6 +857,26 @@ OPENAI_MODEL="gpt-4o"
 # TINFOIL_API_KEY="your-tinfoil-key"
 # TINFOIL_MODEL="kimi-k2-5"
 
+# GitHub Copilot (requires active Copilot subscription)
+# LLM_BACKEND="github_copilot"
+# GITHUB_COPILOT_TOKEN="gho_your_token_here"
+# GITHUB_COPILOT_MODEL="gpt-4o"
+# GITHUB_COPILOT_EXTRA_HEADERS="Copilot-Integration-Id:custom-chat"
+
+# OpenAI Codex / ChatGPT (subscription-based, zero API cost)
+# LLM_BACKEND="openai_codex"
+# OPENAI_CODEX_MODEL="gpt-5.3-codex"
+# OPENAI_CODEX_CLIENT_ID="app_EMoamEEZ73f0CkXaXp7hrann"
+# OPENAI_CODEX_API_URL="https://chatgpt.com/backend-api/codex"
+# OPENAI_CODEX_AUTH_URL="https://auth.openai.com"
+# OPENAI_CODEX_SESSION_PATH="~/.ironclaw/openai_codex_session.json"
+# OPENAI_CODEX_REFRESH_MARGIN_SECS="300"
+
+# Gemini OAuth
+# LLM_BACKEND="gemini_oauth"
+# GEMINI_MODEL="gemini-2.5-flash"
+# GEMINI_CREDENTIALS_PATH="~/.gemini/oauth_creds.json"
+
 ##############################################
 # LLM Resilience (optional, advanced)
 ##############################################
@@ -1030,6 +1082,15 @@ GATEWAY_AUTH_TOKEN="replace-with-random-hex-token"
 # BUILDER_TIMEOUT_SECS="600"
 # BUILDER_AUTO_REGISTER="true"
 # BUILDER_DIR=""                          # defaults to system temp
+
+##############################################
+# Multi-Tenant (v0.23.0)
+##############################################
+# Auto-detected from GATEWAY_USER_TOKENS presence.
+# TENANT_MAX_LLM_CONCURRENT="4"       # Max concurrent LLM calls per user
+# TENANT_MAX_JOBS_CONCURRENT="3"       # Max concurrent jobs per user
+# HEARTBEAT_MULTI_TENANT="true"        # Cycle heartbeat through all users
+# MAX_COST_PER_USER_PER_DAY_CENTS="5000"  # $50/user/day limit
 
 ##############################################
 # Observability

@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Skills, Extensions & Hooks
 
-> Updated: 2026-03-17 | Version: v0.19.0
+> Updated: 2026-04-03 | Version: v0.23.0
 
 ## 1. Overview
 
@@ -193,6 +193,8 @@ The slug is URL-encoded to prevent query string injection via characters like `&
 
 > **v0.19.0:** New CLI subcommands for skills discovery: `ironclaw skills list`, `ironclaw skills search <query>`, `ironclaw skills info <name>` ([#918](https://github.com/nearai/ironclaw/pull/918)). These complement the conversational activation path and are useful for debugging skill selection.
 
+> **v0.23.0:** `ironclaw hooks list` CLI subcommand added for inspecting registered hooks ([#1023](https://github.com/nearai/ironclaw/pull/1023)). Lists all active hooks with their priorities, hook points, and source (built-in, plugin, or workspace).
+
 ### 2.5a Bundled Skills (v0.15.0)
 
 IronClaw ships with the following skill(s) bundled in the repository under `skills/`:
@@ -375,6 +377,10 @@ Warnings are logged at `warn!` level and do not block activation.
 - MCP server: unregisters tools with server's name prefix, removes MCP client, removes config entry
 - WASM tool: unregisters from `ToolRegistry`, unregisters any hooks with `plugin.tool:<name>::` prefix, deletes `.wasm` and `.capabilities.json` files
 - WASM channel: unregisters from channel manager, unregisters hooks, deletes `.wasm` and `.capabilities.json` files
+
+> **v0.23.0 bug fixes:** Channel-relay auth handling fixed to correctly propagate authentication during webhook relay ([#1681](https://github.com/nearai/ironclaw/pull/1681)). Extension lifecycle management improved with fixes for activation/deactivation edge cases ([#1070](https://github.com/nearai/ironclaw/pull/1070)).
+
+> **v0.23.0:** Text setup fields are now supported in the web configure modal for extensions ([#496](https://github.com/nearai/ironclaw/pull/496)). Extension authors can define text input fields in the `setup` section of their capabilities file, and these are rendered in the browser UI during configuration. This replaces the previous workflow of requiring users to paste secrets via the CLI or conversational commands.
 
 ### 3.4 Built-in Extension Registry
 

@@ -1,6 +1,6 @@
 # IronClaw Tool System — Developer Reference
 
-Version: v0.19.0
+Version: v0.23.0
 Source: `src/tools/`
 
 ---
@@ -121,6 +121,45 @@ pub enum ToolDomain {
     Container,     // Docker isolation layer
 }
 ```
+
+### RiskLevel (v0.23.0)
+
+Graduated risk classification for tool invocations, defined in `src/tools/tool.rs`:
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum RiskLevel {
+    /// Read-only, safe, reversible (e.g. `ls`, `cat`, `grep`).
+    Low,
+    /// Creates or modifies state, but generally reversible
+    /// (e.g. `mkdir`, `git commit`, `cargo build`).
+    Medium,
+    /// Destructive, irreversible, or security-sensitive
+    /// (e.g. `rm -rf`, `git push --force`, `kill -9`).
+    High,
+}
+```
+
+`RiskLevel` implements `Ord` so callers can compare levels (e.g. `risk >= RiskLevel::High`).
+
+Every `Tool` implementation exposes a `risk_level_for(&self, params: &serde_json::Value) -> RiskLevel` method that allows per-invocation risk classification. The default implementation returns `RiskLevel::Low`. The shell tool overrides this method to classify commands via `classify_command_risk()` — the result drives both approval decisions (`requires_approval()` delegates to `risk_level_for()`) and observability logging in the worker.
+
+### Tool Autonomy (`autonomy.rs`, v0.23.0)
+
+The `src/tools/autonomy.rs` module controls which tools are available in autonomous contexts (background jobs, routines) where no interactive user is present.
+
+**Denylist:** `AUTONOMOUS_TOOL_DENYLIST` contains 17 tool names that are never available in autonomous execution:
+
+```
+routine_create, routine_update, routine_delete, routine_fire,
+event_emit, create_job, job_prompt, restart,
+tool_install, tool_auth, tool_activate, tool_remove, tool_upgrade,
+skill_install, skill_remove, secret_list, secret_delete
+```
+
+`is_autonomous_tool_denylisted(tool_name)` checks the denylist. `autonomous_unavailable_error()` returns a typed `ToolError::AutonomousUnavailable`.
+
+`autonomous_allowed_tool_names(tools, extension_manager, owner_id)` computes the allowed set: starts with all builtin tool names, removes denylisted tools, then adds active extension tools — but only when the extension manager's `owner_id` matches the requesting `owner_id`. This prevents cross-user tool access in multi-tenant deployments.
 
 ### Implementing a Tool
 
@@ -1045,11 +1084,36 @@ Key behaviors:
   `{server_name}_{tool_name}` to prevent collisions between servers
 - **Auto token refresh** — 401 responses trigger `refresh_access_token()` and one
   automatic retry before propagating the error
+- **Session expiry recovery** — Errors containing "session" with "400", "missing session id", or "no valid session id" trigger `reinitialize_session()` which terminates the old session, creates a fresh one, and re-runs the initialize handshake (one retry)
 - **SSE response parsing** — Both SSE streaming responses and plain JSON responses
   are parsed to extract the JSON-RPC result
 - **McpToolWrapper** — Each discovered tool is wrapped in an implementation of the
   `Tool` trait; `requires_sanitization: true` is always set; `requires_approval`
   mirrors the tool's `destructive_hint` annotation
+- **Null stripping** — `strip_top_level_nulls()` removes explicit `null` values from tool parameters before forwarding to MCP servers, preventing 400 errors from strict servers (e.g. Notion) that reject `null` for optional fields
+
+### Streamable HTTP Transport (`mcp/http_transport.rs`, v0.23.0)
+
+`HttpMcpTransport` implements the `McpTransport` trait for HTTP-based MCP communication:
+
+```rust
+pub struct HttpMcpTransport {
+    server_url: String,
+    server_name: String,
+    http_client: reqwest::Client,
+    session_manager: Option<Arc<McpSessionManager>>,
+    custom_headers: HashMap<String, String>,
+}
+```
+
+Key features:
+
+- **Content negotiation** — Sends `Accept: application/json, text/event-stream` and dispatches to SSE or JSON parsing based on the response `Content-Type`
+- **202 Accepted handling** — MCP notifications (e.g. `notifications/initialized`) often return 202 Accepted with no body. The transport returns a synthetic empty `McpResponse` instead of attempting to parse a non-existent body. Regression test: `test_wire_202_accepted_for_notification` (PR #1436)
+- **Session ID tracking** — Extracts `Mcp-Session-Id` from response headers and stores it via the attached `McpSessionManager`
+- **SSE streaming** — `parse_sse_response()` reads the SSE byte stream, buffers data lines, and returns the `McpResponse` whose `id` matches the request. Non-matching events (progress, notifications) are skipped. Buffer capped at 10 MB
+- **Error body sanitization** — HTML error pages are stripped to plain text and truncated to 200 characters (PR #263)
+- **Custom headers** — Transport-level headers (`with_custom_headers()`) are applied first; per-request headers override them
 
 ### Protocol (`mcp/protocol.rs`)
 
@@ -1098,17 +1162,69 @@ Full OAuth 2.1 with PKCE implementation:
 
 ### Session Management (`mcp/session.rs`)
 
-`McpSessionManager` is a `tokio::sync::RwLock<HashMap<String, McpSession>>` keyed by
-server name.
+`McpSessionManager` tracks per-server session state as a `tokio::sync::RwLock<HashMap<String, McpSession>>` keyed by server name:
+
+```rust
+pub struct McpSession {
+    pub session_id: Option<String>,
+    pub last_activity: Instant,
+    pub server_url: String,
+    pub initialized: bool,
+}
+```
+
+```rust
+pub struct McpSessionManager {
+    sessions: RwLock<HashMap<String, McpSession>>,
+    max_idle_secs: u64,  // default: 1800 (30 minutes)
+}
+```
 
 Session lifecycle:
 
 - Created on first `get_or_create()` call for a server
-- `update_session_id()` stores the `Mcp-Session-Id` returned in server responses
+- `update_session_id()` stores the `Mcp-Session-Id` returned in server responses (only updates when `Some`; `None` leaves the existing ID unchanged)
 - `mark_initialized()` is called after the initialize/initialized handshake completes
+- `touch()` updates `last_activity` without changing session state
 - Sessions expire after 30 minutes of idle time (`is_stale(1800)`)
-- `cleanup_stale()` removes expired sessions; can be called periodically
-- `terminate()` removes a session immediately (e.g., on error)
+- `cleanup_stale()` removes expired sessions; can be called periodically; returns count removed
+- `terminate()` removes a session immediately (e.g., on error or session expiry recovery)
+- `active_servers()` returns all server names with active sessions
+- `with_idle_timeout()` constructor allows custom idle timeout
+
+The manager is `Default`-able (equivalent to `new()` with 1800s timeout).
+
+### Parameter Coercion and Validation (`coercion.rs`, v0.23.0, PR #1397)
+
+`prepare_tool_params(tool, params)` preprocesses LLM-emitted parameters before tool execution. The coercion pipeline:
+
+1. **`$ref` resolution** — Inlines all `$ref` pointers (`#/definitions/<name>` and `#/$defs/<name>`) into a flat schema tree so coercion operates without indirection. Depth-limited to 16 levels to prevent circular ref loops.
+2. **`oneOf`/`anyOf`/`allOf` handling** — The resolver traverses composite schema keywords (`oneOf`, `anyOf`, `allOf`) so variant properties are visible during coercion. Properties defined via `const` across multiple variants are merged into a single `enum` array.
+3. **Type coercion** — Values are coerced to match the declared schema type (e.g. string `"42"` to integer `42`, string `"true"` to boolean `true`).
+
+### WASM Auto-Compact Schemas (`wasm/wrapper.rs`, v0.23.0, PR #1525)
+
+WASM tools that declare complex schemas (e.g. GitHub MCP with `oneOf` variants) may exceed the LLM context budget. The `WasmToolSchemas` struct auto-compacts the discovery schema into a compact advertised schema:
+
+- Collects top-level `required` properties and properties with `enum`/`const` constraints
+- Traverses `oneOf`/`anyOf`/`allOf` variants to merge `const` values into `enum` arrays
+- Variant-level `required` fields are intentionally omitted (available via `tool_info(detail: "schema")`)
+- Capped at `MAX_COMPACT_PROPERTIES` (100) to bound allocations
+- Falls back to a permissive empty-properties schema when no required/enum properties exist
+- When the compact schema has typed properties, no `tool_info` hint is appended to the description
+
+### Webhook Trigger Endpoint for Routines (`handlers/webhooks.rs`, v0.23.0, PR #736)
+
+Two public endpoints allow external systems to trigger webhook-type routines:
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/webhooks/{path}` | Per-routine secret | Single-user: matches path across all users |
+| POST | `/api/webhooks/u/{user_id}/{path}` | Per-routine secret | Multi-tenant: restricts lookup to the specified user |
+
+Authentication uses the per-routine `X-Webhook-Secret` header validated via constant-time comparison (`subtle::ConstantTimeEq`). Routines without a configured secret return 403. The handler fires through the `RoutineEngine` to ensure guardrails, run tracking, and notifications work correctly.
+
+Rate limited via `webhook_rate_limiter` on `GatewayState` (10 requests per 60 seconds).
 
 ---
 

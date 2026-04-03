@@ -1,8 +1,24 @@
 # IronClaw Codebase Analysis — Safety & Sandbox Security Model
 
-> Updated: 2026-03-17 | Version: v0.19.0
+> Updated: 2026-04-03 | Version: v0.23.0
 
 ## Security Changelog
+
+### v0.23.0 - Complete Multi-Tenant Isolation (Phases 2-4)
+
+- **Compile-time tenant isolation:** `TenantScope` wraps `Arc<dyn Database>` with a `user_id`, ensuring all handler-level database operations are scoped to the owning user. ID-based lookups (jobs, routines, sandbox jobs, settings) return `None` when the resource belongs to a different user. ([#1614](https://github.com/nearai/ironclaw/pull/1614))
+- **AdminScope for cross-tenant access:** System-level operations (heartbeat, routine engine, self-repair) use a separate `AdminScope` type that must be obtained explicitly via `AgentDeps::admin_store()`. Handler code cannot access it through `TenantCtx`.
+- **Per-user rate limiting via TenantRateRegistry:** Lazily creates per-tenant rate state with two semaphores — `llm_semaphore` (limits concurrent LLM calls per user) and `job_semaphore` (limits concurrent jobs per user). Prevents a single user from monopolizing shared resources.
+- **TenantCtx execution context:** Bundles `TenantScope`, workspace, `CostGuard`, and `TenantRateState` into a single per-request context object. Constructed once when a `user_id` becomes known and threaded through the request lifecycle.
+- **Graduated RiskLevel for command approval:** Shell commands are classified into `RiskLevel::Low`, `RiskLevel::Medium`, and `RiskLevel::High`. Low/Medium risk commands use `ApprovalRequirement::UnlessAutoApproved`, while High risk commands always require explicit approval (`ApprovalRequirement::Always`). This graduated model replaces binary approve/deny with context-sensitive gating.
+
+### v0.22.0 - Multi-Tenant Auth & Input Sanitization
+
+- **Multi-tenant auth with per-user workspace isolation:** Per-user workspace isolation ensures users cannot access each other's data. ([#1118](https://github.com/nearai/ironclaw/pull/1118))
+- **SSRF embedding base URL validation:** Embedding base URL now validated against SSRF allowlists before use. ([#1221](https://github.com/nearai/ironclaw/pull/1221))
+- **XML tool-output escape and sanitized attr removal:** Tool output XML wrapping now escapes content properly and removes sanitized attributes that could be used for injection. ([#1067](https://github.com/nearai/ironclaw/pull/1067))
+- **OAuth state validation for ic2.* states:** OAuth callback flow now validates state parameters prefixed with `ic2.` to prevent cross-site request forgery. ([#1441](https://github.com/nearai/ironclaw/pull/1441))
+- **rustls-webpki vulnerability patch:** Patched RUSTSEC-2026-0049 in the `rustls-webpki` dependency to address a potential certificate validation vulnerability.
 
 ### v0.19.0 - Security Hardening
 

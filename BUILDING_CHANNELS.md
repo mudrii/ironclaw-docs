@@ -1,6 +1,6 @@
 # Building WASM Channels
 
-> Version baseline: IronClaw v0.19.0 (`v0.19.0` tag snapshot)
+> Version baseline: IronClaw v0.23.0 (`v0.23.0` tag snapshot)
 
 This guide covers how to build WASM channel modules for IronClaw.
 
@@ -380,6 +380,10 @@ Study `channels-src/feishu/src/lib.rs` as a minimal, well-structured reference f
 - Minimal `on_start()` implementation returning `ChannelConfig` with HTTP endpoints
 - Secret-based authentication (no OAuth complexity)
 - Message event handling and response dispatch
+
+> **v0.23.0:** A channel-relay webhook handler was added, allowing channels to relay webhook payloads through a unified endpoint. The relay handler authenticates using the channel's configured credentials and forwards the payload to the appropriate WASM channel's `on_http_request`. Auth handling in the relay path was fixed in [#1681](https://github.com/nearai/ironclaw/pull/1681).
+
+> **v0.23.0 WASM channel API:** The `setup_wasm_channels()` function in `src/channels/wasm/setup.rs` continues to accept `Config`, `SecretsStore`, `ExtensionManager`, and `Database` arguments. The `WasmChannelSetup` result struct remains unchanged (channels, channel_names, webhook_routes, wasm_channel_runtime, pairing_store, wasm_channel_router). No breaking WASM channel API changes were introduced between v0.19.0 and v0.23.0.
 
 ### Other Channels
 

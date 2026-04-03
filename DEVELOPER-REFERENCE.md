@@ -1,6 +1,6 @@
 # IronClaw Developer Reference
 
-> Version baseline: IronClaw v0.19.0 (`v0.19.0` tag snapshot)
+> Version baseline: IronClaw v0.23.0 (`v0.23.0` tag snapshot)
 
 Reference for developers building tools, channels, or contributing to IronClaw.
 
@@ -104,6 +104,53 @@ Use `ironclaw tool setup` when a tool declares server-side credentials (e.g., OA
 client IDs) via `setup.required_secrets`, and `ironclaw tool auth` when the user must
 authenticate with a third-party service via `auth`.
 
+### ironclaw models (v0.23.0)
+
+Manage LLM providers and models from the CLI. Changes are persisted to `config.toml`
+and `~/.ironclaw/.env`.
+
+```
+ironclaw models list [provider] [--verbose] [--json]
+ironclaw models status [--json]
+ironclaw models set <model>
+ironclaw models set-provider <provider> [--model <model>]
+```
+
+| Subcommand | Description |
+|------------|-------------|
+| `list` | List all providers (active marked with `*`); optionally filter by provider |
+| `status` | Show current active provider, model, fallback, and cheap model |
+| `set` | Set the default model name (validates against known patterns) |
+| `set-provider` | Set the LLM provider with optional model override |
+
+Source: `src/cli/models.rs`.
+
+### ironclaw hooks list (v0.23.0)
+
+List discoverable lifecycle hooks from bundled and plugin (WASM capabilities) sources.
+Workspace hooks require a DB connection and are not listed.
+
+```
+ironclaw hooks list [--verbose] [--json]
+```
+
+`--verbose` adds source, failure mode, and detailed hook points. `--json` outputs
+machine-readable JSON. Hook kinds: `audit`, `rule`, `reject`, `webhook`. Hook
+priority defaults: audit=25, rules=100, webhooks=300.
+
+Source: `src/cli/hooks.rs`.
+
+### ironclaw login (v0.23.0)
+
+Re-authenticate with an LLM provider.
+
+```
+ironclaw login --openai-codex
+```
+
+Currently supports OpenAI Codex via device code OAuth. Tokens are persisted to
+`~/.ironclaw/openai_codex_session.json`.
+
 ---
 
 ## 2. Tool Setup Schema
@@ -174,6 +221,51 @@ default `~/.ironclaw/ironclaw.db` path directly in bootstrap.
 | Set to empty string | Treated as unset; falls back to default |
 
 Source: `src/bootstrap.rs` — `ironclaw_base_dir()`, `IRONCLAW_BASE_DIR` constant.
+
+### Multi-Tenant Environment Variables (v0.23.0)
+
+Multi-tenant mode is auto-detected when `GATEWAY_USER_TOKENS` is set. These env vars
+control per-user resource limits in multi-tenant deployments.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TENANT_MAX_LLM_CONCURRENT` | `4` | Max concurrent LLM calls per user |
+| `TENANT_MAX_JOBS_CONCURRENT` | `3` | Max concurrent jobs per user |
+| `HEARTBEAT_MULTI_TENANT` | auto | Cycle heartbeat through all users (auto from `GATEWAY_USER_TOKENS`) |
+| `MAX_COST_PER_USER_PER_DAY_CENTS` | unlimited | Per-user daily LLM spend cap in cents |
+
+### New LLM Provider Environment Variables (v0.23.0)
+
+**GitHub Copilot:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GITHUB_COPILOT_TOKEN` | — | Copilot auth token (required for `github_copilot` backend) |
+| `GITHUB_COPILOT_EXTRA_HEADERS` | — | Custom headers (`Key:Value,Key:Value`) for Copilot requests |
+
+**OpenAI Codex (ChatGPT subscription):**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENAI_CODEX_MODEL` | `gpt-5.3-codex` | Model name |
+| `OPENAI_CODEX_API_URL` | `https://chatgpt.com/backend-api/codex` | API base URL |
+| `OPENAI_CODEX_AUTH_URL` | `https://auth.openai.com` | OAuth auth server |
+| `OPENAI_CODEX_CLIENT_ID` | `app_EMoamEEZ73f0CkXaXp7hrann` | OAuth client ID |
+| `OPENAI_CODEX_SESSION_PATH` | `~/.ironclaw/openai_codex_session.json` | Token file |
+| `OPENAI_CODEX_REFRESH_MARGIN_SECS` | `300` | Pre-emptive token refresh margin |
+
+**Gemini:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Model name |
+| `GEMINI_CREDENTIALS_PATH` | `~/.gemini/oauth_creds.json` | OAuth credentials file |
+
+### Embedding Cache (v0.23.0)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EMBEDDING_CACHE_SIZE` | `10000` | LRU cache entries for embeddings (~58 MB at 1536-dim) |
 
 ---
 

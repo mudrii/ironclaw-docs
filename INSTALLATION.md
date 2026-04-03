@@ -1,6 +1,6 @@
 # IronClaw Installation & Deployment Guide
 
-> Version: v0.19.0 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel), Linux
+> Version: v0.23.0 | Tested on: macOS 15 (Apple Silicon), macOS 14 (Intel), Linux
 
 Complete guide for installing, configuring, and deploying IronClaw as a personal AI assistant.
 
@@ -66,7 +66,7 @@ Access the web UI at `http://localhost:3000`
 | Requirement | Version | Notes |
 |-------------|---------|-------|
 | OS | macOS 13+ / Linux / Windows WSL | Native Windows supported via installer |
-| LLM API key | — | OpenAI, Anthropic, NEAR AI, Ollama, or OpenAI-compatible |
+| LLM API key | — | OpenAI, Anthropic, NEAR AI, Ollama, OpenAI-compatible, GitHub Copilot, OpenAI Codex, or Gemini |
 
 ### Optional (feature-dependent)
 
@@ -101,7 +101,7 @@ irm https://github.com/nearai/ironclaw/releases/latest/download/ironclaw-install
 **Verify:**
 ```bash
 ironclaw --version
-# Expected for this docs baseline: ironclaw 0.19.0
+# Expected for this docs baseline: ironclaw 0.23.0
 ```
 
 ### 3.2 Build from Source
@@ -184,7 +184,7 @@ DATABASE_BACKEND=libsql          # libsql (local) or postgres
 ##############################################
 # LLM Backend
 ##############################################
-LLM_BACKEND=openai               # openai, anthropic, nearai, ollama, openai_compatible, tinfoil
+LLM_BACKEND=openai               # openai, anthropic, nearai, ollama, openai_compatible, tinfoil, github_copilot, openai_codex, gemini_oauth, bedrock
 
 # OpenAI
 OPENAI_API_KEY=sk-proj-...
@@ -273,6 +273,15 @@ IRONCLAW_MAX_FAILURES=10          # Max consecutive failures before giving up
 # CLAUDE_CODE_MAX_TURNS=50
 
 ##############################################
+# Multi-Tenant (v0.23.0, self-hosted deployments)
+##############################################
+# Auto-detected from GATEWAY_USER_TOKENS.
+# TENANT_MAX_LLM_CONCURRENT=4         # Max concurrent LLM calls per user
+# TENANT_MAX_JOBS_CONCURRENT=3         # Max concurrent jobs per user
+# HEARTBEAT_MULTI_TENANT=true          # Cycle heartbeat through all users
+# MAX_COST_PER_USER_PER_DAY_CENTS=5000 # Per-user daily spend cap ($50)
+
+##############################################
 # Logging
 ##############################################
 RUST_LOG=ironclaw=info,tower_http=info
@@ -338,6 +347,36 @@ LLM_MODEL=llama-3.3-70b-versatile
 ```
 
 As of v0.12.0, **OpenRouter** is available as a dedicated preset option in the wizard (option 5), pre-configured with `https://openrouter.ai/api/v1`.
+
+### GitHub Copilot (v0.23.0)
+
+```bash
+LLM_BACKEND=github_copilot
+GITHUB_COPILOT_TOKEN=gho_your_token_here
+# GITHUB_COPILOT_MODEL=gpt-4o                    # Default model
+# GITHUB_COPILOT_EXTRA_HEADERS="Copilot-Integration-Id:custom"  # Custom headers
+```
+
+Requires an active GitHub Copilot subscription. The token can be obtained via GitHub device login flow during `ironclaw onboard` or manually from your IDE sign-in (`~/.config/github-copilot/apps.json`). The Copilot Chat API endpoint is `https://api.githubcopilot.com/chat/completions`.
+
+### OpenAI Codex / ChatGPT (v0.23.0)
+
+```bash
+LLM_BACKEND=openai_codex
+# OPENAI_CODEX_MODEL=gpt-5.3-codex               # Default model
+```
+
+Uses your ChatGPT subscription for zero API cost. On first run, `ironclaw login --openai-codex` (or the onboarding wizard) triggers a device code OAuth flow. Tokens are persisted to `~/.ironclaw/openai_codex_session.json` and auto-refreshed before expiry.
+
+### Gemini (v0.23.0)
+
+```bash
+LLM_BACKEND=gemini_oauth
+# GEMINI_MODEL=gemini-2.5-flash                   # Default model
+# GEMINI_CREDENTIALS_PATH=~/.gemini/oauth_creds.json  # Credentials file
+```
+
+Uses Google Gemini via OAuth authentication. Credentials are stored in the path specified by `GEMINI_CREDENTIALS_PATH`.
 
 ---
 
@@ -603,6 +642,32 @@ ironclaw skills search <query>   # Search skills by keyword
 ironclaw skills info <name>      # Inspect a skill's metadata and triggers
 ```
 
+### Models Commands (v0.23.0)
+
+Manage LLM providers and models directly from the CLI:
+
+```bash
+ironclaw models list             # List all providers (* = active)
+ironclaw models list openai --verbose  # Details for a specific provider
+ironclaw models status           # Show current provider and model
+ironclaw models set gpt-4o       # Set the default model
+ironclaw models set-provider anthropic --model claude-sonnet-4-6-20250514
+```
+
+### Hooks Commands (v0.23.0)
+
+```bash
+ironclaw hooks list              # List all discoverable lifecycle hooks
+ironclaw hooks list --verbose    # Show hook points, priority, failure mode
+ironclaw hooks list --json       # JSON output
+```
+
+### Login Command (v0.23.0)
+
+```bash
+ironclaw login --openai-codex    # Re-authenticate with OpenAI Codex (ChatGPT)
+```
+
 ---
 
 ## 11. Verify Your Installation
@@ -785,4 +850,4 @@ If you need Okta integration, build a custom WASM tool using [BUILDING_CHANNELS.
 
 ---
 
-*Source: IronClaw v0.19.0 · See also: [ARCHITECTURE.md](ARCHITECTURE.md), [AGENT_README.md](AGENT_README.md)*
+*Source: IronClaw v0.23.0 · See also: [ARCHITECTURE.md](ARCHITECTURE.md), [AGENT_README.md](AGENT_README.md)*

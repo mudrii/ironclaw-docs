@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Tunnels & Mobile Pairing
 
-> Updated: 2026-03-17 | Version: v0.19.0
+> Updated: 2026-04-03 | Version: v0.23.0
 
 ## 1. Overview
 
@@ -340,7 +340,19 @@ IronClaw Telegram channel handler
 
 ---
 
-## 8. Notes for Contributors
+## 8. OAuth Callback Enhancements (v0.22.0–v0.23.0)
+
+### Direct Hosted OAuth Callbacks (v0.23.0, #1684)
+
+Hosted deployments now support direct OAuth callbacks with a proxy auth token. When the agent runs behind a reverse proxy or tunnel, the OAuth callback route (`/oauth/callback`) accepts a proxy-supplied authentication token, eliminating the need for the browser to hold the gateway bearer token during the OAuth redirect flow. This improves security by keeping the gateway auth token out of browser redirect URLs.
+
+### Generic Hosted OAuth and MCP Auth (v0.22.0, #1375)
+
+A generic hosted OAuth flow was added to support MCP server authentication in hosted/remote deployments. This extends the existing local loopback OAuth listener to work with arbitrary MCP servers that require OAuth 2.1 PKCE authentication when the agent is running headless. The gateway callback route handles the code exchange on behalf of the MCP client, storing the resulting token in the secrets store.
+
+---
+
+## 9. Notes for Contributors
 
 - All tunnel implementations share `SharedProcess` and `SharedUrl` via helpers in `mod.rs`. New backends should use `new_shared_process()` and `new_shared_url()` rather than constructing `Arc` wrappers manually.
 - The `Tunnel` trait requires `Send + Sync`. Ensure any new backend does not hold `!Send` types (e.g., raw pointers, `Rc`).

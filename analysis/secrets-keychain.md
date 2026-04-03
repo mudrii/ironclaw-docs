@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Secrets Management & Keychain
 
-> Updated: 2026-03-17 | Version: v0.19.0
+> Updated: 2026-04-03 | Version: v0.23.0
 
 ## 1. Overview
 
@@ -352,7 +352,17 @@ After credential injection and HTTP request execution, the response passes throu
 
 ---
 
-## 10. v0.16.0 Security Changes (PR #519)
+## 10. v0.22.0–v0.23.0 Security Changes
+
+### Multi-Tenant Credential Isolation (v0.23.0)
+
+With the introduction of `TenantScope` (see `src/tenant.rs`), all database operations — including secrets queries — are scoped to the tenant's `user_id`. The `TenantScope` wraps `Arc<dyn Database>` and prepends the user ID to every query, so a user's secrets are invisible to other tenants even when sharing the same database backend. This is enforced at compile time: handler code receives a `TenantScope` (not a raw `Database`), and there is no method to bypass the user filter without obtaining an `AdminScope`.
+
+### rustls-webpki Vulnerability Patch (v0.22.0)
+
+The `rustls-webpki` dependency was patched to address RUSTSEC-2026-0049, a potential certificate validation vulnerability. This affects all TLS connections made by the agent, including those to secrets-related endpoints (OAuth token exchanges, MCP server auth, validation endpoints). The patch ensures certificate chain validation follows the expected security properties.
+
+## 11. v0.16.0 Security Changes (PR #519)
 
 ### OsRng Migration — All Security-Critical Randomness
 

@@ -1,7 +1,7 @@
 # IronClaw Network Security Reference
 
-> Version baseline: IronClaw v0.19.0 (`v0.19.0` tag snapshot)
-> Validated against source modules in `src/channels/`, `src/orchestrator/`, `src/sandbox/`, `src/tools/builtin/http.rs`, and `src/channels/wasm/signature.rs`
+> Version baseline: IronClaw v0.23.0 (`v0.23.0` tag snapshot)
+> Validated against source modules in `src/channels/`, `src/orchestrator/`, `src/sandbox/`, `src/tools/builtin/http.rs`, `src/channels/wasm/signature.rs`, and `src/tenant.rs`
 
 This document summarizes the network-facing surfaces and egress controls in the released `v0.19.0` codebase. It complements the deeper module analyses in:
 
@@ -180,6 +180,17 @@ These are expected deployment caveats, not undocumented surprises:
 - orchestrator shutdown is not as graceful as the main gateway/webhook listeners
 
 ## 9. Release-Specific Security Changes Covered Here
+
+### v0.23.0 (2026-04-03)
+- **Complete multi-tenant isolation (phases 2-4)** — `TenantScope` wraps the database with per-user scoping; `AdminScope` restricts cross-tenant access to explicit system operations; `TenantRateRegistry` provides per-user rate limiting via LLM and job semaphores ([#1614](https://github.com/nearai/ironclaw/pull/1614))
+- **Graduated risk levels for tool approval** — Shell commands classified as `Low`/`Medium`/`High` risk; High-risk commands always require explicit approval, while Low/Medium use auto-approve policies. This is a new security boundary for network-facing tool execution.
+
+### v0.22.0
+- **Multi-tenant auth with per-user workspace isolation** — Users cannot access each other's data ([#1118](https://github.com/nearai/ironclaw/pull/1118))
+- **SSRF embedding base URL validation** — Embedding base URL validated against SSRF allowlists before use ([#1221](https://github.com/nearai/ironclaw/pull/1221))
+- **XML tool-output escape and sanitized attr removal** — Prevents injection via tool output XML wrapping ([#1067](https://github.com/nearai/ironclaw/pull/1067))
+- **OAuth state validation for ic2.* states** — Prevents CSRF in OAuth callback flows ([#1441](https://github.com/nearai/ironclaw/pull/1441))
+- **rustls-webpki vulnerability patch** — Patched RUSTSEC-2026-0049 for certificate validation ([RUSTSEC-2026-0049](https://rustsec.org/advisories/RUSTSEC-2026-0049.html))
 
 ### v0.19.0 (2026-03-17)
 - **Webhook HMAC-SHA256 header migration** — Secret transmitted via `X-Webhook-Signature` header instead of request body ([#970](https://github.com/nearai/ironclaw/pull/970), [#1162](https://github.com/nearai/ironclaw/pull/1162))

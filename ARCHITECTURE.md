@@ -1,6 +1,6 @@
 # IronClaw — Master Architecture Document
 
-> Updated: 2026-03-17 (v0.19.0) | Comprehensive reference for contributors
+> Updated: 2026-04-03 (v0.23.0) | Comprehensive reference for contributors
 
 ---
 
@@ -37,7 +37,7 @@ The channel abstraction is the core extensibility point for message ingestion. A
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                               CHANNELS LAYER                                    │
+│                          CHANNELS LAYER (UX overhaul: light/dark theme)         │
 │                                                                                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐   │
 │  │ REPL Channel │  │ HTTP Webhook │  │ Web Gateway  │  │  WASM Channels   │   │
@@ -53,7 +53,7 @@ The channel abstraction is the core extensibility point for message ingestion. A
                                        │ IncomingMessage stream
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              AGENT CORE                                         │
+│                    AGENT CORE (message queuing during active turns)              │
 │                                                                                 │
 │  ┌─────────────────────────────────────────────────────────────────────────┐   │
 │  │                        Agent::run() event loop                          │   │
@@ -97,7 +97,8 @@ The channel abstraction is the core extensibility point for message ingestion. A
 │  │  ┌─────────────────────────────────────────────────────────▼──────────┐ │  │
 │  │  │         Concrete Providers (wrapped by RigAdapter)                  │ │  │
 │  │  │  NearAiProvider │ NearAiChatProvider │ RigAdapter (OpenAI/Anthropic │ │  │
-│  │  │  Ollama / Tinfoil / OpenAI-compatible)                              │ │  │
+│  │  │  Ollama / Tinfoil / OpenAI-compatible) │ GitHubCopilotProvider      │ │  │
+│  │  │  OpenAiCodexProvider │ GeminiOAuth (Cloud Code API)                 │ │  │
 │  │  └─────────────────────────────────────────────────────────────────────┘ │  │
 │  └──────────────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────┬──────────────────────────────────────────┘
@@ -161,17 +162,17 @@ The following table lists every source module directory and the key top-level fi
 | Module | Path | Purpose |
 |--------|------|---------|
 | `agent` | `src/agent/` | Core agent orchestration: main event loop, session management, job scheduling, self-repair, heartbeat, routine engine, context compaction (**Context Compactor** (`agent/compaction.rs`): three strategies — Summarize (LLM summary → workspace daily log), Truncate (drop oldest turns), MoveToWorkspace (archive full turns); triggered automatically on ContextLengthExceeded), undo/redo, skill selection, cost guardrails. **Routine and heartbeat notifications** target the channel configured via `HEARTBEAT_NOTIFY_CHANNEL`; if delivery to that channel fails, the notification is broadcast on all installed channels as a fallback (PR #398, v0.13.0). |
-| `channels` | `src/channels/` | Multi-channel input abstraction: `Channel` trait, `ChannelManager` (stream merge), HTTP webhook, web gateway (axum + SSE + WebSocket), WASM channel runtime (hot-activate without restart since v0.10.0; all WASM channels support device pairing and channel-context-injected prompts for group chat privacy), REPL, **Signal channel** (`signal.rs`): Native Rust channel connecting to signal-cli HTTP daemon for Signal messaging. Added in v0.12.0. Feishu/Lark channel added in v0.19.0 ([#1110](https://github.com/nearai/ironclaw/pull/1110)). **Internationalization (v0.19.0):** Web UI supports `en` (default) and `zh-CN` via `src/channels/web/static/i18n/`. ([#929](https://github.com/nearai/ironclaw/pull/929)) |
-| `cli` | `src/cli/` | CLI command surface: onboarding, config, tool, mcp, memory, pairing, service, doctor, status |
-| `config` | `src/config/` | Configuration loading from environment, DB settings table, and optional TOML overlay. Sub-modules per domain: agent, builder, channels, database, embeddings, heartbeat, llm, routines, safety, sandbox, secrets, skills, tunnel, wasm |
-| `context` | `src/context/` | Per-job state isolation: `JobState` state machine (Pending → InProgress → Completed/Failed/Stuck), `JobContext`, `ContextManager` for concurrent job tracking |
+| `channels` | `src/channels/` | Multi-channel input abstraction: `Channel` trait, `ChannelManager` (stream merge), HTTP webhook, web gateway (axum + SSE + WebSocket), WASM channel runtime (hot-activate without restart since v0.10.0; all WASM channels support device pairing and channel-context-injected prompts for group chat privacy), REPL, **Signal channel** (`signal.rs`): Native Rust channel connecting to signal-cli HTTP daemon for Signal messaging. Added in v0.12.0. Feishu/Lark channel added in v0.19.0 ([#1110](https://github.com/nearai/ironclaw/pull/1110)). **Relay webhook handler** (`channels/relay/webhook.rs`, v0.23.0). **Multi-tenant web tests** (`channels/web/tests/multi_tenant.rs`, v0.23.0). **UX overhaul (v0.23.0):** Web UI light/dark theme support. **Internationalization (v0.19.0):** Web UI supports `en` (default) and `zh-CN` via `src/channels/web/static/i18n/`. ([#929](https://github.com/nearai/ironclaw/pull/929)) |
+| `cli` | `src/cli/` | CLI command surface: onboarding, config, tool, mcp, memory, pairing, service, doctor, status, **`ironclaw models`** subcommands (`cli/models.rs`, v0.23.0), **`ironclaw hooks list`** subcommand (`cli/hooks.rs`, v0.23.0) |
+| `config` | `src/config/` | Configuration loading from environment, DB settings table, and optional TOML overlay. Sub-modules per domain: agent, builder, channels, database, embeddings, heartbeat, llm, routines, safety, sandbox, secrets, skills, tunnel, wasm, **workspace** (`config/workspace.rs`, v0.23.0: `MEMORY_LAYERS`, `WORKSPACE_READ_SCOPES`) |
+| `context` | `src/context/` | Per-job state isolation: `JobState` state machine (Pending → InProgress → Completed/Failed/Stuck), `JobContext`, `ContextManager` for concurrent job tracking, **structured fallback deliverables** (`context/fallback.rs`, v0.23.0: `FallbackDeliverable`, `LastAction`, `ActionStats`) |
 | `db` | `src/db/` | Database abstraction: `Database` trait (~60 async methods), PostgreSQL backend (`deadpool-postgres`, `refinery` migrations), libSQL/Turso embedded backend |
 | `estimation` | `src/estimation/` | Cost and time estimation with exponential moving average learning: `CostEstimator`, `TimeEstimator`, `ValueEstimator` |
 | `evaluation` | `src/evaluation/` | Success evaluation: `SuccessEvaluator` trait, rule-based and LLM-based evaluators, `MetricsCollector` |
 | `extensions` | `src/extensions/` | `ExtensionManager`: coordinates MCP server auth and activation, WASM tool install/remove, registers in-chat discovery tools |
 | `history` | `src/history/` | Persistence for conversation threads and analytics: PostgreSQL repositories, aggregation queries (JobStats, ToolStats) |
 | `hooks` | `src/hooks/` | `HookRegistry` for Inbound/Outbound message interception: hooks can modify, reject, or pass through messages at the agent loop boundary |
-| `llm` | `src/llm/` | LLM provider chain: `LlmProvider` trait, `NearAiChatProvider` (Chat Completions, dual auth: session token + API key), `SmartRoutingProvider` (**redesigned v0.16.0**: 13-dimension complexity scorer produces 0–100 score mapped to four tiers Flash/Standard/Pro/Frontier → `Simple`/`Moderate`/`Complex` routing; pattern overrides fast-path greetings and security audits; cascade escalation for uncertain Pro-tier responses; sits at top of chain: `SmartRoutingProvider → RetryProvider → CircuitBreakerProvider → CachedProvider → FailoverProvider → backend`), `RigAdapter` (rig-core bridge for OpenAI/Anthropic/Ollama/Tinfoil), `FailoverProvider`, `CircuitBreakerProvider`, `CachedProvider`, `RetryProvider`, session token management. **New providers (v0.19.0):** MiniMax (`LLM_BACKEND=minimax`, v0.19.0), Z.AI/GLM-5 (`LLM_BACKEND=zai`, v0.19.0), Codex/ChatGPT (`LLM_USE_CODEX_AUTH=true`, v0.19.0) |
+| `llm` | `src/llm/` | LLM provider chain: `LlmProvider` trait, `NearAiChatProvider` (Chat Completions, dual auth: session token + API key), `SmartRoutingProvider` (**redesigned v0.16.0**: 13-dimension complexity scorer produces 0–100 score mapped to four tiers Flash/Standard/Pro/Frontier → `Simple`/`Moderate`/`Complex` routing; pattern overrides fast-path greetings and security audits; cascade escalation for uncertain Pro-tier responses; sits at top of chain: `SmartRoutingProvider → RetryProvider → CircuitBreakerProvider → CachedProvider → FailoverProvider → backend`), `RigAdapter` (rig-core bridge for OpenAI/Anthropic/Ollama/Tinfoil), `FailoverProvider`, `CircuitBreakerProvider`, `CachedProvider`, `RetryProvider`, session token management. **New providers (v0.19.0):** MiniMax (`LLM_BACKEND=minimax`, v0.19.0), Z.AI/GLM-5 (`LLM_BACKEND=zai`, v0.19.0), Codex/ChatGPT (`LLM_USE_CODEX_AUTH=true`, v0.19.0). **New providers (v0.20.0–v0.23.0):** GitHub Copilot (`llm/github_copilot.rs`, `github_copilot_auth.rs`), OpenAI Codex / ChatGPT subscription (`llm/openai_codex_provider.rs`, `openai_codex_session.rs`), Gemini CLI OAuth with Cloud Code API (`llm/gemini_oauth.rs`, `GEMINI_CREDENTIALS_PATH`). **Per-tool reasoning** (`llm/reasoning.rs`, `reasoning_models.rs`: `ReasoningContext`, per-tool intent detection). **Token refresh** (`llm/token_refreshing.rs`) |
 | `observability` | `src/observability/` | Tracing and metrics backend configuration |
 | `orchestrator` | `src/orchestrator/` | Internal HTTP API served to Docker sandbox containers: LLM proxy endpoint, job event streaming, per-job bearer token auth, `ContainerJobManager` (bollard lifecycle) |
 | `pairing` | `src/pairing/` | Device pairing and authentication helpers for remote channel setup |
@@ -181,10 +182,12 @@ The following table lists every source module directory and the key top-level fi
 | `secrets` | `src/secrets/` | Encrypted credential storage: AES-256-GCM encryption, HKDF-SHA256 per-secret key derivation, PostgreSQL or libSQL backend (both support encrypted store), OS keychain integration (macOS: security-framework, Linux: secret-service/KWallet) |
 | `setup` | `src/setup/` | 7-step interactive onboarding wizard: database backend selection, NEAR AI authentication, secrets master key setup, channel configuration |
 | `skills` | `src/skills/` | SKILL.md prompt extension system: `SkillRegistry` (discover, install, remove), deterministic scorer (keywords/tags/regex), `SkillTrust` model (Trusted vs Installed), tool attenuation (trust-based ceiling), gating requirements (bins/env/config), `SkillCatalog` (ClawHub HTTP client) |
-| `tools` | `src/tools/` | Extensible tool system: `Tool` trait, `ToolRegistry` (shadowing protection for built-in names; shared `Arc<RateLimiter>` for per-tool per-user sliding window rate limiting via **RateLimiter** (`tools/rate_limiter.rs`) — per-minute and per-hour windows), built-in tools (echo, time, json, **unified `http`** tool (replaces `web_fetch` — conditional approval: GET-no-auth=never, POST/auth=always; v0.16.0), **`restart`** tool (graceful process restart via Docker entrypoint loop; web-only; v0.16.0), shell, file ops, memory, job mgmt, routines, extensions, skills, `HtmlConverter` (**HTML-to-Markdown** built-in conversion — two-stage: readability extraction + markdown conversion; feature-gated `html-to-markdown`)), WASM sandbox (wasmtime component model, fuel metering, memory limits), MCP client (JSON-RPC over HTTP), dynamic software builder |
+| `tools` | `src/tools/` | Extensible tool system: `Tool` trait with **graduated `RiskLevel`** enum (Low/Medium/High, `risk_level_for()` trait method, v0.23.0), `ToolRegistry` (shadowing protection for built-in names; shared `Arc<RateLimiter>` for per-tool per-user sliding window rate limiting via **RateLimiter** (`tools/rate_limiter.rs`) — per-minute and per-hour windows), built-in tools (echo, time, json, **unified `http`** tool (replaces `web_fetch` — conditional approval: GET-no-auth=never, POST/auth=always; v0.16.0), **`restart`** tool (graceful process restart via Docker entrypoint loop; web-only; v0.16.0), shell, file ops, memory, job mgmt, routines, extensions, skills, `HtmlConverter` (**HTML-to-Markdown** built-in conversion — two-stage: readability extraction + markdown conversion; feature-gated `html-to-markdown`)), WASM sandbox (wasmtime component model, fuel metering, memory limits), MCP client (JSON-RPC over HTTP, **Streamable HTTP transport** (`mcp/http_transport.rs`), **`McpSession` + `McpSessionManager`** for session management (`mcp/session.rs`), v0.23.0), **tool autonomy** (`tools/autonomy.rs`: denylist and unavailability messaging, v0.23.0), dynamic software builder |
 | `tunnel` | `src/tunnel/` | Tunnel/ngrok-style public URL provisioning for webhook channels |
 | `worker` | `src/worker/` | Runs inside Docker containers: `Worker` execution loop, tool calls via LLM reasoning, Claude Code bridge (spawns `claude` CLI), orchestrator HTTP client, proxy LLM provider that forwards requests through orchestrator |
-| `workspace` | `src/workspace/` | Persistent memory (OpenClaw-inspired): path-based document store, content chunking (800 tokens, 15% overlap), `EmbeddingProvider` trait (OpenAI, NEAR AI, Ollama), hybrid FTS+vector search via Reciprocal Rank Fusion, identity file injection into system prompt, heartbeat checklist, disk-to-DB migration (via `bootstrap::migrate_disk_to_db()` and `Workspace::import_from_directory()`) |
+| `workspace` | `src/workspace/` | Persistent memory (OpenClaw-inspired): path-based document store, content chunking (800 tokens, 15% overlap), `EmbeddingProvider` trait (OpenAI, NEAR AI, Ollama), hybrid FTS+vector search via Reciprocal Rank Fusion, identity file injection into system prompt, heartbeat checklist, disk-to-DB migration (via `bootstrap::migrate_disk_to_db()` and `Workspace::import_from_directory()`). **Layered memory** (`workspace/layer.rs`, v0.23.0): `MemoryLayer` (name, scope, writable, sensitivity), `LayerSensitivity` enum (Private/Shared). **Privacy classification** (`workspace/privacy.rs`, v0.23.0): `PatternPrivacyClassifier` (PII detection for SSN, credit cards, credentials), `ConfigurablePrivacyClassifier`, `SensitivityResult` — guards writes to shared layers by redirecting sensitive content to the private layer. **LRU embedding cache** (`workspace/embedding_cache.rs`, v0.23.0): `CachedEmbeddingProvider` wraps any `EmbeddingProvider` with an in-memory LRU cache |
+| `tenant` | `src/tenant.rs` | **Multi-tenant isolation (v0.23.0):** `TenantScope` wraps `Database` with `user_id` scoping — all operations bound to a single user, ID-based lookups return `None` if the resource belongs to a different user. `AdminScope` provides cross-tenant access for system-level operations (heartbeat, routine engine, self-repair). `TenantCtx` bundles `TenantScope` with workspace, cost guard, and per-tenant rate limiting. `TenantRateRegistry` manages per-user rate limits via `TenantRateState` (LLM semaphore, job semaphore). |
+| `testing` | `src/testing/` | **Fault injection framework (v0.23.0):** `FaultInjector` (`testing/fault_injection.rs`) for controlled failure injection in tests |
 | `app.rs` | `src/app.rs` | `AppBuilder`: five-phase initialization sequence producing `AppComponents` (all shared state for channel wiring and agent construction) |
 | `bootstrap.rs` | `src/bootstrap.rs` | Chicken-and-egg bootstrap: loads `~/.ironclaw/.env` before database connects, one-time migration from legacy `settings.json` and `bootstrap.json` formats, auto-detects libsql backend when `~/.ironclaw/ironclaw.db` exists (v0.13.0) |
 | `service.rs` | `src/service.rs` | OS service management: generates launchd plist (macOS) or systemd user unit (Linux), handles install/start/stop/status/uninstall lifecycle |
@@ -215,10 +218,18 @@ src/main.rs
     │        │       ├──▶ secrets::keychain (security-framework / secret-service)
     │        │       └──▶ db (storage backend)
     │        │
+    │        ├──▶ tenant (TenantScope, AdminScope, TenantCtx, TenantRateRegistry)
+    │        │       └──▶ db (Database trait, user_id scoping)
+    │        │
     │        ├──▶ llm (create_llm_provider)
     │        │       ├──▶ llm::nearai_chat   (NearAiChatProvider, dual auth: session token + API key)
     │        │       ├──▶ llm::smart_routing (SmartRoutingProvider, cheap vs primary cascade)
     │        │       ├──▶ llm::rig_adapter   (rig-core: OpenAI/Anthropic/Ollama/Tinfoil)
+    │        │       ├──▶ llm::github_copilot (GitHubCopilotProvider, github_copilot_auth)
+    │        │       ├──▶ llm::openai_codex  (OpenAiCodexProvider, openai_codex_session)
+    │        │       ├──▶ llm::gemini_oauth  (Gemini CLI OAuth, Cloud Code API)
+    │        │       ├──▶ llm::reasoning     (ReasoningContext, per-tool intent detection)
+    │        │       ├──▶ llm::token_refreshing (token refresh logic)
     │        │       ├──▶ llm::failover      (FailoverProvider)
     │        │       ├──▶ llm::circuit_breaker
     │        │       ├──▶ llm::response_cache
@@ -236,7 +247,7 @@ src/main.rs
     │        │       ├──▶ tools::wasm        (wasmtime, WasmToolRuntime, WasmToolWrapper)
     │        │       │       ├──▶ secrets    (credential injection at host boundary)
     │        │       │       └──▶ crates/ironclaw_safety (leak detection on WASM output)
-    │        │       ├──▶ tools::mcp         (McpClient, JSON-RPC over HTTP)
+    │        │       ├──▶ tools::mcp         (McpClient, JSON-RPC over HTTP, Streamable HTTP transport, McpSession/McpSessionManager)
     │        │       └──▶ tools::builder     (LlmSoftwareBuilder, WASM generation)
     │        │               └──▶ llm        (LLM-driven iterative build loop)
     │        │
@@ -244,6 +255,9 @@ src/main.rs
     │        │       ├──▶ db                 (WorkspaceStorage::Db)
     │        │       ├──▶ workspace::chunker
     │        │       ├──▶ workspace::embeddings (EmbeddingProvider)
+    │        │       ├──▶ workspace::embedding_cache (CachedEmbeddingProvider, LRU)
+    │        │       ├──▶ workspace::layer   (MemoryLayer, LayerSensitivity)
+    │        │       ├──▶ workspace::privacy  (PatternPrivacyClassifier, ConfigurablePrivacyClassifier)
     │        │       └──▶ workspace::search  (RRF)
     │        │
     │        ├──▶ extensions (ExtensionManager)
@@ -525,7 +539,7 @@ The "chicken-and-egg" bootstrap problem — needing the database URL before conn
 | Sub-module | Key env vars |
 |------------|-------------|
 | `config::database` | `DATABASE_BACKEND`, `DATABASE_URL`, `LIBSQL_PATH`, `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN` |
-| `config::llm` | `LLM_BACKEND`, `NEARAI_API_KEY`, `NEARAI_MODEL`, `NEARAI_BASE_URL`, `NEARAI_SESSION_PATH`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OLLAMA_BASE_URL`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `TINFOIL_API_KEY` |
+| `config::llm` | `LLM_BACKEND`, `NEARAI_API_KEY`, `NEARAI_MODEL`, `NEARAI_BASE_URL`, `NEARAI_SESSION_PATH`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OLLAMA_BASE_URL`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `TINFOIL_API_KEY`, `GEMINI_CREDENTIALS_PATH` |
 | `config::agent` | `AGENT_NAME`, `AGENT_MAX_PARALLEL_JOBS`, `MAX_COST_PER_DAY_CENTS`, `MAX_ACTIONS_PER_HOUR` |
 | `config::sandbox` | `SANDBOX_ENABLED`, `SANDBOX_IMAGE`, `SANDBOX_MEMORY_LIMIT_MB`, `SANDBOX_TIMEOUT_SECS`, `SANDBOX_POLICY`, `SANDBOX_CPU_SHARES` |
 | `config::channels` | `GATEWAY_ENABLED`, `GATEWAY_HOST`, `GATEWAY_PORT`, `GATEWAY_AUTH_TOKEN`, `HTTP_PORT`, `HTTP_HOST`, `HTTP_WEBHOOK_SECRET` |
@@ -536,6 +550,7 @@ The "chicken-and-egg" bootstrap problem — needing the database URL before conn
 | `config::skills` | `SKILLS_ENABLED`, `SKILLS_MAX_CONTEXT_TOKENS`, `SKILLS_MAX_ACTIVE`, `SKILLS_DIR`, `SKILLS_INSTALLED_DIR` |
 | `config::routines` | `ROUTINES_ENABLED`, `ROUTINES_MAX_CONCURRENT`, `ROUTINES_CRON_INTERVAL` |
 | `config::embeddings` | `EMBEDDING_ENABLED`, `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, `OPENAI_API_KEY` |
+| `config::workspace` | `MEMORY_LAYERS`, `WORKSPACE_READ_SCOPES` |
 | `config::tunnel` | `TUNNEL_URL`, `TUNNEL_PROVIDER`, `TUNNEL_CF_TOKEN`, `TUNNEL_NGROK_TOKEN`, `TUNNEL_TS_FUNNEL`, `TUNNEL_TS_HOSTNAME`, `TUNNEL_CUSTOM_COMMAND` |
 
 **LLM API key injection via secrets:**
@@ -552,6 +567,14 @@ IronClaw implements a defense-in-depth security model. Each layer provides indep
 [User Input]
      │
      ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  LAYER 0: Multi-Tenant Isolation (v0.23.0)                              │
+│  TenantScope: all DB access scoped to user_id (compile-time enforced)   │
+│  AdminScope: explicit opt-in for cross-tenant system operations         │
+│  TenantRateRegistry: per-user LLM + job semaphores                      │
+└──────────────────────────────────────┬──────────────────────────────────┘
+                                       │
+                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  LAYER 1: Hook Gateway (BeforeInbound)                                  │
 │  HookRegistry can reject, modify, or log inbound messages               │
@@ -621,6 +644,14 @@ IronClaw implements a defense-in-depth security model. Each layer provides indep
 │  - Network traffic routed through host-side proxy (LAYER 4)             │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Multi-tenant isolation (v0.23.0):**
+
+`TenantScope` wraps the `Database` trait and enforces per-user isolation at the data access layer. All handler code accesses the database through `TenantScope`, which binds every operation to a `user_id`. ID-based lookups (jobs, routines, sandbox jobs) automatically return `None` when the resource belongs to a different user. `AdminScope` provides unrestricted cross-tenant access for system-level operations (heartbeat, routine engine, self-repair) and must be obtained explicitly via `AgentDeps::admin_store()`. `TenantCtx` bundles a `TenantScope` with workspace, cost guard, and per-tenant rate limiting via `TenantRateRegistry`, which manages `TenantRateState` entries containing LLM and job semaphores. This compile-time separation ensures that handler code cannot accidentally bypass tenant boundaries.
+
+**Graduated command risk classification (v0.23.0):**
+
+The `RiskLevel` enum (`Low`, `Medium`, `High`) in `src/tools/tool.rs` classifies tool invocations by destructiveness. `Low` covers read-only, safe, reversible operations (`ls`, `cat`, `grep`). `Medium` covers state-creating or modifying but generally reversible operations (`mkdir`, `git commit`, `cargo build`). `High` covers destructive, irreversible, or security-sensitive operations (`rm -rf`, `git push --force`, `kill -9`). `RiskLevel` implements `Ord` so callers can compare levels (e.g., `risk >= RiskLevel::High`). The `risk_level_for()` trait method on `Tool` allows each tool to classify its invocations based on parameters, driving approval decisions and observability logging.
 
 **Skill trust model:**
 
@@ -790,6 +821,26 @@ Application-level code (`main.rs`, `app.rs`, init phases) uses `anyhow::Error` f
 
 `AppBuilder` encapsulates the five-phase initialization sequence and the accumulated state between phases (the database handle is needed to construct the secrets store; the secrets store is needed to inject LLM keys before constructing the LLM provider). Each phase is an async method that updates `self` and returns `Result<(), anyhow::Error>`. The final `build_all()` method runs all phases and returns `AppComponents`.
 
+**Layered memory with privacy classification (v0.23.0)**
+
+The workspace memory system supports multiple named layers via `MemoryLayer`, each with a scope (maps to a `user_id` in DB queries), writable flag, and sensitivity level (`LayerSensitivity::Private` or `LayerSensitivity::Shared`). By default, each user gets a single private layer. Additional shared layers can be configured via the `MEMORY_LAYERS` environment variable (JSON array).
+
+Before writing to a shared layer, the `PrivacyClassifier` trait (implemented by `PatternPrivacyClassifier` and `ConfigurablePrivacyClassifier`) scans content for PII patterns (SSN, credit card numbers, credentials). If content is classified as sensitive, it is redirected to the user's private layer instead of the shared target. This prevents accidental PII leakage into shared memory without requiring user intervention.
+
+```rust
+// Layer structure
+pub struct MemoryLayer {
+    pub name: String,
+    pub scope: String,       // user_id for DB queries
+    pub writable: bool,
+    pub sensitivity: LayerSensitivity,  // Private | Shared
+}
+```
+
+**Per-tool reasoning (v0.23.0)**
+
+The `reasoning` module (`src/llm/reasoning.rs`, `reasoning_models.rs`) provides per-tool intent detection and reasoning context. `ReasoningContext` collects messages, tool definitions, system prompts, and job metadata to determine whether the LLM response signals tool intent (`llm_signals_tool_intent()`) or is a silent reply (`is_silent_reply()`). This supports more nuanced dispatch decisions in the agentic loop — the agent can distinguish between an LLM response that genuinely wants to use a tool versus one that merely mentions tool-like language.
+
 **State machine for job lifecycle**
 
 Job state transitions are encoded in `src/context/state.rs`:
@@ -814,17 +865,17 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | Module | Directory | `.rs` Files |
 |--------|-----------|------------|
 | `agent` | `src/agent/` | 21 |
-| `channels` | `src/channels/` | 43 |
-| `cli` | `src/cli/` | 12 |
-| `config` | `src/config/` | 17 |
-| `context` | `src/context/` | 4 |
+| `channels` | `src/channels/` | 47 |
+| `cli` | `src/cli/` | 20 |
+| `config` | `src/config/` | 21 |
+| `context` | `src/context/` | 5 |
 | `db` | `src/db/` | 12 |
 | `estimation` | `src/estimation/` | 5 |
 | `evaluation` | `src/evaluation/` | 3 |
 | `extensions` | `src/extensions/` | 4 |
 | `history` | `src/history/` | 3 |
 | `hooks` | `src/hooks/` | 5 |
-| `llm` | `src/llm/` | 25 |
+| `llm` | `src/llm/` | 35 |
 | `observability` | `src/observability/` | 5 |
 | `orchestrator` | `src/orchestrator/` | 4 |
 | `pairing` | `src/pairing/` | 2 |
@@ -834,15 +885,16 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | `secrets` | `src/secrets/` | 5 |
 | `setup` | `src/setup/` | 4 |
 | `skills` | `src/skills/` | 7 |
-| `tools` | `src/tools/` | 58 |
+| `testing` | `src/testing/` | 3 |
+| `tools` | `src/tools/` | 60 |
 | `tunnel` | `src/tunnel/` | 6 |
 | `worker` | `src/worker/` | 6 |
-| `workspace` | `src/workspace/` | 7 |
-| **Top-level files** | `src/*.rs` | 11 (`main.rs`, `lib.rs`, `app.rs`, `bootstrap.rs`, `service.rs`, `error.rs`, `settings.rs`, `util.rs`, `boot_screen.rs`, `testing.rs`, `tracing_fmt.rs`) |
+| `workspace` | `src/workspace/` | 10 |
+| **Top-level files** | `src/*.rs` | 13 (`main.rs`, `lib.rs`, `app.rs`, `bootstrap.rs`, `service.rs`, `error.rs`, `settings.rs`, `util.rs`, `boot_screen.rs`, `tracing_fmt.rs`, `tenant.rs`, `profile.rs`, `timezone.rs`) |
 
-> **Note**: File counts are pinned to the `v0.19.0` release tag snapshot. They reflect `src/**.rs` and `crates/ironclaw_safety/src/**.rs` at tag `v0.19.0`.
+> **Note**: File counts are pinned to the `v0.23.0` release tag snapshot. They reflect `src/**.rs` and `crates/ironclaw_safety/src/**.rs` at tag `v0.23.0`.
 
-The `tools` module is one of the largest modules, reflecting the breadth of the tool system: built-ins, a full WASM runtime, an MCP client, a software builder, and the registry/trait definitions. The `channels` module includes REPL, web gateway, HTTP, Signal (added v0.12.0), Feishu/Lark WASM plugin (v0.19.0), and WASM channel runtime implementations.
+The `tools` module is one of the largest modules, reflecting the breadth of the tool system: built-ins, a full WASM runtime, an MCP client with Streamable HTTP transport, a software builder, tool autonomy logic, and the registry/trait definitions. The `channels` module includes REPL, web gateway (with light/dark theme UX overhaul in v0.23.0), HTTP, Signal (added v0.12.0), relay webhook (v0.23.0), Feishu/Lark WASM plugin (v0.19.0), and WASM channel runtime implementations. The `llm` module grew significantly in v0.20.0–v0.23.0 with GitHub Copilot, OpenAI Codex, Gemini OAuth providers, per-tool reasoning, and token refresh logic. The `workspace` module gained layered memory, privacy classification, and embedding cache support in v0.23.0.
 
 **Key third-party crate dependencies:**
 
@@ -874,4 +926,4 @@ The `tools` module is one of the largest modules, reflecting the breadth of the 
 
 ---
 
-*Document generated from source code inspection of IronClaw v0.19.0 (`src/` and `crates/ironclaw_safety/src/` directories). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*
+*Document generated from source code inspection of IronClaw v0.23.0 (`src/` and `crates/ironclaw_safety/src/` directories). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*

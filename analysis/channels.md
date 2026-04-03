@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Channel System
 
-> Updated: 2026-03-17 | Version: v0.19.0
+> Updated: 2026-04-03 | Version: v0.23.0
 
 ---
 
@@ -34,6 +34,11 @@ src/channels/
 │   ├── openai_compat.rs — /v1/chat/completions proxy
 │   └── handlers/    — Per-resource handler modules (chat, jobs, memory, …)
 ├── signal.rs        — Native Signal channel via signal-cli HTTP/JSON-RPC daemon
+├── relay/           — Channel-relay integration (Slack via external relay service)
+│   ├── mod.rs       — Public re-exports
+│   ├── channel.rs   — RelayChannel Channel impl
+│   ├── client.rs    — HTTP client for relay API (OAuth, proxy, events)
+│   └── webhook.rs   — HMAC-SHA256 signature verification for relay callbacks
 └── wasm/            — WASM channel plugin runtime
     ├── mod.rs       — Public API re-exports
     ├── runtime.rs   — Wasmtime engine, compiled module cache
@@ -439,51 +444,35 @@ The `RateLimiter` struct uses `AtomicU64` for lock-free sliding-window enforceme
 (30 requests per 60 seconds on chat endpoints). The compare-exchange loop in
 `check()` is safe under concurrent access.
 
-### 6.2 Authentication (`auth.rs`)
+### 6.2 Authentication (`auth.rs`) — Multi-Tenant (v0.23.0)
 
-All protected endpoints go through `auth_middleware`:
+All protected endpoints go through `auth_middleware`. As of v0.23.0, the auth layer supports **multi-tenant mode** via `MultiAuthState`:
 
 ```rust
-pub async fn auth_middleware(
-    State(auth): State<AuthState>,
-    headers: HeaderMap,
-    request: Request,
-    next: Next,
-) -> Response {
-    // Check Authorization: Bearer <token>
-    if let Some(auth_header) = headers.get("authorization")
-        && let Ok(value) = auth_header.to_str()
-        && let Some(token) = value.strip_prefix("Bearer ")
-        && bool::from(token.as_bytes().ct_eq(auth.token.as_bytes()))
-    {
-        return next.run(request).await;
-    }
-    // Fall back to ?token=xxx for SSE EventSource (browsers cannot set headers)
-    if let Some(query) = request.uri().query() {
-        for pair in query.split('&') {
-            if let Some(token) = pair.strip_prefix("token=")
-                && bool::from(token.as_bytes().ct_eq(auth.token.as_bytes()))
-            {
-                return next.run(request).await;
-            }
-        }
-    }
-    (StatusCode::UNAUTHORIZED, "Invalid or missing auth token").into_response()
+pub struct MultiAuthState {
+    /// Maps SHA-256(token) -> UserIdentity. Tokens are never stored in cleartext.
+    hashed_tokens: Vec<([u8; 32], UserIdentity)>,
+    display_token: Option<String>,
+}
+
+pub struct UserIdentity {
+    pub user_id: String,
+    pub workspace_read_scopes: Vec<String>,
 }
 ```
 
+**Single-user mode** (backwards compatible): `MultiAuthState::single(token, user_id)` creates one entry. **Multi-user mode**: `MultiAuthState::multi(tokens)` maps multiple tokens to distinct identities.
+
+Tokens are SHA-256 hashed at construction time — never stored in plaintext. Authentication compares fixed-size 32-byte digests using constant-time comparison (`subtle::ConstantTimeEq`), eliminating both length-oracle timing leaks and accidental token exposure. The authenticate loop iterates all entries regardless of match to avoid early-exit timing differences.
+
+On successful authentication, the middleware inserts the matching `UserIdentity` into request extensions. Downstream handlers extract it via the `AuthenticatedUser` extractor, giving each handler access to `user_id` and `workspace_read_scopes` for the authenticated user. This enables TenantScope integration where SSE events, workspace reads, and memory operations are scoped to the authenticated user.
+
 Key points:
 
-- `Authorization: Bearer <token>` header is accepted on all protected endpoints.
-- `?token=<token>` query-parameter auth is **restricted to SSE and WebSocket
-  endpoints only** (`/api/chat/events`, `/api/logs/events`, `/api/chat/ws`) and
-  only on GET requests (`auth.rs:allows_query_token_auth`). The query-param
-  fallback exists because the browser `EventSource` API cannot set custom headers;
-  all other endpoints (e.g. POST `/api/chat/send`) reject query-token auth with 401.
-- All comparisons use `subtle::ConstantTimeEq` to prevent timing attacks.
-- If `GATEWAY_AUTH_TOKEN` is not set in the environment, `GatewayChannel::new()`
-  generates a random 32-character alphanumeric token and prints it to the console
-  at startup.
+- `Authorization: Bearer <token>` header is accepted on all protected endpoints. The `Bearer` prefix comparison is case-insensitive per RFC 6750.
+- `?token=<token>` query-parameter auth is **restricted to SSE and WebSocket endpoints only** (`/api/chat/events`, `/api/logs/events`, `/api/chat/ws`) and only on GET requests. URL-encoded tokens are decoded before comparison.
+- If `GATEWAY_AUTH_TOKEN` is not set, `GatewayChannel::new()` generates a random 32-character hex token and prints it to the console at startup.
+- Multi-user tokens can be configured via `user_tokens` in the gateway config.
 
 ### 6.3 API Routes Reference
 
@@ -1163,4 +1152,57 @@ v0.16.1 (#627) reverts WASM artifact SHA256 checksums back to `null` in the regi
 The `owner_scope` system was refactored to unify ownership binding across all WASM channels and fix default routing fallback. Channel-specific `owner_id` fields now go through a common resolution path. Hot-activation events verify ownership before binding (Telegram: [#1157](https://github.com/nearai/ironclaw/pull/1157)).
 
 > **v0.19.0:** Telegram channel now splits long responses (>4096 characters) into multiple messages automatically. ([PR telegram-split-message](https://github.com/nearai/ironclaw/pull/1273))
+
+---
+
+## 12. v0.23.0 Channel Changes
+
+### Web UX Overhaul (#1277)
+
+The web gateway received a design system overhaul with updated onboarding flow and general web polish. Changes span the static assets (`index.html`, `style.css`, `app.js`) and the server-side route structure.
+
+### Light Theme with Dark/Light/System Toggle (#1457)
+
+A light theme was added alongside the existing dark theme. Users can choose between dark, light, or system-follows-OS-preference modes. Theme initialization is handled by `theme-init.js` (loaded before the main app to prevent flash of wrong theme). The CSS uses CSS custom properties that switch based on a `data-theme` attribute on the root element.
+
+### Text Setup Fields in Web Configure Modal (#496)
+
+The extension setup modal in the web UI now supports text-type setup fields alongside secret fields. This allows extensions to declare non-sensitive configuration (like workspace names, project IDs) that users can edit through the web configure interface. Implemented in `src/channels/web/handlers/extensions.rs` and `src/channels/web/types.rs`.
+
+### Multi-Tenant Web Authentication (v0.23.0)
+
+See Section 6.2 above. `MultiAuthState` replaces the previous single-token `AuthState`, enabling per-user token-to-identity mapping. Each authenticated request carries a `UserIdentity` with `user_id` and `workspace_read_scopes`, scoping SSE events and workspace operations to the authenticated user. The `GatewayChannel` supports both `new()` (single-user, backwards compatible) and `new_multi_auth()` (multi-user) constructors.
+
+### Channel-Relay Integration (v0.23.0)
+
+A new `src/channels/relay/` module provides integration with the external channel-relay service for Slack connectivity:
+
+- **`RelayChannel`** (`channel.rs`) — Implements the `Channel` trait. Receives events from channel-relay via webhook callbacks (pushed through mpsc), converts them to `IncomingMessage`, and sends responses via the relay's Slack proxy API.
+- **`RelayClient`** (`client.rs`) — HTTP client wrapping reqwest for all channel-relay API calls: OAuth initiation, approvals, signing-secret fetch, and Slack API proxy. `ChannelEvent` struct matches the channel-relay wire format.
+- **`webhook.rs`** — HMAC-SHA256 signature verification for relay callbacks: `verify_relay_signature(secret, timestamp, body, signature)` using `hmac` + `sha2` crates with constant-time comparison via `subtle::ConstantTimeEq`. Signature format: `sha256=hex(HMAC-SHA256(secret, timestamp + "." + body))`.
+
+### Channel-Relay Auth Fixes and URL Override (#1681)
+
+The relay client supports URL override via configuration, allowing deployments to point at custom relay service instances. Auth flow fixes ensure token refresh and credential injection work correctly through the relay proxy path.
+
+### Webhook Trigger Endpoint for Routines (PR #736)
+
+See the tool system documentation (Section 5) for the `POST /api/webhooks/{path}` and `POST /api/webhooks/u/{user_id}/{path}` endpoints. These are registered in the web gateway's public routes (no gateway auth token required) but protected by per-routine webhook secrets.
+
+### Updated Web Gateway Feature List
+
+The web gateway now includes these additional capabilities (v0.23.0):
+
+- Multi-tenant authentication with per-user identity scoping
+- Dark/light/system theme toggle
+- Extension text setup fields in configure modal
+- Webhook trigger endpoints for routine automation
+- Relay channel webhook handler for Slack integration
+- Per-user rate limiting (`PerUserRateLimiter`)
+- OAuth rate limiter (10 req/60 sec)
+- Webhook rate limiter (10 req/60 sec)
+- Active config snapshot endpoint
+- Cost guard integration for token/cost tracking
+- Routine engine slot for webhook-triggered routines
+- Workspace pool for multi-user mode
 
