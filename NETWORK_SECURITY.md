@@ -1,9 +1,9 @@
 # IronClaw Network Security Reference
 
-> Version baseline: IronClaw v0.23.0 (`v0.23.0` tag snapshot)
+> Version baseline: IronClaw v0.25.0 (`v0.25.0` tag snapshot)
 > Validated against source modules in `src/channels/`, `src/orchestrator/`, `src/sandbox/`, `src/tools/builtin/http.rs`, `src/channels/wasm/signature.rs`, and `src/tenant.rs`
 
-This document summarizes the network-facing surfaces and egress controls in the released `v0.19.0` codebase. It complements the deeper module analyses in:
+This document summarizes the network-facing surfaces and egress controls in the released `v0.25.0` codebase. It complements the deeper module analyses in:
 
 - [analysis/channels.md](analysis/channels.md)
 - [analysis/safety-sandbox.md](analysis/safety-sandbox.md)
@@ -181,7 +181,19 @@ These are expected deployment caveats, not undocumented surprises:
 
 ## 9. Release-Specific Security Changes Covered Here
 
-### v0.23.0 (2026-04-03)
+### v0.25.0 (2026-04-11)
+
+- OAuth callback behavior moved to loopback defaults for hosted flows and redirect handling was tightened for multi-tenant environments ([#2247](https://github.com/nearai/ironclaw/pull/2247))
+- Bridge auth path now sanitizes auth URLs and prevents malformed callback states from entering engine v2 adapters ([#2206](https://github.com/nearai/ironclaw/pull/2206), [#2215](https://github.com/nearai/ironclaw/pull/2215))
+- Per-tool approval context propagation now runs with stricter gating and clearer cross-channel policy checks ([#1590](https://github.com/nearai/ironclaw/pull/1590))
+- Tool and extension installs validate catalog identifiers and signatures more strictly during bootstrap and upgrade flows ([#2040](https://github.com/nearai/ironclaw/pull/2040), [#2126](https://github.com/nearai/ironclaw/pull/2126))
+
+### v0.24.0 (2026-03-31)
+
+- OAuth and proxy callbacks remain restricted to loopback in tunnel scenarios, continuing to avoid direct public exposure of callback endpoints by default when tunnels are active ([#1194](https://github.com/nearai/ironclaw/pull/1194))
+- DB-backed user and tenant boundaries were strengthened in multi-tenant bootstrap and sandbox gateway surfaces were hardened for webhook and relay paths ([#1626](https://github.com/nearai/ironclaw/pull/1626), [#1746](https://github.com/nearai/ironclaw/pull/1746))
+
+### v0.23.0 (2026-03-27)
 - **Complete multi-tenant isolation (phases 2-4)** — `TenantScope` wraps the database with per-user scoping; `AdminScope` restricts cross-tenant access to explicit system operations; `TenantRateRegistry` provides per-user rate limiting via LLM and job semaphores ([#1614](https://github.com/nearai/ironclaw/pull/1614))
 - **Graduated risk levels for tool approval** — Shell commands classified as `Low`/`Medium`/`High` risk; High-risk commands always require explicit approval, while Low/Medium use auto-approve policies. This is a new security boundary for network-facing tool execution.
 

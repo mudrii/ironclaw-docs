@@ -1,6 +1,6 @@
 # IronClaw — Master Architecture Document
 
-> Updated: 2026-04-03 (v0.23.0) | Comprehensive reference for contributors
+> Updated: 2026-04-14 (v0.25.0) | Comprehensive reference for contributors
 
 ---
 
@@ -864,12 +864,12 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 
 | Module | Directory | `.rs` Files |
 |--------|-----------|------------|
-| `agent` | `src/agent/` | 21 |
-| `channels` | `src/channels/` | 47 |
+| `agent` | `src/agent/` | 22 |
+| `channels` | `src/channels/` | 64 |
 | `cli` | `src/cli/` | 20 |
-| `config` | `src/config/` | 21 |
+| `config` | `src/config/` | 24 |
 | `context` | `src/context/` | 5 |
-| `db` | `src/db/` | 12 |
+| `db` | `src/db/` | 16 |
 | `estimation` | `src/estimation/` | 5 |
 | `evaluation` | `src/evaluation/` | 3 |
 | `extensions` | `src/extensions/` | 4 |
@@ -880,19 +880,19 @@ File counts for each module directory (`.rs` files only, excluding tests in sepa
 | `orchestrator` | `src/orchestrator/` | 4 |
 | `pairing` | `src/pairing/` | 2 |
 | `registry` | `src/registry/` | 6 |
-| `safety` | `crates/ironclaw_safety/src/` | 6 |
+| `safety` | `crates/ironclaw_safety/src/` | 7 |
 | `sandbox` | `src/sandbox/` | 10 |
 | `secrets` | `src/secrets/` | 5 |
-| `setup` | `src/setup/` | 4 |
-| `skills` | `src/skills/` | 7 |
+| `setup` | `src/setup/` | 5 |
+| `skills` | `src/skills/` | 3 |
 | `testing` | `src/testing/` | 3 |
-| `tools` | `src/tools/` | 60 |
+| `tools` | `src/tools/` | 69 |
 | `tunnel` | `src/tunnel/` | 6 |
-| `worker` | `src/worker/` | 6 |
-| `workspace` | `src/workspace/` | 10 |
-| **Top-level files** | `src/*.rs` | 13 (`main.rs`, `lib.rs`, `app.rs`, `bootstrap.rs`, `service.rs`, `error.rs`, `settings.rs`, `util.rs`, `boot_screen.rs`, `tracing_fmt.rs`, `tenant.rs`, `profile.rs`, `timezone.rs`) |
+| `worker` | `src/worker/` | 8 |
+| `workspace` | `src/workspace/` | 14 |
+| **Top-level files** | `src/*.rs` | 14 (`app.rs`, `boot_screen.rs`, `bootstrap.rs`, `code_challenge.rs`, `error.rs`, `http_intercept.rs`, `lib.rs`, `main.rs`, `profile.rs`, `service.rs`, `settings.rs`, `tenant.rs`, `timezone.rs`, `tracing_fmt.rs`, `util.rs`) |
 
-> **Note**: File counts are pinned to the `v0.23.0` release tag snapshot. They reflect `src/**.rs` and `crates/ironclaw_safety/src/**.rs` at tag `v0.23.0`.
+> **Note**: File counts are pinned to the `v0.25.0` release tag snapshot. They reflect `src/**.rs` and `crates/ironclaw_safety/src/**.rs` at tag `v0.25.0`.
 
 The `tools` module is one of the largest modules, reflecting the breadth of the tool system: built-ins, a full WASM runtime, an MCP client with Streamable HTTP transport, a software builder, tool autonomy logic, and the registry/trait definitions. The `channels` module includes REPL, web gateway (with light/dark theme UX overhaul in v0.23.0), HTTP, Signal (added v0.12.0), relay webhook (v0.23.0), Feishu/Lark WASM plugin (v0.19.0), and WASM channel runtime implementations. The `llm` module grew significantly in v0.20.0–v0.23.0 with GitHub Copilot, OpenAI Codex, Gemini OAuth providers, per-tool reasoning, and token refresh logic. The `workspace` module gained layered memory, privacy classification, and embedding cache support in v0.23.0.
 
@@ -926,4 +926,4 @@ The `tools` module is one of the largest modules, reflecting the breadth of the 
 
 ---
 
-*Document generated from source code inspection of IronClaw v0.23.0 (`src/` and `crates/ironclaw_safety/src/` directories). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*
+*Document generated from source code inspection of IronClaw v0.25.0 (`src/` and `crates/ironclaw_safety/src/` directories). For module-level specifications, see `src/setup/README.md`, `src/workspace/README.md`, and `src/tools/README.md`.*

@@ -3,9 +3,9 @@
 > **AI Agent Use**: Optimized for code review, bug triage, and targeted fixes.
 > Jump directly to the section relevant to the error or task — no narrative reading required.
 
-> Version baseline: IronClaw v0.23.0 (`ironclaw-v0.23.0` tag snapshot)
+> Version baseline: IronClaw v0.25.0 (`ironclaw-v0.25.0` tag snapshot)
 
-**Source**: IronClaw v0.23.0 (`ironclaw-v0.23.0`) · `~/src/ironclaw/`
+**Source**: IronClaw v0.25.0 (`ironclaw-v0.25.0`) · `~/src/ironclaw/`
 
 ---
 
@@ -1379,4 +1379,4 @@ sqlite3 ~/.ironclaw/ironclaw.db "SELECT id, status, created_at FROM agent_jobs O
 
 ---
 
-*Source: IronClaw v0.23.0 (`ironclaw-v0.23.0`) · Docs: github.com/nearai/ironclaw-docs · Generated: 2026-04-03*
+*Source: IronClaw v0.25.0 (`ironclaw-v0.25.0`) · Docs: github.com/nearai/ironclaw-docs · Generated: 2026-04-14*

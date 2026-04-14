@@ -1,6 +1,6 @@
 # LLM Provider Configuration
 
-> Version baseline: IronClaw v0.23.0 (`v0.23.0` tag snapshot)
+> Version baseline: IronClaw v0.25.0 (`v0.25.0` tag snapshot)
 
 IronClaw defaults to NEAR AI for model access, but supports any OpenAI-compatible
 endpoint as well as Anthropic, Ollama, GitHub Copilot, OpenAI Codex, Gemini, and AWS Bedrock directly. This guide covers the most common configurations.
