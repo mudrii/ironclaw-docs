@@ -82,6 +82,40 @@ cat ../../../etc/passwd
 
 ---
 
+## Authentication — OAuth and Social Login
+
+IronClaw supports two authentication mechanisms for the web gateway, tried in order:
+
+| Mechanism | Description |
+|-----------|-------------|
+| Bearer token | Static token comparison (constant-time, SHA-256 hashed). Default for local/single-user setups. |
+| OIDC JWT | Signed JWT from a configurable HTTP header. Designed for reverse-proxy setups (e.g., AWS ALB with Okta or Cognito), but works with any RFC-compliant OIDC provider. |
+
+### Enabling OIDC JWT Authentication
+
+OIDC auth is configured via environment variables:
+
+```bash
+# Required: enable OIDC and point to your JWKS endpoint
+GATEWAY_OIDC_ENABLED=true
+GATEWAY_OIDC_JWKS_URL=https://example.okta.com/.well-known/jwks.json
+
+# Optional: override the JWT header (default: x-amzn-oidc-data)
+GATEWAY_OIDC_HEADER=x-amzn-oidc-data
+
+# Optional: validate iss and aud claims
+GATEWAY_OIDC_ISSUER=https://example.okta.com
+GATEWAY_OIDC_AUDIENCE=ironclaw
+```
+
+The `sub` claim from the verified JWT is used as the `user_id` for the resolved identity. JWKS keys are fetched from the configured endpoint and cached for one hour.
+
+<Note>
+OIDC auth is designed for multi-user deployments behind a reverse proxy. For single-user local setups, the auto-generated `GATEWAY_AUTH_TOKEN` is simpler.
+</Note>
+
+---
+
 ## Credential Management
 
 Tools cannot access secrets directly, instead, they define what keys, oauth tokens, or API credential they need. Then they proceed to create the necessary requests, and the network proxy injects these credentials into outgoing requests without exposing them to the container.

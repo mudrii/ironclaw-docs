@@ -1,0 +1,100 @@
+---
+title: Composio
+description: Connect to 250+ third-party apps via Composio
+---
+
+The Composio extension is a built-in WASM tool that connects IronClaw to 250+ third-party apps — Gmail, GitHub, Slack, Notion, Linear, and more — through a single API. It uses Composio's REST API v3 and runs inside IronClaw's WASM sandbox.
+
+---
+
+## Setup
+
+**Step 1: Get a Composio API key**
+
+Sign up at [app.composio.dev](https://app.composio.dev) and copy your API key.
+
+**Step 2: Store the key in IronClaw**
+
+```bash
+ironclaw secret set composio_api_key <your-api-key>
+```
+
+**Step 3: Connect apps**
+
+Once the key is stored, ask your agent to connect an app:
+
+```
+Connect my GitHub account via Composio
+```
+
+The agent will call the `connect` action, which returns an OAuth URL. Visit the URL to authorize the connection.
+
+---
+
+## Actions
+
+The Composio tool exposes four actions:
+
+| Action | Description |
+|--------|-------------|
+| `list` | Browse available tools for a given app |
+| `execute` | Run a specific tool action |
+| `connect` | OAuth-link a third-party app |
+| `connected_accounts` | List all linked app accounts |
+
+### list
+
+Browse tools available for an app:
+
+```
+What Composio tools are available for Slack?
+```
+
+### execute
+
+Run an action on a connected app. The agent selects the correct tool slug automatically:
+
+```
+Send a Slack message to #general: "Deployment complete"
+```
+
+### connect
+
+Link a new app to your account. Returns an OAuth URL you visit in your browser:
+
+```
+Connect my Notion workspace via Composio
+```
+
+### connected_accounts
+
+See which apps are currently linked:
+
+```
+Show my Composio connected accounts
+```
+
+---
+
+## Supported Apps (Examples)
+
+Composio supports 250+ apps. Common examples:
+
+| Category | Apps |
+|----------|------|
+| Productivity | Gmail, Google Calendar, Google Drive, Notion |
+| Development | GitHub, GitLab, Linear, Jira |
+| Communication | Slack, Discord, Telegram |
+| Data | Airtable, Google Sheets, HubSpot |
+
+For the full list, visit [app.composio.dev](https://app.composio.dev/apps).
+
+---
+
+## Security Notes
+
+<Warning>
+The Composio API key is stored encrypted in IronClaw's secrets store. It is injected into outgoing requests by the network proxy — it never passes through the WASM module directly.
+</Warning>
+
+The Composio tool runs inside IronClaw's WASM sandbox. It can only reach `backend.composio.dev` — no other network access is permitted.

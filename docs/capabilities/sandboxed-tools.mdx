@@ -180,6 +180,50 @@ The cache is stored at `~/.ironclaw/wasm-cache/`.
 
 ---
 
+## Tool Permissions
+
+IronClaw maintains a persistent per-user permission table that controls whether individual tools require approval on each invocation. This replaces one-time "allow this tool?" prompts with durable settings.
+
+### Setting Permissions
+
+Use the `tool_permission_set` built-in tool in chat to configure a tool's permission level:
+
+```
+Always allow the shell tool without asking
+```
+
+```
+Require approval every time for the file_write tool
+```
+
+Permission levels:
+
+| Level | Behavior |
+|-------|----------|
+| `always_allow` | Tool runs without any approval prompt |
+| `ask_each_time` | Tool requires approval on every invocation (default for dangerous tools) |
+| `disabled` | Tool is blocked — attempts to use it fail immediately |
+
+### Viewing Current Permissions
+
+```
+Show my current tool permissions
+```
+
+### Resetting Permissions
+
+```
+Reset all tool permissions to defaults
+```
+
+Permissions are stored per-user in the database and persist across restarts and upgrades.
+
+<Note>
+Admin tool policies (set by the instance administrator) take precedence over per-user permissions. An admin can deny a tool for all users regardless of individual settings.
+</Note>
+
+---
+
 ## Security Notes
 
 <Warning>

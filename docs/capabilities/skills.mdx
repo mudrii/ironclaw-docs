@@ -141,3 +141,104 @@ SKILLS_AUTO_DISCOVER=true
 # Max tokens injected per turn across all active skills
 SKILLS_MAX_TOKENS=4000
 ```
+
+---
+
+## Commitments
+
+Commitments are a workspace-level tracking system for personal obligations, deadlines, and delegations. They are not a separate skill type — they are files the agent writes and reads under the `commitments/` workspace path, managed by two companion skills: `commitment-triage` and `commitment-digest`.
+
+### How it works
+
+The commitments system uses the standard skill mechanism. Two keyword-activated skills handle all commitment operations:
+
+| Skill | Activates when | What it does |
+|---|---|---|
+| `commitment-triage` | User mentions obligations, deadlines, promises | Extracts signals, creates and resolves commitments |
+| `commitment-digest` | User asks "show commitments" or similar | Composes a formatted summary of open items |
+
+When these skills are active, the agent writes structured markdown files into the workspace:
+
+- `commitments/signals/pending/` — raw signals extracted from conversation (implied obligations)
+- `commitments/open/` — confirmed commitments with urgency, due date, and resolution path
+- `commitments/resolved/` — completed items
+- `commitments/decisions/` — captured decisions with rationale
+- `commitments/parked-ideas/` — ideas saved for later
+
+### Commitment files
+
+Each open commitment is a markdown file with YAML frontmatter:
+
+```yaml
+---
+type: commitment
+status: open
+urgency: high
+due: 2025-06-20
+created_at: 2025-06-17
+stale_after: 2025-06-24
+owner: user
+delegated_to: null
+resolution_path: needs_reply
+source_signal: null
+resolved_by: null
+tags: [email, team]
+---
+# Reply to Sarah's Q2 budget request
+
+Sarah asked for feedback on the Q2 budget draft by Friday.
+
+## Resolution path
+- [ ] Read the draft
+- [ ] Send reply
+```
+
+The `resolution_path` field describes how the commitment can be closed:
+
+| Value | Meaning |
+|---|---|
+| `agent_can_handle` | Agent can research, draft, or review autonomously (asks permission first) |
+| `needs_reply` | User must reply to a person |
+| `needs_decision` | User must choose between options |
+| `note_only` | Tracking awareness only |
+
+### Setting up the commitment system
+
+Persona bundle skills (like `ceo-assistant`, `content-creator-assistant`, `trader-assistant`) configure the commitment system during their setup flow. They use `requires.skills` to declare which companion skills are needed:
+
+```yaml
+---
+name: ceo-assistant
+version: 0.2.0
+requires:
+  skills:
+    - commitment-triage
+    - commitment-digest
+    - decision-capture
+    - delegation-tracker
+    - idea-parking
+---
+```
+
+The `requires.skills` field is advisory — it tells the agent which companion skills to check for, but does not block loading if they are absent. If a companion is missing, the agent warns in the log and tells the user which skills to install.
+
+Scheduled delivery of commitment digests is configured via missions (not in the skill frontmatter):
+
+```
+mission_create(
+  name: "commitment-digest",
+  goal: "Gather open commitments, group by urgency and owner, send digest via message tool.",
+  cadence: "0 8,17 * * 1-5"
+)
+```
+
+### Commitment vs Routine
+
+| | Routine | Commitment |
+|---|---|---|
+| **What it is** | A scheduled agent task | A tracked obligation or deadline |
+| **Stored in** | Agent mission config | `commitments/` workspace files |
+| **Created by** | `mission_create` tool or agent chat | `commitment-triage` skill (auto or explicit) |
+| **Use case** | Recurring background work | Obligations, promises, and follow-ups |
+
+Use commitments when you want the agent to remember and surface things you need to do. Use routines when you want the agent to do something on a schedule automatically.

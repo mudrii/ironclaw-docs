@@ -379,3 +379,74 @@ Pre-recorded traces are stored in `tests/fixtures/llm_traces/`. The directory is
 | `worker/` | Worker/orchestrator scenarios |
 | `workspace/` | Workspace search and document lifecycle |
 | `tools/` | Individual tool traces (http, jobs, routines) |
+
+---
+
+## 6. Admin Controls
+
+Both features below require multi-tenant mode (a running web gateway with at least one user created). Single-user deployments return `404` from these endpoints.
+
+### Admin Tool Policy
+
+Instance administrators can disable specific tools for all users or for individual users. Disabled tools are stripped from the agent's tool list before the LLM context is built and return an error if called directly. This overrides per-user `tool_permission_set` settings — even a tool marked `always` for a user is blocked if it appears in the admin policy.
+
+The policy is stored in the database under the `__admin__` scope and is managed via the REST API:
+
+```
+GET  /api/admin/tool-policy   — retrieve the current policy
+PUT  /api/admin/tool-policy   — replace the policy (full overwrite, last-write-wins)
+```
+
+Request/response body (JSON):
+
+```json
+{
+  "disabled_tools": ["shell", "write_file", "tool_install"],
+  "user_disabled_tools": {
+    "<user_id>": ["http", "image_generate"]
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `disabled_tools` | array of strings | Tool names disabled for all non-admin users |
+| `user_disabled_tools` | object | Per-user additional disabled tools, keyed by `user_id` |
+
+`PUT` is a full replacement — send the complete desired policy each time. An empty object `{}` clears all restrictions.
+
+**Use cases:**
+- Shared/public deployments where shell access is inappropriate
+- Compliance scenarios requiring audit trails for file operations
+- Managed deployments where extension installation should be controlled
+
+Source: `src/tools/permissions.rs` — `AdminToolPolicy`; `src/channels/web/handlers/tool_policy.rs`.
+
+### Admin System Prompt
+
+Administrators can set a shared system prompt that is prepended to every user's session in multi-tenant mode. It is stored as `SYSTEM.md` in the `__admin__` workspace scope and injected before the user's own identity files. Users cannot override it.
+
+The prompt is managed via the REST API:
+
+```
+GET /api/admin/system-prompt   — read the current admin system prompt
+PUT /api/admin/system-prompt   — set the admin system prompt
+```
+
+Request body (JSON):
+
+```json
+{
+  "content": "You are a customer support assistant for Acme Corp. ..."
+}
+```
+
+Response includes `content` and `updated_at` (RFC 3339 timestamp). An empty `content` string effectively disables the prompt. Maximum size is 64 KB.
+
+The prompt is cached per-server-process. After a `PUT`, the cache is invalidated immediately and all subsequent sessions pick up the new content without a restart.
+
+**Note on single-user mode:** `admin_prompt_enabled` is evaluated once at startup based on whether any users exist in the database. If the server starts before any users are created and users are added later, a restart is required for the owner workspace to pick up the admin prompt. Tenant workspaces created via `WorkspacePool` always have it enabled.
+
+**Multi-tenant note:** The admin system prompt applies to all tenants. Use per-user workspace isolation (identity files) for tenant-specific context.
+
+Source: `src/workspace/mod.rs` — `read_admin_prompt()`; `src/channels/web/handlers/system_prompt.rs`.

@@ -74,3 +74,53 @@ Four built-in tools let the agent manage jobs at runtime:
 | `list_jobs`  | List all active jobs with their current state and metadata     |
 | `job_status` | Get detailed status for a specific job by ID                   |
 | `cancel_job` | Cancel an InProgress or Pending job                            |
+
+---
+
+## ACP Job Mode
+
+ACP (Agent Client Protocol) mode lets IronClaw delegate jobs to any compatible external coding agent — Goose, OpenAI Codex, or Gemini CLI.
+
+```bash
+# Enable ACP mode
+ACP_ENABLED=true
+
+# Optional: memory and time limits
+ACP_MEMORY_LIMIT_MB=4096
+ACP_TIMEOUT_SECS=1800
+```
+
+When `ACP_ENABLED=true`, the `create_job` tool gains an additional `agent_name` parameter. Set it to the name of a configured ACP agent:
+
+```
+Create an ACP job using the codex agent to fix the failing tests
+```
+
+List configured ACP agents:
+
+```bash
+ironclaw acp list
+```
+
+<Note>
+ACP mode requires the external agent to be installed and accessible from the IronClaw process. The agent runs as a subprocess in the configured sandbox.
+</Note>
+
+---
+
+## Per-Job MCP Filtering
+
+Jobs can restrict which MCP servers are active during their execution. This is useful when a job should only use a specific set of tools.
+
+The `create_job` tool accepts an `mcp_servers` array to allow-list specific servers:
+
+```
+Create a job using only the github and linear MCP servers
+```
+
+Jobs also support a `max_iterations` cap — the maximum number of LLM turns before the job is considered complete. This prevents runaway jobs from consuming unbounded API credits:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `mcp_servers` | all enabled | Allow-list of MCP server names for this job |
+| `max_iterations` | 50 (max 500) | Maximum LLM turns before job auto-completes |

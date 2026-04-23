@@ -1,0 +1,148 @@
+---
+title: Deployment Profiles
+description: Pre-configured setting bundles for common deployment scenarios
+---
+
+Deployment profiles are named configuration bundles that set sensible defaults for common deployment scenarios. Set `IRONCLAW_PROFILE` to a profile name and it applies a full set of defaults — you only need to override what differs.
+
+Profiles apply before environment variables and `config.toml`. Any setting defined in a profile can be overridden by environment variables or your local config file.
+
+---
+
+## Built-in Profiles
+
+| Profile | Use case |
+|---------|----------|
+| `local` | Solo developer on a local machine — TUI, libSQL, no sandbox |
+| `local-sandbox` | Solo developer with Docker sandbox enabled |
+| `server` | Single-user server deployment — PostgreSQL, Docker sandbox |
+| `server-multitenant` | Multi-user SaaS deployment — higher concurrency limits |
+
+### local
+
+Stripped-down configuration for solo developers working locally. Disables server-oriented features (gateway, heartbeat, routines, sandbox) and enables the TUI.
+
+```bash
+export IRONCLAW_PROFILE=local
+```
+
+Effective defaults:
+
+| Setting | Value |
+|---------|-------|
+| `database_backend` | `libsql` |
+| `channels.gateway_enabled` | `false` |
+| `channels.cli_mode` | `tui` |
+| `sandbox.enabled` | `false` |
+| `heartbeat.enabled` | `false` |
+| `routines.enabled` | `false` |
+| `hygiene.enabled` | `false` |
+
+### local-sandbox
+
+Same as `local` but with the Docker sandbox enabled. Requires the Docker daemon to be running.
+
+```bash
+export IRONCLAW_PROFILE=local-sandbox
+```
+
+Prerequisites: Docker daemon running.
+
+| Setting | Value |
+|---------|-------|
+| `database_backend` | `libsql` |
+| `channels.gateway_enabled` | `false` |
+| `channels.cli_mode` | `tui` |
+| `sandbox.enabled` | `true` |
+| `sandbox.policy` | `readonly` |
+
+### server
+
+Single-user server deployment with PostgreSQL, Docker sandbox, and all proactive background features enabled.
+
+```bash
+export IRONCLAW_PROFILE=server
+```
+
+Required environment variables:
+
+```bash
+DATABASE_URL=postgres://user:pass@host/db
+```
+
+| Setting | Value |
+|---------|-------|
+| `database_backend` | `postgres` |
+| `sandbox.enabled` | `true` |
+| `sandbox.policy` | `readonly` |
+| `heartbeat.enabled` | `true` |
+| `hygiene.enabled` | `true` |
+
+### server-multitenant
+
+Multi-user SaaS deployment. Builds on `server` with higher concurrency limits and multi-tenant isolation.
+
+```bash
+export IRONCLAW_PROFILE=server-multitenant
+```
+
+Required environment variables:
+
+```bash
+DATABASE_URL=postgres://user:pass@host/db
+AGENT_MULTI_TENANT=true
+```
+
+Recommended environment variables:
+
+```bash
+MAX_COST_PER_USER_PER_DAY_CENTS=1000
+GATEWAY_AUTH_TOKEN=<secret>
+```
+
+| Setting | Value |
+|---------|-------|
+| `database_backend` | `postgres` |
+| `agent.max_parallel_jobs` | `10` |
+| `sandbox.enabled` | `true` |
+| `sandbox.policy` | `readonly` |
+| `heartbeat.enabled` | `true` |
+| `hygiene.enabled` | `true` |
+
+---
+
+## Usage
+
+Set `IRONCLAW_PROFILE` in your environment or `.env` file before starting IronClaw:
+
+```bash
+# In your shell
+export IRONCLAW_PROFILE=server
+
+# Or in .env
+IRONCLAW_PROFILE=server-multitenant
+```
+
+You can override any profile setting with environment variables:
+
+```bash
+export IRONCLAW_PROFILE=server
+export MAX_PARALLEL_JOBS=3        # Override the profile default
+```
+
+Or via `~/.ironclaw/config.toml`.
+
+---
+
+## Configuration Priority
+
+Settings are resolved in this order (highest to lowest):
+
+1. Environment variables
+2. `~/.ironclaw/config.toml`
+3. Active profile (`IRONCLAW_PROFILE`)
+4. Built-in defaults
+
+<Note>
+`AGENT_MULTI_TENANT` must be set as an environment variable — it cannot be set via a profile file.
+</Note>

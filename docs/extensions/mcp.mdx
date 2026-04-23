@@ -69,3 +69,36 @@ ironclaw mcp remove <server_name>
 For integrations that handle sensitive credentials or untrusted external data, prefer WASM tools. The network proxy and credential injection model give you stronger isolation guarantees than an MCP server running as a separate process.
 </Note>
 
+---
+
+## NEAR AI MCP Server
+
+IronClaw can automatically register the NEAR AI MCP server as a pre-configured MCP connection. When both `NEARAI_BASE_URL` and `NEARAI_API_KEY` are set at startup, IronClaw bootstraps a persisted `nearai` MCP server entry — no manual `ironclaw mcp add` step required.
+
+### Configuration
+
+```bash
+# NEAR AI API base URL
+NEARAI_BASE_URL=https://private.near.ai
+
+# NEAR AI API key (from cloud.near.ai)
+NEARAI_API_KEY=your_api_key_here
+```
+
+When both variables are present, IronClaw derives the MCP endpoint as `{NEARAI_BASE_URL}/mcp` (stripping any trailing `/v1` suffix) and registers it with an `Authorization: Bearer <key>` header.
+
+### How It Works
+
+On startup, IronClaw checks whether a `nearai` MCP server entry already exists. If not, it creates one automatically using the env vars above. The entry is stored in the database (or `~/.ironclaw/mcp-servers.json` when no database is configured) and persists across restarts.
+
+You can verify the registered entry with:
+
+```bash
+ironclaw mcp list
+```
+
+To remove it:
+
+```bash
+ironclaw mcp remove nearai
+```
