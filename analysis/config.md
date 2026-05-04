@@ -1,13 +1,13 @@
 # IronClaw Codebase Analysis — Configuration System
 
-> Updated: 2026-04-03 | Version: v0.23.0
+> Updated: 2026-05-04 | Version: v0.25.0
 
 ## 1. Overview
 
 IronClaw's configuration system is built around a layered priority model where
-environment variables always win. The entry points are `Config::from_env()` for
-early startup (before the database is available) and `Config::from_db()` for
-normal runtime operation.
+**database settings win over env vars** as of v0.25.0 (PR #1722). The entry
+points are `Config::from_env()` for early startup (before the database is
+available) and `Config::from_db_with_toml()` for normal runtime operation.
 
 At the lowest level, `~/.ironclaw/.env` stores the database connection string and
 other bootstrap variables. This file is loaded by `bootstrap::load_ironclaw_env()`
@@ -16,8 +16,8 @@ environment. A standard `./.env` in the current working directory is loaded firs
 (also via dotenvy), so it takes priority over `~/.ironclaw/.env`.
 
 On top of the two `.env` files, the operator can place a TOML config file at
-`~/.ironclaw/config.toml` (or pass an explicit path via `--config`). TOML values
-win over database settings and disk-based `settings.json`, but lose to env vars.
+`~/.ironclaw/config.toml` (or pass an explicit path via `--config`). Database settings take the highest priority, followed by the TOML config overlay,
+active deployment profile, `.env` files, and finally shell environment variables.
 
 All config structs are built at startup in `Config::build()` inside `config/mod.rs`.
 Each sub-module exposes a `resolve()` function that reads env vars via `optional_env()`
@@ -31,15 +31,20 @@ a `INJECTED_VARS` overlay so they are visible to `optional_env()` without unsafe
 
 ## 2. Configuration Priority
 
-Priority order (highest to lowest):
+Priority order (highest to lowest) — **changed in v0.25.0 (PR #1722)**:
 
-1. Shell environment variables set before running IronClaw
-2. `./.env` in the current working directory (loaded via dotenvy)
-3. `~/.ironclaw/.env` — IronClaw-specific bootstrap file (loaded by `bootstrap.rs`)
-4. `~/.ironclaw/config.toml` — TOML config file overlay (optional)
-5. Database settings table (key-value pairs stored per user)
-6. `~/.ironclaw/settings.json` — legacy disk fallback (read-only on existing installs)
-7. Compiled-in defaults
+1. Database settings table — DB values win over all other sources
+2. `~/.ironclaw/config.toml` — TOML config file overlay (optional)
+3. Active deployment profile (`IRONCLAW_PROFILE`) — applied before TOML overlay
+4. `~/.ironclaw/.env` — IronClaw-specific bootstrap file (loaded by `bootstrap.rs`)
+5. `./.env` in the current working directory (loaded via dotenvy)
+6. Shell environment variables
+7. `~/.ironclaw/settings.json` — legacy disk fallback (read-only on existing installs)
+8. Compiled-in defaults
+
+> **Note:** Prior to v0.25.0 (v0.23.0 and earlier), shell environment variables
+> had the highest priority. This was inverted in PR #1722 to allow DB settings to
+> override operator env vars in multi-tenant deployments.
 
 The `~/.ironclaw/.env` file is the recommended place for operators to put stable
 secrets (database URL, API keys). Its permissions are set to `0o600` on Unix.
@@ -56,6 +61,7 @@ default is possible.
 | `IRONCLAW_BASE_DIR` | path | `~/.ironclaw` | No | Overrides the base directory for all ironclaw data files (sessions, database, tools, channels, skills). Value is cached via `LazyLock` for the process lifetime. Relative paths work but emit a warning. Added in v0.13.0 (PR #397). |
 | `WORKSPACE_IMPORT_DIR` | path | — | No | Directory to import workspace files from on startup. If set, files from this directory are imported into the workspace database on boot. |
 | `ONBOARD_COMPLETED` | bool | `false` | No | Set to `true` to skip the onboarding wizard. Useful for automated deployments where configuration is provided via environment variables. |
+| `IRONCLAW_PROFILE` | string | — | No | Deployment profile name. Case-insensitive. Built-in values: `local`, `local-sandbox`, `server`, `server-multitenant`. Custom profiles can be placed in `~/.ironclaw/profiles/<name>.toml`. Path traversal in the name is rejected. Added v0.25.0 ([#2203](https://github.com/nearai/ironclaw/pull/2203)). |
 | **Database** | | | | |
 | `DATABASE_BACKEND` | string | `postgres` | No | `postgres` (or `pg`, `postgresql`) or `libsql` (or `turso`, `sqlite`) |
 | `DATABASE_URL` | secret | — | If postgres | PostgreSQL connection string (e.g. `postgres://user:pass@host/db`) |
@@ -186,6 +192,9 @@ default is possible.
 | `SANDBOX_IMAGE` | string | `ironclaw-worker:latest` | No | Docker image for sandbox containers |
 | `SANDBOX_AUTO_PULL` | bool | `true` | No | Automatically pull the image if not found locally |
 | `SANDBOX_EXTRA_DOMAINS` | string | — | No | Comma-separated list of extra domains to allow through the network proxy |
+| `SANDBOX_ALLOW_FULL_ACCESS` | bool | `false` | No | Grant unrestricted filesystem access inside the Docker sandbox. Overrides `SandboxPolicy::WorkspaceWrite`. Use only for trusted single-user deployments. |
+| `SANDBOX_REAPER_INTERVAL_SECS` | u64 | `300` | No | How often (seconds) the sandbox reaper checks for orphaned containers. |
+| `SANDBOX_ORPHAN_THRESHOLD_SECS` | u64 | `600` | No | Age in seconds after which an unreaped sandbox container is considered orphaned and killed. |
 | **Claude Code Sandbox** | | | | |
 | `CLAUDE_CODE_ENABLED` | bool | `false` | No | Enable Claude Code mode (delegates jobs to `claude` CLI inside containers) |
 | `CLAUDE_CONFIG_DIR` | path | `~/.claude` | No | Host directory for Claude auth config |
@@ -261,6 +270,12 @@ The runtime handles token exchange, scope merging for shared providers (e.g., tw
 | **Observability** | | | | |
 | `OBSERVABILITY_BACKEND` | string | `none` | No | Observability/tracing backend. Currently `none` or custom value |
 | `RUST_LOG` | string | `info` | No | Log filter in tracing/env-logger format (e.g. `ironclaw=debug,tower_http=info`) |
+| **ACP / Agent Client Protocol** | | | | |
+| `ACP_ENABLED` | bool | `false` | No | Enable ACP job delegation mode — delegates tool-using jobs to a compatible coding agent subprocess. Added v0.25.0 ([#1600](https://github.com/nearai/ironclaw/pull/1600)). |
+| `ACP_MEMORY_LIMIT_MB` | u64 | `4096` | No | Memory cap in MB for ACP subprocess. |
+| `ACP_TIMEOUT_SECS` | u64 | `1800` | No | Hard timeout in seconds for ACP subprocess. |
+| **Jobs** | | | | |
+| `MCP_PER_JOB_ENABLED` | bool | `false` | No | Enable per-job MCP server filtering — allows `create_job` callers to pass a `mcp_servers` list to restrict which MCP servers the job can use. Added v0.25.0 ([#1243](https://github.com/nearai/ironclaw/pull/1243)). |
 
 ## 4. Configuration Structs
 
@@ -616,6 +631,25 @@ pub struct SandboxModeConfig {
 Valid policy values: `readonly` (no writes, allowlisted network), `workspace_write`
 (read-write workspace mount, allowlisted network), `full_access` (unrestricted).
 
+Additional fields added in v0.25.0:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `allow_full_access` | `bool` | `false` | Grant unrestricted filesystem access. Set via `SANDBOX_ALLOW_FULL_ACCESS`. |
+| `reaper_interval_secs` | `u64` | `300` | Reaper check frequency. Set via `SANDBOX_REAPER_INTERVAL_SECS`. |
+| `orphan_threshold_secs` | `u64` | `600` | Orphan age threshold. Set via `SANDBOX_ORPHAN_THRESHOLD_SECS`. |
+
+### `AcpModeConfig`
+*Source: `src/config/sandbox.rs`*
+
+Governs the ACP (Agent Client Protocol) subprocess mode. Added v0.25.0 (PR #1600).
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `bool` | `false` | Master on/off flag. Set via `ACP_ENABLED`. |
+| `memory_limit_mb` | `u64` | `4096` | Subprocess memory cap. Set via `ACP_MEMORY_LIMIT_MB`. |
+| `timeout_secs` | `u64` | `1800` | Hard subprocess timeout. Set via `ACP_TIMEOUT_SECS`. |
+
 ### ClaudeCodeConfig (`config/sandbox.rs`)
 
 ```rust
@@ -680,12 +714,15 @@ function in sequence and assembles the final `Config` struct. The loading sequen
 
 ```
 startup
-  └─ Config::from_env() or Config::from_db()
+  └─ Config::from_env() or Config::from_db_with_toml()
        ├─ dotenvy::dotenv()                        # load ./.env
        ├─ bootstrap::load_ironclaw_env()           # load ~/.ironclaw/.env
+       ├─ Settings::default()                      # compiled-in defaults
+       ├─ profile::apply_profile(&mut settings)?   # active deployment profile (IRONCLAW_PROFILE)
        ├─ Settings::load() or store.get_all_settings()  # disk or DB
        ├─ Settings::load_toml()                    # ~/.ironclaw/config.toml (optional)
-       ├─ settings.merge_from(toml_settings)       # TOML wins over DB/disk
+       ├─ settings.merge_from(toml_settings)       # TOML wins over profile
+       ├─ db_settings merged on top               # DB wins over TOML and profile
        └─ Config::build(&settings)
             ├─ DatabaseConfig::resolve()
             ├─ LlmConfig::resolve(&settings)
@@ -790,6 +827,9 @@ ignored by dotenvy.
 # ~/.ironclaw/.env — IronClaw configuration
 # Format: KEY="VALUE" (double-quoted to handle special chars like # in passwords)
 # Priority: shell env > ./.env > this file > config.toml > database > defaults
+
+# Deployment profile (built-in: local, local-sandbox, server, server-multitenant)
+IRONCLAW_PROFILE=server
 
 ##############################################
 # Database
