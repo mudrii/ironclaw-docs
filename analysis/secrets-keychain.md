@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Secrets Management & Keychain
 
-> Updated: 2026-04-03 | Version: v0.23.0
+> Updated: 2026-05-04 | Version: v0.25.0
 
 ## 1. Overview
 
@@ -357,6 +357,51 @@ After credential injection and HTTP request execution, the response passes throu
 ### Multi-Tenant Credential Isolation (v0.23.0)
 
 With the introduction of `TenantScope` (see `src/tenant.rs`), all database operations — including secrets queries — are scoped to the tenant's `user_id`. The `TenantScope` wraps `Arc<dyn Database>` and prepends the user ID to every query, so a user's secrets are invisible to other tenants even when sharing the same database backend. This is enforced at compile time: handler code receives a `TenantScope` (not a raw `Database`), and there is no method to bypass the user filter without obtaining an `AdminScope`.
+
+> **v0.25.0 change (PR #1898):** `TenantScope` is still present for DB scoping
+> (see `src/tenant.rs`), but credential and identity isolation now uses the
+> `OwnerId`/`Identity`/`OwnershipCache` model described below.
+
+### Centralized Ownership Model (v0.25.0, PR #1898)
+
+*Source: `src/ownership/mod.rs`, `src/ownership/cache.rs`*
+
+**Core types:**
+
+| Type | Description |
+|------|-------------|
+| `OwnerId(String)` | Typed wrapper over `users.id`. Never constructed from unverified external input. Prevents raw string mixing with user IDs. |
+| `UserRole` | `Admin` or `Member`. `from_db_role()` treats any unknown DB value as `Member` (safe least-privilege fallback). Comparison is case-insensitive. |
+| `Identity { owner_id: OwnerId, role: UserRole }` | Single struct flowing from the channel boundary through all authorization checks. Constructed exclusively from `OwnershipCache` — never from raw user-supplied strings. |
+
+**`Owned` trait** — implemented on domain objects with a single owner:
+
+```rust
+pub trait Owned {
+    fn owner_user_id(&self) -> &str;
+    fn is_owned_by(&self, user_id: &str) -> bool { self.owner_user_id() == user_id }
+}
+```
+
+> **Note:** `Mission`, `Thread`, `Project`, and `MemoryDoc` do **not** implement
+> `Owned` because they support shared-ownership semantics.
+
+**`OwnershipCache`** — in-process cache mapping `(channel, external_id)` → `Identity`:
+
+```
+OwnershipCache { identities: RwLock<HashMap<(channel, external_id), Identity>> }
+```
+
+Methods: `get`, `insert`, `evict(channel, external_id)`, `evict_user(user_id)` (removes all entries for a user across all channels). Poisoned lock recovery is handled — panics are not propagated to callers.
+
+**Identity resolution flow:**
+
+1. Channel receives a message with `(channel_name, external_user_id)`
+2. `OwnershipCache::get(channel, external_id)` — cache hit returns immediately
+3. Cache miss: `ChannelPairingStore::resolve_channel_identity()` — single JOIN query on `channel_identities` + `users`
+4. Result inserted into cache; returned to channel as `Identity`
+
+**Known incomplete areas** (from module doc): extension lifecycle, orchestrator secret injection, some channel secret setup, and MCP session management still have owner-scoped behavior not yet fully isolated.
 
 ### rustls-webpki Vulnerability Patch (v0.22.0)
 
