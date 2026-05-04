@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Channel System
 
-> Updated: 2026-04-03 | Version: v0.23.0
+> Updated: 2026-05-04 | Version: v0.25.0
 
 ---
 
@@ -305,6 +305,46 @@ GATEWAY_AUTH_TOKEN=your-secret-token
 This is not a bug in the REPL — it is by design. The REPL interprets EOF as the
 user pressing Ctrl+D to exit, which is the correct terminal behavior. The service
 operator is responsible for setting `CLI_ENABLED=false`.
+
+---
+
+## 4b. TUI Channel (`TuiChannel`) — v0.25.0
+
+*Source: `src/channels/tui.rs`; backed by `crates/ironclaw_tui/`*
+
+The TUI channel is a full Ratatui-based terminal UI shipped in the default binary
+as of v0.25.0 (PR #2195). It replaces or supplements the REPL channel for
+interactive use — offering a sidebar panel, log streaming, and a richer layout.
+
+**Channel name:** `"tui"`
+
+**Builder methods:**
+
+| Method | Sets |
+|--------|------|
+| `with_context_window(n)` | Override auto-inferred context window size |
+| `with_layout(layout)` | `TuiLayout` value (loaded via `resolve_tui_layout()` from `{workspace_root}/tui/layout.json` by default) |
+| `with_log_broadcaster(broadcaster)` | Attach a `LogBroadcaster` for real-time log streaming to the sidebar |
+| `with_tools(tools)` | Tool categories shown in the TUI (grouped by prefix via `group_tools_by_prefix`) |
+| `with_skills(skills)` | Skill categories shown in the TUI (grouped by first tag via `group_skills_by_tag`) |
+| `with_workspace_path(path)` | Workspace root |
+| `with_memory_count(n)` | Memory document count shown in status bar |
+| `with_identity_files(files)` | Identity file list |
+| `with_available_models(models)` | Model selector list for the `/model` picker |
+
+**Context window auto-inference by model name (`infer_context_window`):**
+
+| Model prefix / substring | Context window |
+|--------------------------|----------------|
+| `claude-opus-4-6`, `claude-sonnet-4-6` | 1,000,000 tokens |
+| Other names containing `claude` | 200,000 tokens |
+| Names starting with `gemini-` | 1,000,000 tokens |
+| All others | 128,000 tokens |
+
+Model names are normalised before matching: lowercased, path prefix stripped (last
+`/`-delimited segment), and tag suffix stripped (everything after `:`).
+
+**Startup:** `start_tui(TuiAppConfig)` returns `ironclaw_tui::TuiAppHandle { event_tx, msg_rx, join_handle }`. The handle is used by `ChannelManager` to merge the TUI stream with other channels. If `with_log_broadcaster` was called, a background task replays recent log history into the TUI's Logs tab and then forwards live log entries.
 
 ---
 
@@ -898,6 +938,37 @@ ironclaw registry install feishu
 ironclaw onboard --channels-only
 ```
 
+#### Slack Channel (`channels-src/slack/`)
+
+**Source:** `channels-src/slack/src/lib.rs`
+
+The Slack channel is a bundled WASM plugin that receives messages via Slack's
+Events API and responds via `chat.postMessage`. It supports both channel messages
+and direct messages.
+
+### `on_broadcast` (v0.25.0, PR #2113)
+
+The Slack channel implements `on_broadcast(user_id, response)` to push agent
+responses to arbitrary Slack channels or users without requiring an active
+inbound message.
+
+**Target resolution** (`resolve_broadcast_target(raw)`):
+- Strips a leading `#` from the target (e.g., `#C0123ABC` → `C0123ABC`)
+- Returns the stripped string unchanged — ID validation is a separate step
+
+**ID validation** (`looks_like_slack_id(s)`):
+- Accepts strings whose first character is `C`, `U`, `D`, `G`, or `W` followed
+  by at least one ASCII alphanumeric character
+- Posts via `post_slack_message(target, content, thread_id)` and tracks the thread
+
+**Error cases:**
+- Empty target (after stripping `#`): `"broadcast failed: no target specified. Pass a Slack channel ID (C0...) or user ID (U0...) as the target."`
+- Invalid ID format: `"Broadcast target '<target>' is not a valid Slack ID (expected C/U/D/G/W prefix). Use a channel ID (C0...) or user ID (U0...), not a channel name."`
+
+**Message tool hint normalization:** The message tool may pass targets prefixed
+with `#` (e.g., `#C0123ABC`). `resolve_broadcast_target` strips this prefix
+automatically so channel IDs from message tool calls work without manual cleanup.
+
 ---
 
 ## 8. Configuration Reference
@@ -1205,4 +1276,23 @@ The web gateway now includes these additional capabilities (v0.23.0):
 - Cost guard integration for token/cost tracking
 - Routine engine slot for webhook-triggered routines
 - Workspace pool for multi-user mode
+
+---
+
+## 13. v0.25.0 Channel Changes
+
+### TUI Channel (PR #2195)
+
+A new `TuiChannel` (`src/channels/tui.rs`) backed by `ironclaw_tui` provides a
+full Ratatui-based terminal UI as of v0.25.0. See §4b for full details.
+
+Key additions:
+- `group_tools_by_prefix` and `group_skills_by_tag` helpers to build `ToolCategory`/`SkillCategory` lists for the welcome screen
+- `resolve_tui_layout` to merge `tui/layout.json` with env-backed `TuiChannelConfig` (theme, sidebar visibility)
+- `infer_context_window` model-name heuristic (1 M tokens for Claude Opus/Sonnet 4-6 and Gemini; 200 K for other Claude; 128 K fallback)
+
+### Slack `on_broadcast` (PR #2113)
+
+The bundled Slack WASM channel now implements `on_broadcast`. See §7 Bundled WASM
+Channels → Slack for full details.
 
