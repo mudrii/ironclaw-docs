@@ -1,6 +1,6 @@
 # IronClaw Tool System — Developer Reference
 
-Version: v0.23.0
+Version: v0.25.0
 Source: `src/tools/`
 
 ---
@@ -261,6 +261,33 @@ The registry assembles built-in tools in these groups during startup:
 >
 > **Rate limits:** 30 requests/minute, 500 requests/hour
 > **Auth:** Manual — Bearer token injected as `X-Subscription-Token` header to `api.search.brave.com`
+
+### Composio Tool (v0.25.0, PR #920)
+
+A WASM component tool for third-party app integrations via the Composio API.
+
+**Installation:**
+```bash
+ironclaw tool install composio
+ironclaw tool setup composio   # Prompts for Composio API key
+```
+
+**Authentication:** Requires `composio_api_key` secret (stored via IronClaw secrets store).
+
+**Available actions:**
+
+| Action | Description |
+|--------|-------------|
+| `list` | List available Composio apps and actions. Cursor-based pagination (`nextCursor` in response). |
+| `execute` | Run a Composio action by slug (e.g., `GMAIL_SEND_EMAIL`). |
+| `connect` | Initiate OAuth connection to a third-party app. |
+| `connected_accounts` | List all linked app connections for the current user. |
+
+**Backend:** Composio API v3 at `https://backend.composio.dev/api/v3`. GET requests retry up to 3 times; POST requests do not retry.
+
+**Security:** Tool slug validation rejects names containing `/` or `..` (path traversal protection). Entity identity resolution order: `entity_id` → `user_id` from context → `"default"`.
+
+*Source: `tools-src/composio/src/lib.rs`*
 
 ---
 
@@ -1708,6 +1735,10 @@ Servers with a remote HTTPS URL always require authentication. Authentication st
 
 ### Tool Approval Model
 
+> **v0.25.0 change (PR #1911):** The `requires_approval()` method on `Tool` has
+> been superseded by the `PermissionState` system. The description below documents
+> the current model.
+
 The approval system has three levels of granularity:
 
 1. `requires_approval()` returns one of: `Never`, `UnlessAutoApproved`, `Always`.
@@ -1730,6 +1761,50 @@ cross-channel or non-default targeting is used, and `UnlessAutoApproved` otherwi
 dispatch time. The thread dispatcher groups deferred tool calls by message turn,
 checks for the first blocked item, and continues with approved calls without restarting
 the whole assistant turn.
+
+### Per-User Tool Permission System (v0.25.0, PR #1911)
+
+Tool access is controlled by a three-value `PermissionState` enum:
+
+| Value | Serialized | Behavior |
+|-------|-----------|----------|
+| `AlwaysAllow` | `"always_allow"` | Tool executes without user confirmation |
+| `AskEachTime` | `"ask_each_time"` | User must confirm on each invocation |
+| `Disabled` | `"disabled"` | Tool is hidden from the agent and cannot be called |
+
+**Resolution order** (first match wins):
+1. Per-user override stored in `settings` table under `tool_permissions` key
+2. `TOOL_RISK_DEFAULTS` static table (hardcoded safe defaults)
+3. `AskEachTime` as safe fallback for unknown tools
+
+**Default `AlwaysAllow` tools** (safe read-only operations):
+`echo`, `time`, `json`, `memory_search`, `memory_read`, `memory_write`,
+`memory_tree`, `tool_list`, `tool_info`, `tool_search`, `skill_list`,
+`skill_search`, `list_jobs`, `job_status`, `job_events`, `image_analyze`,
+`message`
+
+**Default `AskEachTime` tools** (require confirmation):
+`shell`, `read_file`, `write_file`, `list_dir`, `apply_patch`, `http`,
+`create_job`, `event_emit`, `routine_create`, `routine_update`, `cancel_job`,
+`job_prompt`, `routine_delete`, `routine_fire`, `tool_install`, `tool_auth`,
+`tool_activate`, `tool_remove`, `tool_upgrade`, `skill_install`, `skill_remove`,
+`secret_list`, `secret_delete`, `image_generate`, `image_edit`, `restart`,
+`build_software`, `tool_permission_set`
+
+**Storage:** `settings` table, `user_id = <user>`, key `"tool_permissions"`,
+value = JSON object `{"tool_name": "always_allow|ask_each_time|disabled"}`.
+
+**Changing permissions at runtime:**
+```
+> tool_permission_set shell disabled
+```
+The `tool_permission_set` tool itself is `AskEachTime` — the user must confirm
+before changing any permission.
+
+**Admin override layer:** Above per-user permissions sits the admin tool policy
+(`GET/PUT /api/admin/tool-policy`). See DEVELOPER-REFERENCE.md Section 6.
+
+*Source: `src/tools/permissions.rs`*
 
 ### Security Architecture Summary
 
