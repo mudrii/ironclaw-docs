@@ -382,6 +382,37 @@ Pre-recorded traces are stored in `tests/fixtures/llm_traces/`. The directory is
 
 ---
 
+## Section 5b: Per-User Tool Permission System (v0.25.0)
+
+Tool permissions are stored in the `settings` table and resolved by
+`effective_permission(tool_name, overrides)` in `src/tools/permissions.rs`.
+
+**Setting a user's tool permission at runtime** (user must approve the action):
+```
+> tool_permission_set <tool_name> <always_allow|ask_each_time|disabled>
+```
+
+**Via REST API (admin)**:
+```http
+PUT /api/admin/users/{user_id}/settings
+Content-Type: application/json
+
+{"key": "tool_permissions", "value": {"shell": "disabled", "http": "always_allow"}}
+```
+
+**Storage key:** `"tool_permissions"` in `settings` table with `user_id` bound.
+**Value format:** JSON object mapping tool name to `PermissionState` snake_case string
+(`"always_allow"`, `"ask_each_time"`, or `"disabled"`).
+
+**Resolution order** (first match wins):
+1. Per-user override from `settings` table
+2. `TOOL_RISK_DEFAULTS` static table
+3. `AskEachTime` as safe fallback for unknown tools
+
+*Source: `src/tools/permissions.rs`*
+
+---
+
 ## 6. Admin Controls
 
 Both features below require multi-tenant mode (a running web gateway with at least one user created). Single-user deployments return `404` from these endpoints.
@@ -421,6 +452,27 @@ Request/response body (JSON):
 - Managed deployments where extension installation should be controlled
 
 Source: `src/tools/permissions.rs` — `AdminToolPolicy`; `src/channels/web/handlers/tool_policy.rs`.
+
+**Validation constraints** (source: `src/tools/permissions.rs`):
+
+| Constraint | Limit |
+|-----------|-------|
+| Maximum JSON payload | 32 KB (`32 * 1024` bytes) |
+| Maximum entries in `disabled_tools` | 1,000 |
+| Maximum user keys in `user_disabled_tools` | 1,000 |
+| Maximum disabled tools per user | 1,000 |
+| Tool name charset | Lowercase ASCII letters, digits, `_`, `-` only; max 128 chars |
+| User key charset | ASCII alphanumeric, `_`, `-`; max 256 chars |
+
+**Fail-closed behavior:** If the policy JSON fails to parse or the DB read
+returns an error, `AdminToolPolicyState::FailClosed` is returned and
+`filter_admin_disabled_tools` returns an **empty tool list** (all tools hidden).
+This is intentional — a corrupt policy blocks all tools rather than exposing them.
+
+**Single-tenant bypass:** `filter_admin_disabled_tools` returns the input
+unchanged when `multi_tenant = false` or when the caller has `is_admin = true`.
+
+**Storage:** `settings` table, `user_id = "__admin__"`, key `"admin_tool_policy"`.
 
 ### Admin System Prompt
 
