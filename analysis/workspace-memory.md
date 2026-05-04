@@ -1,6 +1,6 @@
 # IronClaw Codebase Analysis — Workspace, Memory & Storage
 
-> Updated: 2026-04-03 | Version: v0.23.0
+> Updated: 2026-05-04 | Version: v0.25.0
 
 ## 1. Overview
 
@@ -310,6 +310,20 @@ workspace.search("query text", limit)           // hybrid FTS + vector search vi
 
 Every `write` or `append` triggers `reindex_document`: old chunks are deleted, the content is split into new chunks, and embeddings are generated for each chunk if a provider is configured.
 
+**Extended API (v0.25.0):**
+
+| Method | Description |
+|--------|-------------|
+| `workspace.patch(path, old, new, replace_all)` | Surgical in-place string replacement. Auto-versions before applying. Schema-validates result. |
+| `workspace.read_primary(path)` | Reads only the primary scope (not cross-scope). Required for identity files. |
+| `workspace.resolve_metadata(path)` | Resolves effective metadata via the `.config` chain. Returns merged `DocumentMetadata`. |
+| `workspace.update_metadata(id, metadata)` | Updates document metadata JSON directly (full replacement by document ID). |
+| `workspace.list_versions(document_id, limit)` | Retrieve version history (newest first). Returns `Vec<VersionSummary>`. |
+| `workspace.get_version(document_id, version)` | Fetch a specific version's full content. Returns `DocumentVersion`. |
+| `workspace.prune_versions(document_id, keep_count)` | Delete old versions keeping the N most recent. Returns deleted count. |
+| `workspace.write_to_layer(layer, path, content, force)` | Layer-aware write. Validates layer is writable, runs privacy classifier unless `force`. |
+| `workspace.append_to_layer(layer, path, content, force)` | Layer-aware append (double-newline separator). Same guards as `write_to_layer`. |
+
 ### Storage Backend Abstraction
 
 `Workspace` holds a `WorkspaceStorage` enum that dispatches to either the PostgreSQL `Repository` (when compiled with the `postgres` feature) or any `Arc<dyn crate::db::Database>` (the generic path used by libSQL and any future backend). The two constructors are:
@@ -373,6 +387,104 @@ Use cases:
 ### Multi-Agent Isolation
 
 Each workspace operation accepts an optional `agent_id: Option<Uuid>`. Documents are scoped by `(user_id, agent_id, path)`. The `Workspace::with_agent(agent_id)` builder pins all operations to a specific agent scope, enabling multiple agents to share a database without interfering with each other's memory.
+
+### `DocumentMetadata` (v0.25.0, PR #1723)
+
+*Source: `src/workspace/document.rs`*
+
+Every workspace document may carry a JSON metadata block controlling indexing,
+versioning, schema validation, and hygiene behavior.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `skip_indexing` | `Option<bool>` | inherit | When `true`, document is not chunked or embedded for vector search |
+| `skip_versioning` | `Option<bool>` | inherit | When `true`, writes do not create version history entries |
+| `hygiene` | `Option<HygieneMetadata>` | inherit | Controls TTL-based document cleanup (`enabled: bool`, `retention_days: u32`, minimum 1) |
+| `schema` | `Option<serde_json::Value>` | — | JSON Schema — all writes to this document validate content against it |
+| `extra` | `serde_json::Map` | — | Forward-compatible unknown fields (preserved on round-trip via `serde(flatten)`) |
+
+**Folder-level `.config` documents:** A document named `.config` in any directory
+carries metadata that applies as defaults for all documents in that directory.
+`find_nearest_config()` walks up the path tree using a single O(1) DB query
+(`find_config_documents`) and ancestor matching in-memory.
+
+**Merge semantics:** `DocumentMetadata::merge(base, overlay)` is a shallow merge —
+overlay keys win over base keys; nested objects are replaced wholesale, not
+recursively merged. Document metadata wins over folder `.config` metadata.
+
+**Seeded `.config` locations:** `daily/` (hygiene 30d, skip\_versioning), `conversations/` (hygiene 7d, skip\_versioning), `.system/gateway/` (skip\_indexing).
+
+### Automatic Document Versioning (v0.25.0, PR #1723)
+
+*Source: `src/workspace/mod.rs` → `maybe_save_version()`*
+
+Every `write()`, `append()`, and `patch()` call checks whether to save a version
+snapshot before overwriting content.
+
+**Versioning is skipped when:**
+- Content is empty
+- Content hash matches the latest stored version (deduplication — same bytes as previous version)
+- `skip_versioning: true` in the document's effective metadata
+- Path is an engine runtime path (`engine/.runtime/`, `engine/projects/`, `engine/orchestrator/failures.json`, `engine/README.md`)
+
+**Version storage:** `memory_document_versions` table with columns:
+`id`, `document_id`, `version` (INTEGER, 1-based monotonic), `content`, `content_hash` (prefixed `sha256:`), `changed_by` (nullable), `created_at`.
+
+**Version API:**
+
+| Method | Description |
+|--------|-------------|
+| `workspace.list_versions(document_id, limit)` | Retrieve version history (most recent first). Returns `Vec<VersionSummary>`. |
+| `workspace.get_version(document_id, version)` | Fetch a specific version's content. Returns `DocumentVersion`. |
+| `workspace.prune_versions(document_id, keep_count)` | Delete old versions, keeping the N most recent. Returns deleted count. |
+
+### Patch Operation (v0.25.0, PR #1723)
+
+*Source: `src/workspace/mod.rs` → `patch()`*
+
+Performs surgical in-place string replacement on a workspace document.
+
+```rust
+workspace.patch(path, old_string, new_string, replace_all) -> Result<PatchResult>
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `path` | `&str` | Document path |
+| `old_string` | `&str` | Text to find and replace (must be non-empty and present in document) |
+| `new_string` | `&str` | Replacement text |
+| `replace_all` | `bool` | When `true`, replaces all occurrences; when `false`, replaces only the first |
+
+**Returns:** `PatchResult { document: MemoryDocument, replacements: usize }`
+
+**Behavior:**
+1. Returns `WorkspaceError::PatchFailed` if `old_string` is empty or not found
+2. Runs prompt-injection scan on the result for system-prompt files
+3. Validates result content against the document's JSON Schema (if any)
+4. Auto-versions the document before applying the replacement (fail-open)
+5. Re-indexes the document after replacement
+
+### JSON Schema Validation (v0.25.0, PR #2049)
+
+*Source: `src/workspace/schema.rs`*
+
+When a document (or its folder `.config`) carries a `schema` field, all write
+operations (`write`, `append`, `patch`) validate content as JSON against the schema.
+
+**Validation behavior:**
+- Uses `jsonschema::validator_for()` + `iter_errors()` — returns **all** errors in one pass
+- `WorkspaceError::SchemaValidation { path, errors: Vec<String> }` carries all errors
+- Schema inheritance: folder `.config` schema applies to all files in the directory; document-level `schema` field overrides folder schema
+- `null` schema (`"schema": null` in metadata) is treated as no-op — explicitly guarded to prevent latent write-blocking
+
+**Engine runtime path exclusion:** `is_engine_runtime_path()` prevents indexing/versioning for:
+- `engine/.runtime/` (all files)
+- `engine/projects/` (all files)
+- `engine/orchestrator/failures.json`
+- `engine/README.md`
+
+Semantic content that is intentionally kept indexed: `engine/knowledge/`, `engine/orchestrator/*.py`, `engine/orchestrator/*.md`.
+This prevents DB connection pool exhaustion under multi-tenant load.
 
 ---
 
