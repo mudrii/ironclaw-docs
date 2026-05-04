@@ -878,10 +878,10 @@ All configuration is read from environment variables at startup. Relevant
 
 | Variable | Default | Subsystem | Description |
 |----------|---------|-----------|-------------|
-| `MAX_PARALLEL_JOBS` | `5` | Scheduler | Maximum concurrent jobs |
+| `AGENT_MAX_PARALLEL_JOBS` | `5` | Scheduler | Maximum concurrent jobs |
 | `HEARTBEAT_ENABLED` | `false` | Heartbeat | Enable periodic LLM checks |
 | `HEARTBEAT_INTERVAL_SECS` | `1800` | Heartbeat | Seconds between heartbeat ticks |
-| `HEARTBEAT_NOTIFY_CHANNEL` | `tui` | Heartbeat | Channel for attention alerts |
+| `HEARTBEAT_NOTIFY_CHANNEL` | — | Heartbeat | Channel for attention alerts |
 | `HEARTBEAT_NOTIFY_USER` | `default` | Heartbeat | User ID for notifications |
 | `ROUTINES_ENABLED` | `true` | Routine Engine | Enable routine execution |
 | `ROUTINES_CRON_INTERVAL` | `15` | Routine Engine | Cron tick interval in seconds |
