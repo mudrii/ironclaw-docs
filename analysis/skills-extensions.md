@@ -107,22 +107,46 @@ Error variants:
 
 ### 2.4 Skill Registry (`registry.rs`)
 
-Source: `src/skills/registry.rs`
+Source: `crates/ironclaw_skills/src/registry.rs`
 
 `SkillRegistry` manages the in-memory set of loaded skills and the on-disk `~/.ironclaw/skills/` directory.
 
-**Discovery** (`discover_all`): Scans three directories in priority order:
+**Discovery** (`discover_all`): Scans four sources in priority order:
 
 1. `<workspace>/skills/` — loaded as `SkillTrust::Trusted`, `SkillSource::Workspace`
 2. `~/.ironclaw/skills/` — loaded as `SkillTrust::Trusted`, `SkillSource::User` (user-placed skills)
 3. `~/.ironclaw/installed_skills/` — loaded as `SkillTrust::Installed`, `SkillSource::Installed` (registry-installed; restricted tool ceiling)
+4. Bundled skills compiled into the binary — loaded as `SkillTrust::Trusted`, `SkillSource::Bundled`
 
-On name collision, the workspace skill wins; the user skill is silently skipped. Discovery is capped at 100 skills per directory (`MAX_DISCOVERED_SKILLS`).
+Earlier sources win on name collision (highest to lowest priority):
+workspace → user → installed → bundled (binary-embedded, `SkillTrust::Trusted`)
+
+Discovery is capped at `MAX_DISCOVERED_SKILLS = 100` across all sources.
 
 **Supported layouts**:
 
 - Flat: `skills/SKILL.md` directly in the skills directory
 - Subdirectory: `skills/<name>/SKILL.md`
+
+**Layout 3: Bundle Directory** (v0.25.0, PR #1667)
+
+A directory without a `SKILL.md` is treated as a bundle container and recursed into:
+
+```
+skills/
+  my-bundle/           ← no SKILL.md here — treated as bundle
+    skill-a/
+      SKILL.md
+    skill-b/
+      SKILL.md
+```
+
+**Recursion constraints:**
+- Maximum depth: `DEFAULT_MAX_SCAN_DEPTH = 3` (configurable via `with_max_scan_depth()`)
+- Per-level budget: each recursion level inherits `remaining_cap.saturating_sub(count)` from its parent
+- Global cap: `MAX_DISCOVERED_SKILLS = 100` across all discovery sources
+
+**Implementation:** `Box::pin(self.discover_from_dir(..., current_depth + 1))` — async recursive descent.
 
 **Security checks performed per file** (`load_and_validate_skill`):
 
