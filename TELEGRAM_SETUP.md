@@ -143,3 +143,48 @@ For webhook validation, set `telegram_webhook_secret` in secrets. Telegram will 
 #### Telegram bot token validation fails intermittently
 
 **Fixed in v0.19.0** ([#1166](https://github.com/nearai/ironclaw/pull/1166)). Token validation previously could fail transiently with HTTP 404 errors from the Telegram Bot API. Update to v0.19.0 to resolve.
+
+## Media Attachment Support (v0.25.0, PR #1314)
+
+The Telegram channel handles inbound and outbound media attachments.
+
+### Inbound Attachments
+
+| Telegram type | MIME type assigned | Pipeline |
+|---------------|--------------------|----------|
+| `Photo` | `image/jpeg` (hardcoded; Telegram always compresses to JPEG) | Vision (LLM image input) |
+| `Voice` | `audio/ogg` (default; uses Telegram-reported MIME when present) | Host-side transcription |
+| `Document` | Telegram-reported MIME, or `application/octet-stream` | Text extraction (text-like) / binary |
+| `Audio` | Telegram-reported MIME, or `audio/mpeg` | Binary extraction |
+| `Video` | Telegram-reported MIME, or `video/mp4` | Binary extraction |
+| `Sticker` | `image/webp` (hardcoded) | Binary extraction |
+
+Attachments are downloaded from `https://api.telegram.org/file/bot{token}/{file_path}`.
+
+### Outbound Voice Messages
+
+When the agent produces audio content with MIME type `audio/ogg` or `audio/opus`,
+the channel sends it via Telegram's `sendVoice` API:
+
+- **Size limit:** 50 MB (`50 * 1024 * 1024` bytes). Files exceeding this limit are
+  sent as documents instead (`sendDocument` fallback).
+- **API method:** `sendVoice` with `multipart/form-data` upload.
+
+Outbound image attachments (`image/jpeg`, `image/png`, `image/gif`, `image/webp`) use
+`sendPhoto`. All other MIME types use `sendDocument`.
+
+### Webhook Security
+
+The Telegram webhook uses **header-token validation**, not HMAC-SHA256:
+
+- Header: `X-Telegram-Bot-Api-Secret-Token`
+- Secret name in IronClaw: `telegram_webhook_secret`
+- The secret is a 64-character auto-generated token (set during `ironclaw onboard`).
+
+> This differs from the Slack channel, which uses HMAC-SHA256 (`hmac_secret_name`).
+
+### Channel Capabilities Reference
+
+- Capabilities version: `0.2.2` / WIT version: `0.3.0`
+- Maximum response bytes: `52,428,800` (50 MB)
+- Rate limit: 30 requests/minute, 1,000 requests/hour
