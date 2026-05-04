@@ -181,6 +181,28 @@ DATABASE_BACKEND=libsql          # libsql (local) or postgres
 # LIBSQL_PATH="~/.ironclaw/ironclaw.db"        # Default location
 # IRONCLAW_BASE_DIR=~/.ironclaw               # Override base dir (new in v0.13.0, default: ~/.ironclaw)
 
+### `IRONCLAW_PROFILE` (v0.25.0+)
+
+Selects a deployment profile that pre-configures a group of settings appropriate
+for a specific runtime context. The value is case-insensitive.
+
+| Profile | Description |
+|---------|-------------|
+| `local` | Single-user local desktop. Sandbox disabled. |
+| `local-sandbox` | Single-user with Docker sandbox enabled. |
+| `server` | Single-user self-hosted server. Optimized for VPS deployments. |
+| `server-multitenant` | Multi-tenant server. Enables tenant isolation and DB-backed user management. |
+
+Custom profiles can be placed in `~/.ironclaw/profiles/<name>.toml`. Profile
+settings are lower priority than `~/.ironclaw/config.toml` and lower priority
+than the database settings table.
+
+```bash
+IRONCLAW_PROFILE=server ironclaw run
+# or in ~/.ironclaw/.env:
+IRONCLAW_PROFILE=server
+```
+
 ##############################################
 # LLM Backend
 ##############################################
@@ -254,6 +276,19 @@ SANDBOX_ENABLED=true
 SANDBOX_POLICY=readonly            # readonly, workspace_write, full_access
 SANDBOX_TIMEOUT_SECS=120
 SANDBOX_MEMORY_LIMIT_MB=2048
+
+#### ironclaw-worker Docker Image (v0.25.0+)
+
+The `ironclaw-worker` image is published to Docker Hub. It runs inside the
+sandbox as the code-execution worker. During interactive setup (`ironclaw onboard`),
+the wizard can build the worker image locally. To pull from Docker Hub:
+
+```bash
+docker pull nearai/ironclaw-worker:latest
+```
+
+The worker image is separate from the main `nearai/ironclaw` image and contains
+only the job execution runtime with no web gateway or channel code.
 
 ##############################################
 # Restart Feature (Docker containers only, v0.16.0)
