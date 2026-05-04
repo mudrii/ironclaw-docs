@@ -533,7 +533,7 @@ All error responses return a plain text body with the error message and the corr
 | `id` | `TEXT` / `TEXT` | Primary key; typically UUID v4 strings (bootstrap admin may use a custom ID) |
 | `email` | `TEXT UNIQUE` | Nullable |
 | `display_name` | `TEXT NOT NULL` | |
-| `status` | `TEXT NOT NULL` | `"active"` or `"suspended"` |
+| `status` | `TEXT NOT NULL` | `"active"`, `"suspended"`, or `"deactivated"` |
 | `role` | `TEXT NOT NULL` | `"admin"` or `"member"` |
 | `created_at` | `TIMESTAMPTZ` / `TEXT` | |
 | `updated_at` | `TIMESTAMPTZ` / `TEXT` | |
@@ -570,3 +570,52 @@ All error responses return a plain text body with the error message and the corr
 | `usage_count` | `BIGINT` / `INTEGER` | Audit: total injections |
 | `created_at` | `TIMESTAMPTZ` / `TEXT` | |
 | `updated_at` | `TIMESTAMPTZ` / `TEXT` | |
+
+### `user_identities` Table (v0.25.0, PR #1798)
+
+Stores OAuth/social login linkages — one row per provider per user.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID | Primary key |
+| `user_id` | String | FK → `users.id` |
+| `provider` | String | `google`, `github`, `apple`, `near`, `email` |
+| `provider_user_id` | String | Subject identifier from the OAuth provider |
+| `email` | String? | Provider-supplied email (may be null) |
+| `email_verified` | bool | `true` if provider confirmed the email |
+| `display_name` | String? | Display name from provider profile |
+| `avatar_url` | String? | Avatar URL from provider profile |
+| `raw_profile` | JSON | Full raw provider profile (preserved for future use) |
+| `created_at` | DateTime | |
+| `updated_at` | DateTime | |
+
+Unique constraint: `(provider, provider_user_id)`.
+
+## `IdentityStore` Trait (v0.25.0, PR #1798)
+
+*Source: `src/db/mod.rs`*
+
+Manages OAuth provider linkages. `Database` supertraits this interface.
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `get_identity_by_provider` | `(provider, provider_user_id) -> Option<UserIdentityRecord>` | Look up a linked account by OAuth provider + subject |
+| `list_identities_for_user` | `(user_id) -> Vec<UserIdentityRecord>` | All linked providers for a given user |
+| `create_identity` | `(identity: &UserIdentityRecord) -> Result<()>` | Link a new OAuth provider to a user |
+| `update_identity_profile` | `(provider, provider_user_id, display_name, avatar_url) -> Result<()>` | Refresh display name / avatar on re-login |
+| `find_identity_by_verified_email` | `(email) -> Option<UserIdentityRecord>` | Automatic account linking via verified email |
+| `create_user_with_identity` | `(user: &UserRecord, identity: &UserIdentityRecord) -> Result<()>` | **Atomic** — wraps both inserts in a transaction; rolls back both on failure |
+
+> `create_user_with_identity` is the correct entry point for new OAuth sign-ups.
+> Do not call `create_user` + `create_identity` separately.
+
+## `UserStore` Trait — Selected Methods
+
+*Source: `src/db/mod.rs`*
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `delete_user` | `(user_id) -> Result<bool>` | Deletes user and all user-scoped data. Returns `false` if not found. |
+| `user_usage_stats` | `(user_id: Option, since) -> Result<Vec<UserUsageStats>>` | Per-user LLM spend and token counts. Pass `None` for all users. |
+| `user_summary_stats` | `(user_id: Option) -> Result<Vec<UserSummaryStats>>` | Lightweight admin list stats across all users. |
+| `migrate_default_owner` | `(new_user_id) -> Result<()>` | On `Database`. Rewrites legacy `user_id = 'default'` rows to the given user ID. Idempotent. |
