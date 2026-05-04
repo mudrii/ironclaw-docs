@@ -118,7 +118,12 @@ The bridge connects the engine to existing IronClaw infrastructure:
 
 Set `ENGINE_V2=true` environment variable. The router in `src/bridge/router.rs` intercepts messages and routes them through the engine instead of the v1 agent loop.
 
-For trace debugging set `IRONCLAW_RECORD_TRACE=1`. Engine v2 reuses the host crate's `RecordingLlm` (see `src/llm/recording.rs`) — the engine's `LlmBackend` is wired to the same provider chain, so LLM interactions are captured in the standard `trace_*.json` fixture file (configurable via `IRONCLAW_TRACE_OUTPUT`). There is no separate engine trace file.
+For trace debugging, set `IRONCLAW_RECORD_TRACE=/path/to/output.json` — the value is the output file path for the trace JSON. There is no separate `IRONCLAW_TRACE_OUTPUT` variable. Engine v2 reuses the host crate's `RecordingLlm` (see `src/llm/recording.rs`) — the engine's `LlmBackend` is wired to the same provider chain, so LLM interactions are captured in the specified file. There is no separate engine trace file.
+
+Example:
+```bash
+IRONCLAW_RECORD_TRACE=/tmp/my-session.json ironclaw run
+```
 
 ## Memory System
 
@@ -269,11 +274,12 @@ Mission
 
 ### Learning Missions (Built-in)
 
-Three missions are created automatically at project bootstrap via `ensure_learning_missions()`:
+Four missions are created automatically at project bootstrap via `ensure_learning_missions()`:
 
 | Mission | Trigger | Max/day | What it does |
 |---------|---------|---------|-------------|
 | `self-improvement` | Thread completes with trace issues | 5 | Diagnoses errors, applies prompt overlays or orchestrator patches |
+| `skill-repair` | Fires when a thread used an active skill and the trace suggests the skill was stale, incomplete, or wrongly ordered. Returns a versioned repair with rollback history. | 3/day |
 | `skill-extraction` | Thread succeeds with 5+ steps, 3+ tools | 3 | Extracts reusable skills with activation metadata + CodeAct snippets |
 | `conversation-insights` | Every 5 completed threads | 2 | Extracts user preferences, domain knowledge, workflow patterns |
 
